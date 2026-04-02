@@ -51,6 +51,59 @@ private def snocRoundTranscript (prefixLen : Nat)
   Spec.Transcript.replicateJoin (roundSpec R deg) (prefixLen + 1) fun j =>
     Fin.lastCases tr (fun i => Sumcheck.roundTranscript R deg prefixLen prefixTr i) j
 
+/-- Consume a replicated tail transcript against a current residual polynomial,
+threading the residual forward round by round until only the final `0`-variate
+residual remains. This is the private witness produced by the stateful prover
+after replaying the tail. -/
+private def consumeResidual :
+    (remaining : Nat) →
+    Sumcheck.PolyStmt R deg remaining →
+    Spec.Transcript (Sumcheck.fullSpec R deg remaining) →
+    Sumcheck.PolyStmt R deg 0
+  | 0, residual, _ => by
+      simpa [Sumcheck.fullSpec] using residual
+  | remaining + 1, residual, tr => by
+      let split := Spec.Transcript.replicateUncons (roundSpec R deg) remaining tr
+      exact
+        consumeResidual remaining
+          (stepResidual (R := R) (deg := deg)
+            (Sumcheck.roundChallenge R deg split.1) residual)
+          split.2
+termination_by remaining residual tr => remaining
+decreasing_by simp_wf
+
+@[simp]
+private theorem consumeResidual_replicateCons
+    (remaining : Nat)
+    (residual : Sumcheck.PolyStmt R deg (remaining + 1))
+    (tr₁ : Spec.Transcript (roundSpec R deg))
+    (tr₂ : Spec.Transcript (Sumcheck.fullSpec R deg remaining)) :
+    consumeResidual (R := R) (deg := deg) (remaining + 1) residual
+      (Spec.Transcript.replicateCons (roundSpec R deg) remaining tr₁ tr₂) =
+      consumeResidual (R := R) (deg := deg) remaining
+        (stepResidual (R := R) (deg := deg)
+          (Sumcheck.roundChallenge R deg tr₁) residual)
+        tr₂ := by
+  simp [consumeResidual, Spec.Transcript.replicateCons, Spec.Transcript.replicateUncons,
+    Spec.Transcript.split_append]
+
+/-- The active residual polynomial after fixing the `prefixLen` verifier
+challenges already present in `prefixTr`. The equality `prefixLen + remaining = n`
+lets us view this as a polynomial in exactly `remaining` variables. -/
+private def residualAtPrefix
+    (n remaining prefixLen : Nat)
+    (h : prefixLen + remaining = n)
+    (prefixTr : Spec.Transcript (Sumcheck.fullSpec R deg prefixLen))
+    (poly : Sumcheck.PolyStmt R deg n) :
+    Sumcheck.PolyStmt R deg remaining := by
+  have hle : prefixLen ≤ n := by omega
+  have hk : n - prefixLen = remaining := by omega
+  simpa [hk] using
+    currentResidual (R := R) (deg := deg) (n := n) (prefixLen := prefixLen)
+      hle
+      (Sumcheck.challengePrefix R deg prefixLen prefixTr)
+      poly
+
 /-- Tail continuation for the remaining `remaining` rounds after a fixed prefix
 transcript of length `prefixLen`. The original polynomial oracle remains
 unchanged throughout. -/

@@ -23,18 +23,18 @@ def Simulates
     {StatementIn : Type _} {ιₛᵢ : StatementIn → Type _}
     {OStmtIn : (s : StatementIn) → ιₛᵢ s → Type _}
     [∀ s i, OracleInterface (OStmtIn s i)]
-    {WitnessIn : Type _}
     {Context : StatementIn → Spec}
     {Roles : (s : StatementIn) → RoleDecoration (Context s)}
     {OD : (s : StatementIn) → OracleDecoration (Context s) (Roles s)}
+    {LocalStmt WitnessIn : StatementIn → Type _}
     {StatementOut : (s : StatementIn) → Spec.Transcript (Context s) → Type _}
     {ιₛₒ : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → Type _}
     {OStmtOut :
       (s : StatementIn) → (tr : Spec.Transcript (Context s)) → ιₛₒ s tr → Type _}
     [∀ s tr i, OracleInterface (OStmtOut s tr i)]
     {WitnessOut : (s : StatementIn) → Spec.Transcript (Context s) → Type _}
-    (reduction : OracleReduction oSpec StatementIn OStmtIn WitnessIn
-      Context Roles OD StatementOut OStmtOut WitnessOut)
+    (reduction : OracleReduction oSpec StatementIn OStmtIn
+      Context Roles OD LocalStmt WitnessIn StatementOut OStmtOut WitnessOut)
     (s : StatementIn) (oStmtIn : OracleStatement (OStmtIn s)) (tr : Spec.Transcript (Context s))
     (oStmtOut : OracleStatement (OStmtOut s tr)) : Prop :=
   ∀ i (q : OracleInterface.Query (OStmtOut s tr i)),
@@ -47,18 +47,18 @@ structure Reification
     {StatementIn : Type _} {ιₛᵢ : StatementIn → Type _}
     {OStmtIn : (s : StatementIn) → ιₛᵢ s → Type _}
     [∀ s i, OracleInterface (OStmtIn s i)]
-    {WitnessIn : Type _}
     {Context : StatementIn → Spec}
     {Roles : (s : StatementIn) → RoleDecoration (Context s)}
     {OD : (s : StatementIn) → OracleDecoration (Context s) (Roles s)}
+    {LocalStmt WitnessIn : StatementIn → Type _}
     {StatementOut : (s : StatementIn) → Spec.Transcript (Context s) → Type _}
     {ιₛₒ : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → Type _}
     {OStmtOut :
       (s : StatementIn) → (tr : Spec.Transcript (Context s)) → ιₛₒ s tr → Type _}
     [∀ s tr i, OracleInterface (OStmtOut s tr i)]
     {WitnessOut : (s : StatementIn) → Spec.Transcript (Context s) → Type _}
-    (reduction : OracleReduction oSpec StatementIn OStmtIn WitnessIn
-      Context Roles OD StatementOut OStmtOut WitnessOut) where
+    (reduction : OracleReduction oSpec StatementIn OStmtIn
+      Context Roles OD LocalStmt WitnessIn StatementOut OStmtOut WitnessOut) where
   reify : (s : StatementIn) → OracleStatement (OStmtIn s) →
     (tr : Spec.Transcript (Context s)) → Option (OracleStatement (OStmtOut s tr))
   correct : ∀ (s : StatementIn) (oStmtIn : OracleStatement (OStmtIn s))
@@ -74,7 +74,7 @@ abbrev Output
     {ιₛₒ : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → Type _}
     (OStmtOut : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → ιₛₒ s tr → Type _)
     (s : StatementIn) (tr : Spec.Transcript (Context s)) :=
-  StatementWithOracles (StatementOut s tr) (fun _ => OStmtOut s tr)
+  StatementWithOracles (fun _ => StatementOut s tr) (fun _ => OStmtOut s tr) s
 
 /-- Package a plain output statement together with reified output-oracle data. -/
 def output
@@ -82,18 +82,18 @@ def output
     {StatementIn : Type _} {ιₛᵢ : StatementIn → Type _}
     {OStmtIn : (s : StatementIn) → ιₛᵢ s → Type _}
     [∀ s i, OracleInterface (OStmtIn s i)]
-    {WitnessIn : Type _}
     {Context : StatementIn → Spec}
     {Roles : (s : StatementIn) → RoleDecoration (Context s)}
     {OD : (s : StatementIn) → OracleDecoration (Context s) (Roles s)}
+    {LocalStmt WitnessIn : StatementIn → Type _}
     {StatementOut : (s : StatementIn) → Spec.Transcript (Context s) → Type _}
     {ιₛₒ : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → Type _}
     {OStmtOut :
       (s : StatementIn) → (tr : Spec.Transcript (Context s)) → ιₛₒ s tr → Type _}
     [∀ s tr i, OracleInterface (OStmtOut s tr i)]
     {WitnessOut : (s : StatementIn) → Spec.Transcript (Context s) → Type _}
-    {reduction : OracleReduction oSpec StatementIn OStmtIn WitnessIn
-      Context Roles OD StatementOut OStmtOut WitnessOut}
+    {reduction : OracleReduction oSpec StatementIn OStmtIn
+      Context Roles OD LocalStmt WitnessIn StatementOut OStmtOut WitnessOut}
     (reification : OracleReduction.Reification reduction)
     (s : StatementIn) (oStmtIn : OracleStatement (OStmtIn s))
     (tr : Spec.Transcript (Context s)) (stmtOut : StatementOut s tr) :
@@ -116,11 +116,13 @@ def Simulates
     [∀ s i, OracleInterface (OStmtIn s i)]
     {Context : StmtIn → Spec} {Roles : (s : StmtIn) → RoleDecoration (Context s)}
     {OD : (s : StmtIn) → OracleDecoration (Context s) (Roles s)}
+    {LocalStmt : StmtIn → Type _}
     {StmtOut : (s : StmtIn) → Spec.Transcript (Context s) → Type _}
     {ιₛₒ : (s : StmtIn) → (tr : Spec.Transcript (Context s)) → Type _}
     {OStmtOut : (s : StmtIn) → (tr : Spec.Transcript (Context s)) → ιₛₒ s tr → Type _}
     [∀ s tr i, OracleInterface (OStmtOut s tr i)]
-    (verifier : Interaction.OracleVerifier oSpec StmtIn OStmtIn Context Roles OD StmtOut OStmtOut)
+    (verifier : Interaction.OracleVerifier oSpec StmtIn OStmtIn
+      Context Roles OD LocalStmt StmtOut OStmtOut)
     (s : StmtIn) (oStmtIn : OracleStatement (OStmtIn s)) (tr : Spec.Transcript (Context s))
     (oStmtOut : OracleStatement (OStmtOut s tr)) : Prop :=
   ∀ i (q : OracleInterface.Query (OStmtOut s tr i)),
@@ -135,11 +137,13 @@ structure Reification
     [∀ s i, OracleInterface (OStmtIn s i)]
     {Context : StmtIn → Spec} {Roles : (s : StmtIn) → RoleDecoration (Context s)}
     {OD : (s : StmtIn) → OracleDecoration (Context s) (Roles s)}
+    {LocalStmt : StmtIn → Type _}
     {StmtOut : (s : StmtIn) → Spec.Transcript (Context s) → Type _}
     {ιₛₒ : (s : StmtIn) → (tr : Spec.Transcript (Context s)) → Type _}
     {OStmtOut : (s : StmtIn) → (tr : Spec.Transcript (Context s)) → ιₛₒ s tr → Type _}
     [∀ s tr i, OracleInterface (OStmtOut s tr i)]
-    (verifier : Interaction.OracleVerifier oSpec StmtIn OStmtIn Context Roles OD StmtOut OStmtOut) where
+    (verifier : Interaction.OracleVerifier oSpec StmtIn OStmtIn
+      Context Roles OD LocalStmt StmtOut OStmtOut) where
   reify : (s : StmtIn) → OracleStatement (OStmtIn s) →
     (tr : Spec.Transcript (Context s)) → Option (OracleStatement (OStmtOut s tr))
   correct : ∀ (s : StmtIn) (oStmtIn : OracleStatement (OStmtIn s))
@@ -154,7 +158,7 @@ abbrev Output
     {ιₛₒ : (s : StmtIn) → (tr : Spec.Transcript (Context s)) → Type _}
     (OStmtOut : (s : StmtIn) → (tr : Spec.Transcript (Context s)) → ιₛₒ s tr → Type _)
     (s : StmtIn) (tr : Spec.Transcript (Context s)) :=
-  StatementWithOracles (StmtOut s tr) (fun _ => OStmtOut s tr)
+  StatementWithOracles (fun _ => StmtOut s tr) (fun _ => OStmtOut s tr) s
 
 /-- Package a plain output statement together with reified oracle data. -/
 def output
@@ -163,11 +167,13 @@ def output
     [∀ s i, OracleInterface (OStmtIn s i)]
     {Context : StmtIn → Spec} {Roles : (s : StmtIn) → RoleDecoration (Context s)}
     {OD : (s : StmtIn) → OracleDecoration (Context s) (Roles s)}
+    {LocalStmt : StmtIn → Type _}
     {StmtOut : (s : StmtIn) → Spec.Transcript (Context s) → Type _}
     {ιₛₒ : (s : StmtIn) → (tr : Spec.Transcript (Context s)) → Type _}
     {OStmtOut : (s : StmtIn) → (tr : Spec.Transcript (Context s)) → ιₛₒ s tr → Type _}
     [∀ s tr i, OracleInterface (OStmtOut s tr i)]
-    {verifier : Interaction.OracleVerifier oSpec StmtIn OStmtIn Context Roles OD StmtOut OStmtOut}
+    {verifier : Interaction.OracleVerifier oSpec StmtIn OStmtIn
+      Context Roles OD LocalStmt StmtOut OStmtOut}
     (reification : OracleVerifier.Reification verifier)
     (s : StmtIn) (oStmtIn : OracleStatement (OStmtIn s)) (tr : Spec.Transcript (Context s))
     (stmtOut : StmtOut s tr) :

@@ -51,7 +51,7 @@ def OracleReduction.stateChainComp {ι : Type} {oSpec : OracleSpec ι}
     {StatementIn : Type} {ιₛᵢ : StatementIn → Type}
     {OStmtIn : (s : StatementIn) → ιₛᵢ s → Type}
     [∀ s i, OracleInterface (OStmtIn s i)]
-    {WitnessIn : Type}
+    {WitnessIn : StatementIn → Type}
     {Stage : Nat → Type}
     {spec : (i : Nat) → Stage i → Spec}
     {advance : (i : Nat) → (s : Stage i) → Spec.Transcript (spec i s) → Stage (i + 1)}
@@ -67,17 +67,22 @@ def OracleReduction.stateChainComp {ι : Type} {oSpec : OracleSpec ι}
       (tr : Spec.Transcript (Spec.stateChain Stage spec advance n 0 (initStage s))) →
       ιₛₒ s tr → Type}
     [∀ s tr i, OracleInterface (OStmtOut s tr i)]
-    (proverInit : (s : StatementWithOracles StatementIn OStmtIn) → WitnessIn →
-      OracleComp oSpec (ProverState 0 (initStage s.stmt)))
+    (proverInit :
+      (s : StatementIn) →
+      StatementWithOracles (fun _ => PUnit) OStmtIn s →
+      WitnessIn s →
+      OracleComp oSpec (ProverState 0 (initStage s)))
     (proverStep : (i : Nat) → (st : Stage i) → ProverState i st →
       OracleComp oSpec (Spec.Strategy.withRoles (OracleComp oSpec) (spec i st) (roles i st)
         (fun tr => ProverState (i + 1) (advance i st tr))))
     (stmtResult : (s : StatementIn) →
       (tr : Spec.Transcript (Spec.stateChain Stage spec advance n 0 (initStage s))) →
       Spec.Transcript.stateChainFamily VerifierState n 0 (initStage s) tr)
-    (proverOStmtResult : (s : StatementWithOracles StatementIn OStmtIn) →
-      (tr : Spec.Transcript (Spec.stateChain Stage spec advance n 0 (initStage s.stmt))) →
-      OracleStatement (OStmtOut s.stmt tr))
+    (proverOStmtResult :
+      (s : StatementIn) →
+      StatementWithOracles (fun _ => PUnit) OStmtIn s →
+      (tr : Spec.Transcript (Spec.stateChain Stage spec advance n 0 (initStage s))) →
+      OracleStatement (OStmtOut s tr))
     (verifierInit : (s : StatementIn) → VerifierState 0 (initStage s))
     (verifierStep : (s : StatementIn) → {ιₐ : Type} → (accSpec : OracleSpec ιₐ) →
       (i : Nat) → (st : Stage i) → VerifierState i st →
@@ -91,20 +96,22 @@ def OracleReduction.stateChainComp {ι : Type} {oSpec : OracleSpec ι}
           (Spec.stateChain Stage spec advance n 0 (initStage s))
           (Spec.Decoration.stateChain roles n 0 (initStage s))
           (Role.Refine.stateChain (fun i st => od i st) n 0 (initStage s)) tr))) :
-    OracleReduction oSpec StatementIn OStmtIn WitnessIn
+    OracleReduction oSpec StatementIn OStmtIn
       (fun s => Spec.stateChain Stage spec advance n 0 (initStage s))
       (fun s => Spec.Decoration.stateChain roles n 0 (initStage s))
       (fun s => Role.Refine.stateChain (fun i st => od i st) n 0 (initStage s))
+      (fun _ => PUnit)
+      WitnessIn
       (fun s => Spec.Transcript.stateChainFamily VerifierState n 0 (initStage s))
       OStmtOut
       (fun s => Spec.Transcript.stateChainFamily ProverState n 0 (initStage s)) where
-  prover sWithOracles w := do
-    let a ← proverInit sWithOracles w
-    let strat ← Spec.Strategy.stateChainCompWithRoles proverStep n 0 (initStage sWithOracles.stmt) a
+  prover s sWithOracles w := do
+    let a ← proverInit s sWithOracles w
+    let strat ← Spec.Strategy.stateChainCompWithRoles proverStep n 0 (initStage s) a
     pure <| Spec.Strategy.mapOutputWithRoles
-      (fun tr pOut => ⟨⟨stmtResult sWithOracles.stmt tr, proverOStmtResult sWithOracles tr⟩, pOut⟩)
+      (fun tr pOut => ⟨⟨stmtResult s tr, proverOStmtResult s sWithOracles tr⟩, pOut⟩)
       strat
-  verifier s {_} accSpec :=
+  verifier s {_} accSpec _ :=
     stateChainVerifier od accSpec (verifierStep s) n 0 (initStage s) (verifierInit s)
   simulate := simulateResult
 
@@ -139,7 +146,8 @@ def stateChainComp {ι : Type} {oSpec : OracleSpec ι}
     [∀ shared tr i, OracleInterface (OStmtOut shared tr i)]
     (proverInit :
       (shared : SharedIn) →
-      StatementWithOracles (StatementIn shared) (fun _ => OStmtIn shared) → WitnessIn shared →
+      StatementWithOracles StatementIn OStmtIn shared →
+      WitnessIn shared →
       OracleComp oSpec (ProverState shared 0 (initStage shared)))
     (proverStep : (shared : SharedIn) → (i : Nat) → (st : Stage i) →
       ProverState shared i st →
@@ -151,7 +159,7 @@ def stateChainComp {ι : Type} {oSpec : OracleSpec ι}
         n 0 (initStage shared) tr)
     (proverOStmtResult :
       (shared : SharedIn) →
-      (s : StatementWithOracles (StatementIn shared) (fun _ => OStmtIn shared)) →
+      (s : StatementWithOracles StatementIn OStmtIn shared) →
       (tr : Spec.Transcript (Spec.stateChain Stage spec advance n 0 (initStage shared))) →
       OracleStatement (OStmtOut shared tr))
     (verifierInit : (shared : SharedIn) → StatementIn shared →

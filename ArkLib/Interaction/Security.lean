@@ -87,14 +87,15 @@ def Reduction.completeness
     {Context : StatementIn → Spec}
     {Roles : (s : StatementIn) → RoleDecoration (Context s)}
     {StatementOut WitnessOut : (s : StatementIn) → Spec.Transcript (Context s) → Type u}
-    (reduction : Reduction m StatementIn WitnessIn Context Roles StatementOut WitnessOut)
+    (reduction : Reduction m StatementIn Context Roles (fun _ => PUnit)
+      (fun _ => WitnessIn) StatementOut WitnessOut)
     (relIn : Set (StatementIn × WitnessIn))
     (relOut : ∀ (s : StatementIn) (tr : Spec.Transcript (Context s)),
       StatementOut s tr → WitnessOut s tr → Prop)
     (ε : ℝ≥0∞) : Prop :=
   ∀ (s : StatementIn) (w : WitnessIn), (s, w) ∈ relIn →
     1 - ε ≤ Pr[fun z => z.2.1.stmt = z.2.2 ∧ relOut s z.1 z.2.2 z.2.1.wit |
-      reduction.execute s w]
+      reduction.execute s PUnit.unit w]
 
 /-- Perfect completeness: completeness with error `0`. -/
 def Reduction.perfectCompleteness
@@ -103,7 +104,8 @@ def Reduction.perfectCompleteness
     {Context : StatementIn → Spec}
     {Roles : (s : StatementIn) → RoleDecoration (Context s)}
     {StatementOut WitnessOut : (s : StatementIn) → Spec.Transcript (Context s) → Type u}
-    (reduction : Reduction m StatementIn WitnessIn Context Roles StatementOut WitnessOut)
+    (reduction : Reduction m StatementIn Context Roles (fun _ => PUnit)
+      (fun _ => WitnessIn) StatementOut WitnessOut)
     (relIn : Set (StatementIn × WitnessIn))
     (relOut : ∀ (s : StatementIn) (tr : Spec.Transcript (Context s)),
       StatementOut s tr → WitnessOut s tr → Prop) : Prop :=
@@ -164,7 +166,8 @@ theorem Reduction.completeness_comp
       StmtMid s tr₁ → WitMid s tr₁ → Prop}
     {relOut : ∀ (s : StatementIn) (tr₁ : Spec.Transcript (ctx₁ s))
       (tr₂ : Spec.Transcript (ctx₂ s tr₁)), StmtOut s tr₁ tr₂ → WitOut s tr₁ tr₂ → Prop}
-    (reduction1 : Reduction m StatementIn WitnessIn ctx₁ roles₁ StmtMid WitMid)
+    (reduction1 : Reduction m StatementIn ctx₁ roles₁ (fun _ => PUnit)
+      (fun _ => WitnessIn) StmtMid WitMid)
     (reduction2 : Reduction.Continuation m
       ((s : StatementIn) × Spec.Transcript (ctx₁ s))
       (fun shared => ctx₂ shared.1 shared.2)
@@ -187,7 +190,7 @@ theorem Reduction.completeness_comp
   intro s w hIn
   let mx : m ((tr₁ : Spec.Transcript (ctx₁ s)) ×
       HonestProverOutput (StmtMid s tr₁) (WitMid s tr₁) × StmtMid s tr₁) :=
-    reduction1.execute s w
+    reduction1.execute s PUnit.unit w
   let my :
       ((tr₁ : Spec.Transcript (ctx₁ s)) ×
         HonestProverOutput (StmtMid s tr₁) (WitMid s tr₁) × StmtMid s tr₁) →
@@ -306,7 +309,8 @@ theorem Reduction.completeness_comp
     have hmy :
         my ⟨tr₁, ⟨sMidP, wMid⟩, sMidP⟩ =
           packOut <$> reduction2.execute ⟨s, tr₁⟩ sMidP wMid := by
-      simp [my, packOut, Reduction.Continuation.execute]
+      simp [my, packOut, Reduction.execute, Reduction.Continuation.execute,
+        HonestProverOutput.stmt, HonestProverOutput.wit]
     simpa [hmy, hpack, probEvent_map] using h₂ ⟨s, tr₁⟩ sMidP wMid hRelMid
   have hmul :
       (1 - ε₁) * (1 - ε₂) ≤ Pr[goodOut | mx >>= my] := by
@@ -349,7 +353,7 @@ theorem Reduction.completeness_comp
       1 - (ε₁ + ε₂) ≤ Pr[goodOut | mx >>= my] :=
     le_trans hsub hmul
   have hexec :
-      (Reduction.comp reduction1 reduction2).execute s w = mx >>= my := by
+      (Reduction.comp reduction1 reduction2).execute s PUnit.unit w = mx >>= my := by
     simpa [mx, my] using Reduction.execute_comp reduction1 reduction2 s w
   simpa [Reduction.completeness, hexec] using hbind
 
@@ -370,7 +374,8 @@ theorem Reduction.perfectCompleteness_comp
       StmtMid s tr₁ → WitMid s tr₁ → Prop}
     {relOut : ∀ (s : StatementIn) (tr₁ : Spec.Transcript (ctx₁ s))
       (tr₂ : Spec.Transcript (ctx₂ s tr₁)), StmtOut s tr₁ tr₂ → WitOut s tr₁ tr₂ → Prop}
-    (reduction1 : Reduction m StatementIn WitnessIn ctx₁ roles₁ StmtMid WitMid)
+    (reduction1 : Reduction m StatementIn ctx₁ roles₁ (fun _ => PUnit)
+      (fun _ => WitnessIn) StmtMid WitMid)
     (reduction2 : Reduction.Continuation m
       ((s : StatementIn) × Spec.Transcript (ctx₁ s))
       (fun shared => ctx₂ shared.1 shared.2)
@@ -428,7 +433,7 @@ def soundness
     {Context : StatementIn → Spec}
     {Roles : (s : StatementIn) → RoleDecoration (Context s)}
     {StatementOut : (s : StatementIn) → Spec.Transcript (Context s) → Type u}
-    (verifier : Verifier m StatementIn Context Roles StatementOut)
+    (verifier : Verifier m StatementIn Context Roles (fun _ => PUnit) StatementOut)
     (langIn : Set StatementIn)
     (langOut : ∀ (s : StatementIn) (tr : Spec.Transcript (Context s)),
       Set (StatementOut s tr))
@@ -437,7 +442,7 @@ def soundness
   ∀ (prover : (s : StatementIn) → Spec.Strategy.withRoles m (Context s) (Roles s) (OutputP s)),
   ∀ (s : StatementIn), s ∉ langIn →
     Pr[fun z => z.2.2 ∈ langOut s z.1
-      | Verifier.run verifier s (prover s)] ≤ ε
+      | Verifier.run verifier s PUnit.unit (prover s)] ≤ ε
 
 /-- Soundness composes at the verifier level. -/
 theorem soundness_comp
@@ -456,7 +461,7 @@ theorem soundness_comp
       Set (StmtMid s tr₁)}
     {langOut : ∀ (s : StatementIn) (tr₁ : Spec.Transcript (ctx₁ s))
       (tr₂ : Spec.Transcript (ctx₂ s tr₁)), Set (StmtOut s tr₁ tr₂)}
-    (verifier1 : Verifier m StatementIn ctx₁ roles₁ StmtMid)
+    (verifier1 : Verifier m StatementIn ctx₁ roles₁ (fun _ => PUnit) StmtMid)
     (verifier2 : Verifier.Continuation m
       ((s : StatementIn) × Spec.Transcript (ctx₁ s))
       (fun shared => ctx₂ shared.1 shared.2)
@@ -470,10 +475,10 @@ theorem soundness_comp
       (fun shared tr₂ => langOut shared.1 shared.2 tr₂)
       ε₂) :
     Verifier.soundness
-      (fun s =>
-      Spec.Counterpart.append
-        (verifier1 s)
-        (fun tr₁ sMid => verifier2 ⟨s, tr₁⟩ sMid))
+      (fun s _ =>
+        Spec.Counterpart.append
+          (verifier1 s PUnit.unit)
+          (fun tr₁ sMid => verifier2 ⟨s, tr₁⟩ sMid))
       langIn
       (fun s tr =>
         {sOut | Spec.Transcript.liftAppendPred (ctx₁ s) (ctx₂ s) (StmtOut s)
@@ -492,7 +497,7 @@ theorem soundness_comp
         Spec.Strategy.withRoles m (ctx₂ s tr₁) (roles₂ s tr₁)
           (fun tr₂ => OutputP s (Spec.Transcript.append (ctx₁ s) (ctx₂ s) tr₁ tr₂)) ×
         StmtMid s tr₁) :=
-    Spec.Strategy.runWithRoles (ctx₁ s) (roles₁ s) (prefixProver s) (verifier1 s)
+    Spec.Strategy.runWithRoles (ctx₁ s) (roles₁ s) (prefixProver s) (verifier1 s PUnit.unit)
   let my :
       ((tr₁ : Spec.Transcript (ctx₁ s)) ×
         Spec.Strategy.withRoles m (ctx₂ s tr₁) (roles₂ s tr₁)
@@ -565,13 +570,18 @@ theorem soundness_comp
     simpa using
       (probEvent_bind_le_add (mx := mx) (my := my)
         (p := bad₁) (q := fun z => ¬ inLangOut z) h₁_bad h₂_bad)
+  let verifierAppend :
+      Verifier m StatementIn
+        (fun s => (ctx₁ s).append (ctx₂ s))
+        (fun s => (roles₁ s).append (roles₂ s))
+        (fun _ => PUnit)
+        (fun s => Spec.Transcript.liftAppend (ctx₁ s) (ctx₂ s) (StmtOut s)) :=
+    fun s _ =>
+      Spec.Counterpart.append
+        (verifier1 s PUnit.unit)
+        (fun tr₁ sMid => verifier2 ⟨s, tr₁⟩ sMid)
   have hrun :
-      Verifier.run
-          (fun s =>
-            Spec.Counterpart.append
-              (verifier1 s)
-              (fun tr₁ sMid => verifier2 ⟨s, tr₁⟩ sMid))
-          s (prover s) =
+      Verifier.run verifierAppend s PUnit.unit (prover s) =
         mx >>= my := by
     let mappedStep :
         (tr₁ : Spec.Transcript (ctx₁ s)) → StmtMid s tr₁ →
@@ -585,14 +595,11 @@ theorem soundness_comp
             Spec.Transcript.packAppend (ctx₁ s) (ctx₂ s) (StmtOut s) tr₁ tr₂ sOut)
           (verifier2 ⟨s, tr₁⟩ sMid)
     have hverifier :
-        (fun s =>
-          Spec.Counterpart.append
-            (verifier1 s)
-            (fun tr₁ sMid => verifier2 ⟨s, tr₁⟩ sMid)) s =
-        Spec.Counterpart.appendFlat (verifier1 s) mappedStep := by
-      simp only [mappedStep]
+        verifierAppend s PUnit.unit =
+        Spec.Counterpart.appendFlat (verifier1 s PUnit.unit) mappedStep := by
+      simp only [verifierAppend, mappedStep]
       exact Spec.Counterpart.append_eq_appendFlat_mapOutput
-        (verifier1 s) (fun tr₁ sMid => verifier2 ⟨s, tr₁⟩ sMid)
+        (verifier1 s PUnit.unit) (fun tr₁ sMid => verifier2 ⟨s, tr₁⟩ sMid)
     let myMapped :
         ((tr₁ : Spec.Transcript (ctx₁ s)) ×
           Spec.Strategy.withRoles m (ctx₂ s tr₁) (roles₂ s tr₁)
@@ -607,7 +614,7 @@ theorem soundness_comp
     have hrun' := Spec.Strategy.runWithRoles_compWithRolesFlat_appendFlat_pure
       (strat₁ := prefixProver s)
       (f := fun _ strat₂ => strat₂)
-      (cpt₁ := verifier1 s)
+      (cpt₁ := verifier1 s PUnit.unit)
       (cpt₂ := mappedStep)
     have hmap :
         myMapped = my := by
@@ -629,14 +636,9 @@ theorem soundness_comp
             (fP := fun _ outP => outP) (fC := packStmt) strat₂ (verifier2 ⟨s, tr₁⟩ sMid))
       simp [myMapped, my, hrunMap, packStmt]
     calc
-      Verifier.run
-          (fun s =>
-            Spec.Counterpart.append
-              (verifier1 s)
-              (fun tr₁ sMid => verifier2 ⟨s, tr₁⟩ sMid))
-          s (prover s) =
+      Verifier.run verifierAppend s PUnit.unit (prover s) =
           mx >>= myMapped := by
-        simpa [Verifier.run, hverifier, prefixProver, mx, myMapped,
+        simpa [verifierAppend, Verifier.run, hverifier, prefixProver, mx, myMapped,
           Spec.Strategy.compWithRolesFlat_splitPrefixWithRoles] using hrun'
       _ = mx >>= my := by
         refine congrArg (fun k => mx >>= k) hmap
@@ -646,8 +648,13 @@ theorem soundness_comp
     funext fun z => propext
       (Spec.Transcript.liftAppendPred_iff (ctx₁ s) (ctx₂ s) (StmtOut s)
         (fun tr₁ tr₂ sOut => sOut ∈ langOut s tr₁ tr₂) z.1 z.2.2).symm
-  rw [hconv] at hbind
-  simpa [Verifier.soundness, hrun] using hbind
+  have haccept :
+      Pr[fun z =>
+          Spec.Transcript.liftAppendPred (ctx₁ s) (ctx₂ s) (StmtOut s)
+            (fun tr₁ tr₂ sOut => sOut ∈ langOut s tr₁ tr₂) z.1 z.2.2
+        | Verifier.run verifierAppend s PUnit.unit (prover s)] ≤ ε₁ + ε₂ := by
+    simpa [hconv, hrun] using hbind
+  simpa [Verifier.soundness, verifierAppend] using haccept
 
 end Verifier
 
@@ -719,7 +726,7 @@ def knowledgeSoundness
     {Context : StatementIn → Spec}
     {Roles : (s : StatementIn) → RoleDecoration (Context s)}
     {StatementOut WitnessOut : (s : StatementIn) → Spec.Transcript (Context s) → Type u}
-    (verifier : Verifier m StatementIn Context Roles StatementOut)
+    (verifier : Verifier m StatementIn Context Roles (fun _ => PUnit) StatementOut)
     (relIn : Set (StatementIn × WitnessIn))
     (relOut : ∀ (s : StatementIn) (tr : Spec.Transcript (Context s)),
       Set (StatementOut s tr × WitnessOut s tr))
@@ -731,7 +738,7 @@ def knowledgeSoundness
     Pr[fun z =>
       (z.2.2, z.2.1) ∈ relOut s z.1 ∧
       (s, extractor s z.1 z.2.2 z.2.1) ∉ relIn
-      | Verifier.run verifier s (prover s)] ≤ ε
+      | Verifier.run verifier s PUnit.unit (prover s)] ≤ ε
 
 namespace Continuation
 
@@ -839,7 +846,7 @@ theorem knowledgeSoundness_implies_soundness
     {Context : StatementIn → Spec}
     {Roles : (s : StatementIn) → RoleDecoration (Context s)}
     {StatementOut WitnessOut : (s : StatementIn) → Spec.Transcript (Context s) → Type u}
-    {verifier : Verifier m StatementIn Context Roles StatementOut}
+    {verifier : Verifier m StatementIn Context Roles (fun _ => PUnit) StatementOut}
     {relIn : Set (StatementIn × WitnessIn)}
     {relOut : ∀ (s : StatementIn) (tr : Spec.Transcript (Context s)),
       Set (StatementOut s tr × WitnessOut s tr)}
@@ -860,23 +867,24 @@ theorem knowledgeSoundness_implies_soundness
       Spec.Strategy.withRoles m (Context s) (Roles s) (WitnessOut s) :=
     fun s => Spec.Strategy.mapOutputWithRoles (fun tr _ => acceptWitness s tr) (prover s)
   have hrun :
-      Verifier.run verifier s (proverKS s) =
-        (fun z => ⟨z.1, acceptWitness s z.1, z.2.2⟩) <$> Verifier.run verifier s (prover s) := by
+      Verifier.run verifier s PUnit.unit (proverKS s) =
+        (fun z => ⟨z.1, acceptWitness s z.1, z.2.2⟩) <$>
+          Verifier.run verifier s PUnit.unit (prover s) := by
     simpa [Verifier.run, proverKS, Spec.Counterpart.mapOutput_id] using
       (Spec.Strategy.runWithRoles_mapOutputWithRoles_mapOutput
         (fP := fun tr (_ : OutputP s tr) => acceptWitness s tr)
         (fC := fun _ sOut => sOut)
-        (prover s) (verifier s))
+        (prover s) (verifier s PUnit.unit))
   let badFromAccept :
       ((tr : Spec.Transcript (Context s)) × OutputP s tr × StatementOut s tr) → Prop :=
     fun z =>
       (z.2.2, acceptWitness s z.1) ∈ relOut s z.1 ∧
       (s, extractor s z.1 z.2.2 (acceptWitness s z.1)) ∉ relIn
-  have hKS' : Pr[badFromAccept | Verifier.run verifier s (prover s)] ≤ ε := by
+  have hKS' : Pr[badFromAccept | Verifier.run verifier s PUnit.unit (prover s)] ≤ ε := by
     simpa [badFromAccept, hrun, probEvent_map] using hKS proverKS s
   have hmono :
-      Pr[fun z => z.2.2 ∈ langOut s z.1 | Verifier.run verifier s (prover s)] ≤
-        Pr[badFromAccept | Verifier.run verifier s (prover s)] := by
+      Pr[fun z => z.2.2 ∈ langOut s z.1 | Verifier.run verifier s PUnit.unit (prover s)] ≤
+        Pr[badFromAccept | Verifier.run verifier s PUnit.unit (prover s)] := by
     apply probEvent_mono
     intro z _ hz
     exact ⟨hLangOut s z.1 z.2.2 hz, hLang s hs (extractor s z.1 z.2.2 (acceptWitness s z.1))⟩
@@ -1472,7 +1480,7 @@ theorem rbrKnowledgeSoundness_implies_knowledgeSoundness
       sample relIn relOut ε)
     {εMax : ℝ≥0∞} (hε : ∀ s, ε s ≤ εMax) :
     Verifier.knowledgeSoundness
-      (fun _ : StatementIn => randomChallenger sample pSpec roles)
+      (fun _ _ => randomChallenger sample pSpec roles)
       relIn relOut εMax := by
   rcases h with ⟨Claim, tree, root, extract, hSound, hErr, hRoot, hTerm⟩
   refine ⟨{ toFun := fun s _ _ _ => extract s (root s) }, ?_⟩

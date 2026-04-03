@@ -651,27 +651,30 @@ def pullback
       Boundary.OracleContext toContext
         OuterOStmtIn InnerOStmtIn InnerOStmtOut OuterOStmtOut)
     (reduction :
-      OracleReduction oSpec InnerStmtIn InnerOStmtIn InnerWitIn
-        InnerSpec InnerRoles InnerOD InnerStmtOut InnerOStmtOut InnerWitOut) :
+      OracleReduction oSpec InnerStmtIn InnerOStmtIn
+        InnerSpec InnerRoles InnerOD
+        (fun _ => PUnit)
+        (fun _ => InnerWitIn)
+        InnerStmtOut InnerOStmtOut InnerWitOut) :
     OracleReduction oSpec
       OuterStmtIn
       OuterOStmtIn
-      OuterWitIn
       (fun outer => InnerSpec (toContext.stmt.proj outer))
       (fun outer => InnerRoles (toContext.stmt.proj outer))
       (fun outer => InnerOD (toContext.stmt.proj outer))
+      (fun _ => PUnit)
+      (fun _ => OuterWitIn)
       OuterStmtOut
       (fun outer tr => OuterOStmtOut outer tr)
       OuterWitOut where
-  prover sWithOracles outerWit := do
-    let outerStmt := sWithOracles.stmt
+  prover outerStmt sWithOracles outerWit := do
     let outerOStmtIn := sWithOracles.oracleStmt
     let innerStmt := toContext.stmt.proj outerStmt
     let innerOStmtIn :=
       (boundary.reification outerStmt).materializeIn outerStmt outerOStmtIn
     let innerWit :=
       toContext.wit.proj outerStmt outerWit
-    let strat ← reduction.prover ⟨innerStmt, innerOStmtIn⟩ innerWit
+    let strat ← reduction.prover innerStmt ⟨PUnit.unit, innerOStmtIn⟩ innerWit
     pure <| Spec.Strategy.mapOutputWithRoles
       (fun tr out =>
         let innerStmtOut := out.stmt.stmt
@@ -693,11 +696,14 @@ def pullback
             out.wit
         ⟨⟨outerStmtOut, outerOStmtOut⟩, outerWitOut⟩)
       strat
-  verifier :=
+  verifier outerStmt {_} accSpec _ :=
     OracleReduction.pullbackVerifier
       toContext.stmt
       boundary.access
-      reduction.verifier
+      (fun innerStmt {_} accSpec =>
+        reduction.verifier innerStmt accSpec PUnit.unit)
+      outerStmt
+      accSpec
   simulate outerStmt tr :=
     Boundary.OracleStatementAccess.pullbackSimulate
       (access := boundary.access outerStmt)

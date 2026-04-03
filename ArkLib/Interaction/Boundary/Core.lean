@@ -444,15 +444,16 @@ def pullback {m : Type _ → Type _} [Functor m]
       (outer : OuterStmtIn) →
         Spec.Transcript (InnerSpec (projection.proj outer)) → Type}
     (boundary : Statement projection InnerStmtOut OuterStmtOut)
-    (verifier : Verifier m InnerStmtIn InnerSpec InnerRoles InnerStmtOut) :
+    (verifier : Verifier m InnerStmtIn InnerSpec InnerRoles (fun _ => PUnit) InnerStmtOut) :
     Verifier m OuterStmtIn
       (StatementProjection.spec projection)
       (fun outer => InnerRoles (projection.proj outer))
+      (fun _ => PUnit)
       OuterStmtOut :=
-  fun outer =>
+  fun outer _ =>
     Spec.Counterpart.mapOutput
       (fun tr stmtOut => boundary.lift outer tr stmtOut)
-      (verifier (projection.proj outer))
+      (verifier (projection.proj outer) PUnit.unit)
 
 end Verifier
 
@@ -479,16 +480,18 @@ def pullback {m : Type _ → Type _} [Monad m]
       OuterWitIn InnerWitIn
       InnerStmtOut OuterStmtOut
       InnerWitOut OuterWitOut)
-    (prover : Prover m InnerStmtIn InnerWitIn
-      InnerSpec InnerRoles InnerStmtOut InnerWitOut) :
-    Prover m OuterStmtIn OuterWitIn
+    (prover : Prover m InnerStmtIn InnerSpec InnerRoles
+      (fun _ => PUnit) (fun _ => InnerWitIn) InnerStmtOut InnerWitOut) :
+    Prover m OuterStmtIn
       (StatementProjection.spec projection)
       (fun outer => InnerRoles (projection.proj outer))
+      (fun _ => PUnit) (fun _ => OuterWitIn)
       OuterStmtOut
       OuterWitOut :=
-  fun outerStmt outerWit => do
+  fun outerStmt _ outerWit => do
     let strat ← prover
       (projection.proj outerStmt)
+      PUnit.unit
       (boundary.wit.proj outerStmt outerWit)
     pure <| Spec.Strategy.mapOutputWithRoles
       (fun tr out =>
@@ -520,11 +523,12 @@ def pullback {m : Type _ → Type _} [Monad m] [Functor m]
       OuterWitIn InnerWitIn
       InnerStmtOut OuterStmtOut
       InnerWitOut OuterWitOut)
-    (reduction : Reduction m InnerStmtIn InnerWitIn
-      InnerSpec InnerRoles InnerStmtOut InnerWitOut) :
-    Reduction m OuterStmtIn OuterWitIn
+    (reduction : Reduction m InnerStmtIn InnerSpec InnerRoles
+      (fun _ => PUnit) (fun _ => InnerWitIn) InnerStmtOut InnerWitOut) :
+    Reduction m OuterStmtIn
       (StatementProjection.spec projection)
       (fun outer => InnerRoles (projection.proj outer))
+      (fun _ => PUnit) (fun _ => OuterWitIn)
       OuterStmtOut
       OuterWitOut where
   prover := Prover.pullback boundary reduction.prover

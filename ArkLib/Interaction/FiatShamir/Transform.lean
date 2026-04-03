@@ -126,13 +126,15 @@ def fsWitnessOut
 /-- The FS prover: given `(s, rho)` and witness, runs the original prover's
 strategy against the replay oracle to produce a `MessagesOnly` proof. -/
 def Prover.fiatShamir
-    (P : Prover m StatementIn WitnessIn Context Roles StatementOut WitnessOut) :
-    Prover m (FSStatement StatementIn Context Roles) WitnessIn
+    (P : Prover m StatementIn Context Roles
+      (fun _ => PUnit) (fun _ => WitnessIn) StatementOut WitnessOut) :
+    Prover m (FSStatement StatementIn Context Roles)
       (fsContext Context Roles) (fsRoles Context Roles)
+      (fun _ => PUnit) (fun _ => WitnessIn)
       (fsStatementOut Context Roles StatementOut)
       (fsWitnessOut Context Roles WitnessOut) :=
-  fun ⟨s, rho⟩ wit => do
-    let strategy ← P s wit
+  fun ⟨s, rho⟩ _ wit => do
+    let strategy ← P s PUnit.unit wit
     let ⟨msgs, out⟩ ←
       Strategy.runWithReplayOracle (Context s) (Roles s) rho strategy
     pure <| pure ⟨msgs, out⟩
@@ -144,11 +146,13 @@ interactive transcript using the replay oracle bundled in the statement, and
 then replays that transcript through the original public-coin verifier inside
 the verifier monad. -/
 def PublicCoinVerifier.fiatShamir
-    (V : PublicCoinVerifier m StatementIn Context Roles StatementOut) :
+    (V : PublicCoinVerifier m StatementIn Context Roles
+      (fun _ => PUnit) StatementOut) :
     Verifier m (FSStatement StatementIn Context Roles) (fsContext Context Roles)
-      (fsRoles Context Roles) (fsStatementOut Context Roles StatementOut) :=
-  fun ⟨s, rho⟩ msgs =>
-    V.replay s (MessagesOnly.deriveTranscript (Context s) (Roles s) rho msgs)
+      (fsRoles Context Roles) (fun _ => PUnit)
+      (fsStatementOut Context Roles StatementOut) :=
+  fun ⟨s, rho⟩ _ msgs =>
+    V.replay s PUnit.unit (MessagesOnly.deriveTranscript (Context s) (Roles s) rho msgs)
 
 /-- Package the basic Fiat-Shamir transform of a public-coin reduction.
 
@@ -156,9 +160,11 @@ The prover is run against the replay oracle to produce a messages-only proof,
 and the verifier replays the reconstructed transcript through the original
 public-coin verifier monadically. -/
 def PublicCoinReduction.fiatShamir
-    (R : PublicCoinReduction m StatementIn WitnessIn Context Roles StatementOut WitnessOut) :
-    Reduction m (FSStatement StatementIn Context Roles) WitnessIn
+    (R : PublicCoinReduction m StatementIn Context Roles
+      (fun _ => PUnit) (fun _ => WitnessIn) StatementOut WitnessOut) :
+    Reduction m (FSStatement StatementIn Context Roles)
       (fsContext Context Roles) (fsRoles Context Roles)
+      (fun _ => PUnit) (fun _ => WitnessIn)
       (fsStatementOut Context Roles StatementOut)
       (fsWitnessOut Context Roles WitnessOut) where
   prover := Prover.fiatShamir R.prover

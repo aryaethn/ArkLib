@@ -1341,21 +1341,21 @@ def pullback
     (verifier :
       Interaction.OracleVerifier oSpec
         InnerStmtIn InnerOStmtIn InnerSpec InnerRoles InnerOD
-        InnerStmtOut InnerOStmtOut) :
+        (fun _ => PUnit) InnerStmtOut InnerOStmtOut) :
     Interaction.OracleVerifier oSpec
       OuterStmtIn OuterOStmtIn
       (fun outer => InnerSpec (stmt.proj outer))
       (fun outer => InnerRoles (stmt.proj outer))
       (fun outer => InnerOD (stmt.proj outer))
-      OuterStmtOut OuterOStmtOut where
-  toFun outer {_} accSpec :=
+      (fun _ => PUnit) OuterStmtOut OuterOStmtOut where
+  toFun outer {_} accSpec _ :=
     Boundary.pullbackCounterpart (access outer).simulateIn
       (InnerSpec (stmt.proj outer))
       (InnerRoles (stmt.proj outer))
       (InnerOD (stmt.proj outer))
       (fun tr stmtOut => stmt.lift outer tr stmtOut)
       accSpec
-      (verifier (stmt.proj outer) accSpec)
+      (verifier (stmt.proj outer) accSpec PUnit.unit)
   simulate outerStmt tr :=
     Boundary.OracleStatementAccess.pullbackSimulate
       (access := access outerStmt)

@@ -217,33 +217,34 @@ package the resulting plain verifier output with transcript-dependent oracle
 access semantics. -/
 def run
     {ι : Type} {oSpec : OracleSpec ι}
-    {StatementIn : Type} {ιₛᵢ : StatementIn → Type}
-    {OStmtIn : (s : StatementIn) → ιₛᵢ s → Type}
-    [∀ s i, OracleInterface (OStmtIn s i)]
-    {WitnessIn : Type}
-    {Context : StatementIn → Spec}
-    {Roles : (s : StatementIn) → RoleDecoration (Context s)}
-    {OD : (s : StatementIn) → OracleDecoration (Context s) (Roles s)}
-    {StatementOut : (s : StatementIn) → Spec.Transcript (Context s) → Type}
-    {ιₛₒ : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → Type}
-    {OStmtOut : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → ιₛₒ s tr → Type}
-    [∀ s tr i, OracleInterface (OStmtOut s tr i)]
-    {WitnessOut : (s : StatementIn) → Spec.Transcript (Context s) → Type}
-    (reduction : OracleReduction oSpec StatementIn OStmtIn WitnessIn
-      Context Roles OD StatementOut OStmtOut WitnessOut)
-    (s : StatementWithOracles StatementIn OStmtIn)
-    {OutputP : Spec.Transcript (Context s.stmt) → Type}
-    (prover : Spec.Strategy.withRoles (OracleComp oSpec) (Context s.stmt) (Roles s.stmt) OutputP) :
-    OracleComp oSpec ((tr : Spec.Transcript (Context s.stmt)) × OutputP tr ×
-      (StatementOut s.stmt tr × QueryImpl [OStmtOut s.stmt tr]ₒ
+    {Input : Type} {ιₛᵢ : Input → Type}
+    {OStmtIn : (i : Input) → ιₛᵢ i → Type}
+    [∀ i j, OracleInterface (OStmtIn i j)]
+    {Context : Input → Spec}
+    {Roles : (i : Input) → RoleDecoration (Context i)}
+    {OD : (i : Input) → OracleDecoration (Context i) (Roles i)}
+    {LocalStmt WitnessIn : Input → Type}
+    {StatementOut : (i : Input) → Spec.Transcript (Context i) → Type}
+    {ιₛₒ : (i : Input) → (tr : Spec.Transcript (Context i)) → Type}
+    {OStmtOut : (i : Input) → (tr : Spec.Transcript (Context i)) → ιₛₒ i tr → Type}
+    [∀ i tr j, OracleInterface (OStmtOut i tr j)]
+    {WitnessOut : (i : Input) → Spec.Transcript (Context i) → Type}
+    (reduction : OracleReduction oSpec Input OStmtIn Context Roles OD LocalStmt WitnessIn
+      StatementOut OStmtOut WitnessOut)
+    (i : Input)
+    (s : StatementWithOracles LocalStmt OStmtIn i)
+    {OutputP : Spec.Transcript (Context i) → Type}
+    (prover : Spec.Strategy.withRoles (OracleComp oSpec) (Context i) (Roles i) OutputP) :
+    OracleComp oSpec ((tr : Spec.Transcript (Context i)) × OutputP tr ×
+      (StatementOut i tr × QueryImpl [OStmtOut i tr]ₒ
         (OracleComp
-          ([OStmtIn s.stmt]ₒ + toOracleSpec (Context s.stmt) (Roles s.stmt)
-            (OD s.stmt) tr)))) := do
+          ([OStmtIn i]ₒ + toOracleSpec (Context i) (Roles i)
+            (OD i) tr)))) := do
   let ⟨tr, outP, stmtOutV⟩ ←
-    runWithOracleCounterpart (OracleInterface.simOracle0 (OStmtIn s.stmt) s.oracleStmt)
-      (Context s.stmt) (Roles s.stmt) (OD s.stmt) []ₒ (fun q => q.elim)
-      prover (reduction.verifier s.stmt []ₒ)
-  pure ⟨tr, outP, ⟨stmtOutV, reduction.simulate s.stmt tr⟩⟩
+    runWithOracleCounterpart (OracleInterface.simOracle0 (OStmtIn i) s.oracleStmt)
+      (Context i) (Roles i) (OD i) []ₒ (fun q => q.elim)
+      prover (reduction.verifier i []ₒ s.stmt)
+  pure ⟨tr, outP, ⟨stmtOutV, reduction.simulate i tr⟩⟩
 
 end OracleReduction
 
@@ -257,34 +258,36 @@ implementations, and package the resulting plain verifier output with
 transcript-indexed oracle access semantics. -/
 def run
     {ι : Type} {oSpec : OracleSpec ι}
-    {StatementIn : Type} {ιₛᵢ : StatementIn → Type}
-    {OStmtIn : (s : StatementIn) → ιₛᵢ s → Type}
-    [∀ s i, OracleInterface (OStmtIn s i)]
-    {Context : StatementIn → Spec}
-    {Roles : (s : StatementIn) → RoleDecoration (Context s)}
-    {OD : (s : StatementIn) → OracleDecoration (Context s) (Roles s)}
-    {StatementOut : (s : StatementIn) → Spec.Transcript (Context s) → Type}
-    {ιₛₒ : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → Type}
-    {OStmtOut : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → ιₛₒ s tr → Type}
-    [∀ s tr i, OracleInterface (OStmtOut s tr i)]
+    {Input : Type} {ιₛᵢ : Input → Type}
+    {OStmtIn : (i : Input) → ιₛᵢ i → Type}
+    [∀ i j, OracleInterface (OStmtIn i j)]
+    {Context : Input → Spec}
+    {Roles : (i : Input) → RoleDecoration (Context i)}
+    {OD : (i : Input) → OracleDecoration (Context i) (Roles i)}
+    {LocalStmt : Input → Type}
+    {StatementOut : (i : Input) → Spec.Transcript (Context i) → Type}
+    {ιₛₒ : (i : Input) → (tr : Spec.Transcript (Context i)) → Type}
+    {OStmtOut : (i : Input) → (tr : Spec.Transcript (Context i)) → ιₛₒ i tr → Type}
+    [∀ i tr j, OracleInterface (OStmtOut i tr j)]
     (verifier :
-      @Interaction.OracleVerifier ι oSpec StatementIn ιₛᵢ OStmtIn
-        (by infer_instance) Context Roles OD StatementOut ιₛₒ OStmtOut
+      @Interaction.OracleVerifier ι oSpec Input ιₛᵢ OStmtIn
+        (by infer_instance) Context Roles OD LocalStmt StatementOut ιₛₒ OStmtOut
         (by infer_instance))
-    (s : StatementIn)
-    (inputImpl : QueryImpl [OStmtIn s]ₒ Id)
-    {OutputP : Spec.Transcript (Context s) → Type}
-    (prover : Spec.Strategy.withRoles (OracleComp oSpec) (Context s) (Roles s) OutputP)
+    (i : Input)
+    (stmt : LocalStmt i)
+    (inputImpl : QueryImpl [OStmtIn i]ₒ Id)
+    {OutputP : Spec.Transcript (Context i) → Type}
+    (prover : Spec.Strategy.withRoles (OracleComp oSpec) (Context i) (Roles i) OutputP)
     {ιₐ : Type} (accSpec : OracleSpec ιₐ) (accImpl : QueryImpl accSpec Id) :
-    OracleComp oSpec ((tr : Spec.Transcript (Context s)) × OutputP tr ×
-      (StatementOut s tr × QueryImpl [OStmtOut s tr]ₒ
+    OracleComp oSpec ((tr : Spec.Transcript (Context i)) × OutputP tr ×
+      (StatementOut i tr × QueryImpl [OStmtOut i tr]ₒ
         (OracleComp
-          ([OStmtIn s]ₒ + OracleDecoration.toOracleSpec (Context s) (Roles s) (OD s) tr)))) := do
+          ([OStmtIn i]ₒ + OracleDecoration.toOracleSpec (Context i) (Roles i) (OD i) tr)))) := do
   let ⟨tr, outP, stmtOutV⟩ ←
     OracleDecoration.runWithOracleCounterpart inputImpl
-      (Context s) (Roles s) (OD s) accSpec accImpl
-      prover (verifier s accSpec)
-  pure ⟨tr, outP, ⟨stmtOutV, verifier.simulate s tr⟩⟩
+      (Context i) (Roles i) (OD i) accSpec accImpl
+      prover (verifier i accSpec stmt)
+  pure ⟨tr, outP, ⟨stmtOutV, verifier.simulate i tr⟩⟩
 
 namespace Continuation
 
@@ -337,34 +340,34 @@ output and retain only the public outgoing statement-with-oracles together with
 the verifier's plain output and transcript-indexed oracle simulation. -/
 def executePublic
     {ι : Type} {oSpec : OracleSpec ι}
-    {StatementIn : Type} {ιₛᵢ : StatementIn → Type}
-    {OStmtIn : (s : StatementIn) → ιₛᵢ s → Type}
-    [∀ s i, OracleInterface (OStmtIn s i)]
-    {WitnessIn : Type}
-    {Context : StatementIn → Spec}
-    {Roles : (s : StatementIn) → RoleDecoration (Context s)}
-    {OD : (s : StatementIn) → OracleDecoration (Context s) (Roles s)}
-    {StatementOut : (s : StatementIn) → Spec.Transcript (Context s) → Type}
-    {ιₛₒ : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → Type}
-    {OStmtOut : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → ιₛₒ s tr → Type}
-    [∀ s tr i, OracleInterface (OStmtOut s tr i)]
-    {WitnessOut : (s : StatementIn) → Spec.Transcript (Context s) → Type}
-    (reduction : OracleReduction oSpec StatementIn OStmtIn WitnessIn
-      Context Roles OD StatementOut OStmtOut WitnessOut)
-    (s : StatementWithOracles StatementIn OStmtIn) (w : WitnessIn) :
-    OracleComp oSpec ((tr : Spec.Transcript (Context s.stmt)) ×
-      StatementWithOracles (StatementOut s.stmt tr) (fun _ => OStmtOut s.stmt tr) ×
-      (StatementOut s.stmt tr × QueryImpl [OStmtOut s.stmt tr]ₒ
+    {Input : Type} {ιₛᵢ : Input → Type}
+    {OStmtIn : (i : Input) → ιₛᵢ i → Type}
+    [∀ i j, OracleInterface (OStmtIn i j)]
+    {Context : Input → Spec}
+    {Roles : (i : Input) → RoleDecoration (Context i)}
+    {OD : (i : Input) → OracleDecoration (Context i) (Roles i)}
+    {LocalStmt WitnessIn : Input → Type}
+    {StatementOut : (i : Input) → Spec.Transcript (Context i) → Type}
+    {ιₛₒ : (i : Input) → (tr : Spec.Transcript (Context i)) → Type}
+    {OStmtOut : (i : Input) → (tr : Spec.Transcript (Context i)) → ιₛₒ i tr → Type}
+    [∀ i tr j, OracleInterface (OStmtOut i tr j)]
+    {WitnessOut : (i : Input) → Spec.Transcript (Context i) → Type}
+    (reduction : OracleReduction oSpec Input OStmtIn Context Roles OD LocalStmt WitnessIn
+      StatementOut OStmtOut WitnessOut)
+    (i : Input) (s : StatementWithOracles LocalStmt OStmtIn i) (w : WitnessIn i) :
+    OracleComp oSpec ((tr : Spec.Transcript (Context i)) ×
+      StatementWithOracles (fun _ => StatementOut i tr) (fun _ => OStmtOut i tr) i ×
+      (StatementOut i tr × QueryImpl [OStmtOut i tr]ₒ
         (OracleComp
-          ([OStmtIn s.stmt]ₒ + toOracleSpec (Context s.stmt) (Roles s.stmt)
-            (OD s.stmt) tr)))) := do
-  let strategy ← reduction.prover s w
+          ([OStmtIn i]ₒ + toOracleSpec (Context i) (Roles i)
+            (OD i) tr)))) := do
+  let strategy ← reduction.prover i s w
   let ⟨tr, stmtOutP, stmtOutV⟩ ←
-    runWithOracleCounterpart (OracleInterface.simOracle0 (OStmtIn s.stmt) s.oracleStmt)
-      (Context s.stmt) (Roles s.stmt) (OD s.stmt) []ₒ (fun q => q.elim)
+    runWithOracleCounterpart (OracleInterface.simOracle0 (OStmtIn i) s.oracleStmt)
+      (Context i) (Roles i) (OD i) []ₒ (fun q => q.elim)
       (Spec.Strategy.mapOutputWithRoles (fun _ out => out.stmt) strategy)
-      (reduction.verifier s.stmt []ₒ)
-  pure ⟨tr, stmtOutP, ⟨stmtOutV, reduction.simulate s.stmt tr⟩⟩
+      (reduction.verifier i []ₒ s.stmt)
+  pure ⟨tr, stmtOutP, ⟨stmtOutV, reduction.simulate i tr⟩⟩
 
 /-- Two oracle reductions with the same public interface are *honestly publicly
 equivalent* when, after relating their input witness types by `liftWitness`,
@@ -374,126 +377,131 @@ This intentionally ignores private witness bookkeeping while keeping the full
 verifier-facing behavior fixed. -/
 def HonestPubliclyEquivalent
     {ι : Type} {oSpec : OracleSpec ι}
-    {StatementIn : Type} {ιₛᵢ : StatementIn → Type}
-    {OStmtIn : (s : StatementIn) → ιₛᵢ s → Type}
-    [∀ s i, OracleInterface (OStmtIn s i)]
-    {WitnessIn₁ WitnessIn₂ : Type}
-    {Context : StatementIn → Spec}
-    {Roles : (s : StatementIn) → RoleDecoration (Context s)}
-    {OD : (s : StatementIn) → OracleDecoration (Context s) (Roles s)}
-    {StatementOut : (s : StatementIn) → Spec.Transcript (Context s) → Type}
-    {ιₛₒ : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → Type}
-    {OStmtOut : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → ιₛₒ s tr → Type}
-    [∀ s tr i, OracleInterface (OStmtOut s tr i)]
-    {WitnessOut₁ WitnessOut₂ : (s : StatementIn) → Spec.Transcript (Context s) → Type}
-    (liftWitness : (s : StatementWithOracles StatementIn OStmtIn) → WitnessIn₁ → WitnessIn₂)
-    (reduction₁ : OracleReduction oSpec StatementIn OStmtIn WitnessIn₁
-      Context Roles OD StatementOut OStmtOut WitnessOut₁)
-    (reduction₂ : OracleReduction oSpec StatementIn OStmtIn WitnessIn₂
-      Context Roles OD StatementOut OStmtOut WitnessOut₂) : Prop :=
-  ∀ (s : StatementWithOracles StatementIn OStmtIn) (w : WitnessIn₁),
-    reduction₁.executePublic s w = reduction₂.executePublic s (liftWitness s w)
+    {Input : Type} {ιₛᵢ : Input → Type}
+    {OStmtIn : (i : Input) → ιₛᵢ i → Type}
+    [∀ i j, OracleInterface (OStmtIn i j)]
+    {Context : Input → Spec}
+    {Roles : (i : Input) → RoleDecoration (Context i)}
+    {OD : (i : Input) → OracleDecoration (Context i) (Roles i)}
+    {LocalStmt WitnessIn₁ WitnessIn₂ : Input → Type}
+    {StatementOut : (i : Input) → Spec.Transcript (Context i) → Type}
+    {ιₛₒ : (i : Input) → (tr : Spec.Transcript (Context i)) → Type}
+    {OStmtOut : (i : Input) → (tr : Spec.Transcript (Context i)) → ιₛₒ i tr → Type}
+    [∀ i tr j, OracleInterface (OStmtOut i tr j)]
+    {WitnessOut₁ WitnessOut₂ : (i : Input) → Spec.Transcript (Context i) → Type}
+    (liftWitness :
+      (i : Input) → StatementWithOracles LocalStmt OStmtIn i → WitnessIn₁ i → WitnessIn₂ i)
+    (reduction₁ : OracleReduction oSpec Input OStmtIn Context Roles OD LocalStmt WitnessIn₁
+      StatementOut OStmtOut WitnessOut₁)
+    (reduction₂ : OracleReduction oSpec Input OStmtIn Context Roles OD LocalStmt WitnessIn₂
+      StatementOut OStmtOut WitnessOut₂) : Prop :=
+  ∀ (i : Input) (s : StatementWithOracles LocalStmt OStmtIn i) (w : WitnessIn₁ i),
+    reduction₁.executePublic i s w = reduction₂.executePublic i s (liftWitness i s w)
 
 /-- Execute an oracle reduction honestly and package the verifier's plain output
 with transcript-dependent oracle access semantics. -/
 def execute
     {ι : Type} {oSpec : OracleSpec ι}
-    {StatementIn : Type} {ιₛᵢ : StatementIn → Type}
-    {OStmtIn : (s : StatementIn) → ιₛᵢ s → Type}
-    [∀ s i, OracleInterface (OStmtIn s i)]
-    {WitnessIn : Type}
-    {Context : StatementIn → Spec}
-    {Roles : (s : StatementIn) → RoleDecoration (Context s)}
-    {OD : (s : StatementIn) → OracleDecoration (Context s) (Roles s)}
-    {StatementOut : (s : StatementIn) → Spec.Transcript (Context s) → Type}
-    {ιₛₒ : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → Type}
-    {OStmtOut : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → ιₛₒ s tr → Type}
-    [∀ s tr i, OracleInterface (OStmtOut s tr i)]
-    {WitnessOut : (s : StatementIn) → Spec.Transcript (Context s) → Type}
-    (reduction : OracleReduction oSpec StatementIn OStmtIn WitnessIn
-      Context Roles OD StatementOut OStmtOut WitnessOut)
-    (s : StatementWithOracles StatementIn OStmtIn) (w : WitnessIn) :
-    OracleComp oSpec ((tr : Spec.Transcript (Context s.stmt)) ×
+    {Input : Type} {ιₛᵢ : Input → Type}
+    {OStmtIn : (i : Input) → ιₛᵢ i → Type}
+    [∀ i j, OracleInterface (OStmtIn i j)]
+    {Context : Input → Spec}
+    {Roles : (i : Input) → RoleDecoration (Context i)}
+    {OD : (i : Input) → OracleDecoration (Context i) (Roles i)}
+    {LocalStmt WitnessIn : Input → Type}
+    {StatementOut : (i : Input) → Spec.Transcript (Context i) → Type}
+    {ιₛₒ : (i : Input) → (tr : Spec.Transcript (Context i)) → Type}
+    {OStmtOut : (i : Input) → (tr : Spec.Transcript (Context i)) → ιₛₒ i tr → Type}
+    [∀ i tr j, OracleInterface (OStmtOut i tr j)]
+    {WitnessOut : (i : Input) → Spec.Transcript (Context i) → Type}
+    (reduction : OracleReduction oSpec Input OStmtIn Context Roles OD LocalStmt WitnessIn
+      StatementOut OStmtOut WitnessOut)
+    (i : Input) (s : StatementWithOracles LocalStmt OStmtIn i) (w : WitnessIn i) :
+    OracleComp oSpec ((tr : Spec.Transcript (Context i)) ×
       HonestProverOutput
-        (StatementWithOracles (StatementOut s.stmt tr) (fun _ => OStmtOut s.stmt tr))
-        (WitnessOut s.stmt tr) ×
-      (StatementOut s.stmt tr × QueryImpl [OStmtOut s.stmt tr]ₒ
+        (StatementWithOracles (fun _ => StatementOut i tr) (fun _ => OStmtOut i tr) i)
+        (WitnessOut i tr) ×
+      (StatementOut i tr × QueryImpl [OStmtOut i tr]ₒ
         (OracleComp
-          ([OStmtIn s.stmt]ₒ + toOracleSpec (Context s.stmt) (Roles s.stmt)
-            (OD s.stmt) tr)))) := do
-  let strategy ← reduction.prover s w
+          ([OStmtIn i]ₒ + toOracleSpec (Context i) (Roles i)
+            (OD i) tr)))) := do
+  let strategy ← reduction.prover i s w
   let ⟨tr, proverOut, stmtOutV⟩ ←
-    runWithOracleCounterpart (OracleInterface.simOracle0 (OStmtIn s.stmt) s.oracleStmt)
-      (Context s.stmt) (Roles s.stmt) (OD s.stmt) []ₒ (fun q => q.elim)
-      strategy (reduction.verifier s.stmt []ₒ)
-  pure ⟨tr, proverOut, ⟨stmtOutV, reduction.simulate s.stmt tr⟩⟩
+    runWithOracleCounterpart (OracleInterface.simOracle0 (OStmtIn i) s.oracleStmt)
+      (Context i) (Roles i) (OD i) []ₒ (fun q => q.elim)
+      strategy (reduction.verifier i []ₒ s.stmt)
+  pure ⟨tr, proverOut, ⟨stmtOutV, reduction.simulate i tr⟩⟩
 
 /-- Map the private honest-prover witness component of an executed oracle
 reduction while leaving its public transcript/output view unchanged. -/
 def mapExecuteWitness
     {ι : Type} {oSpec : OracleSpec ι}
-    {StatementIn : Type} {ιₛᵢ : StatementIn → Type}
-    {OStmtIn : (s : StatementIn) → ιₛᵢ s → Type}
-    [∀ s i, OracleInterface (OStmtIn s i)]
-    {Context : StatementIn → Spec}
-    {Roles : (s : StatementIn) → RoleDecoration (Context s)}
-    {OD : (s : StatementIn) → OracleDecoration (Context s) (Roles s)}
-    {StatementOut : (s : StatementIn) → Spec.Transcript (Context s) → Type}
-    {ιₛₒ : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → Type}
-    {OStmtOut : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → ιₛₒ s tr → Type}
-    [∀ s tr i, OracleInterface (OStmtOut s tr i)]
-    {WitnessOut₁ WitnessOut₂ : (s : StatementIn) → Spec.Transcript (Context s) → Type}
-    (s : StatementWithOracles StatementIn OStmtIn)
-    (liftWitness : (tr : Spec.Transcript (Context s.stmt)) →
-      WitnessOut₁ s.stmt tr → WitnessOut₂ s.stmt tr) :
-    ((tr : Spec.Transcript (Context s.stmt)) ×
+    {Input : Type} {ιₛᵢ : Input → Type}
+    {OStmtIn : (i : Input) → ιₛᵢ i → Type}
+    [∀ i j, OracleInterface (OStmtIn i j)]
+    {Context : Input → Spec}
+    {Roles : (i : Input) → RoleDecoration (Context i)}
+    {OD : (i : Input) → OracleDecoration (Context i) (Roles i)}
+    {LocalStmt : Input → Type}
+    {StatementOut : (i : Input) → Spec.Transcript (Context i) → Type}
+    {ιₛₒ : (i : Input) → (tr : Spec.Transcript (Context i)) → Type}
+    {OStmtOut : (i : Input) → (tr : Spec.Transcript (Context i)) → ιₛₒ i tr → Type}
+    [∀ i tr j, OracleInterface (OStmtOut i tr j)]
+    {WitnessOut₁ WitnessOut₂ : (i : Input) → Spec.Transcript (Context i) → Type}
+    (i : Input)
+    (s : StatementWithOracles LocalStmt OStmtIn i)
+    (liftWitness : (tr : Spec.Transcript (Context i)) →
+      WitnessOut₁ i tr → WitnessOut₂ i tr) :
+    ((tr : Spec.Transcript (Context i)) ×
       HonestProverOutput
-        (StatementWithOracles (StatementOut s.stmt tr) (fun _ => OStmtOut s.stmt tr))
-        (WitnessOut₁ s.stmt tr) ×
-      (StatementOut s.stmt tr × QueryImpl [OStmtOut s.stmt tr]ₒ
+        (StatementWithOracles (fun _ => StatementOut i tr) (fun _ => OStmtOut i tr) i)
+        (WitnessOut₁ i tr) ×
+      (StatementOut i tr × QueryImpl [OStmtOut i tr]ₒ
         (OracleComp
-          ([OStmtIn s.stmt]ₒ + toOracleSpec (Context s.stmt) (Roles s.stmt)
-            (OD s.stmt) tr)))) →
-    ((tr : Spec.Transcript (Context s.stmt)) ×
+          ([OStmtIn i]ₒ + toOracleSpec (Context i) (Roles i)
+            (OD i) tr)))) →
+    ((tr : Spec.Transcript (Context i)) ×
       HonestProverOutput
-        (StatementWithOracles (StatementOut s.stmt tr) (fun _ => OStmtOut s.stmt tr))
-        (WitnessOut₂ s.stmt tr) ×
-      (StatementOut s.stmt tr × QueryImpl [OStmtOut s.stmt tr]ₒ
+        (StatementWithOracles (fun _ => StatementOut i tr) (fun _ => OStmtOut i tr) i)
+        (WitnessOut₂ i tr) ×
+      (StatementOut i tr × QueryImpl [OStmtOut i tr]ₒ
         (OracleComp
-          ([OStmtIn s.stmt]ₒ + toOracleSpec (Context s.stmt) (Roles s.stmt)
-            (OD s.stmt) tr)))) :=
+          ([OStmtIn i]ₒ + toOracleSpec (Context i) (Roles i)
+            (OD i) tr)))) :=
   fun ⟨tr, out, view⟩ => ⟨tr, ⟨out.stmt, liftWitness tr out.wit⟩, view⟩
 
 /-- Forget the private honest-prover witness component of an executed oracle
 reduction, keeping only its public transcript/output view. -/
 def forgetExecuteWitness
     {ι : Type} {oSpec : OracleSpec ι}
-    {StatementIn : Type} {ιₛᵢ : StatementIn → Type}
-    {OStmtIn : (s : StatementIn) → ιₛᵢ s → Type}
-    [∀ s i, OracleInterface (OStmtIn s i)]
-    {Context : StatementIn → Spec}
-    {Roles : (s : StatementIn) → RoleDecoration (Context s)}
-    {OD : (s : StatementIn) → OracleDecoration (Context s) (Roles s)}
-    {StatementOut : (s : StatementIn) → Spec.Transcript (Context s) → Type}
-    {ιₛₒ : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → Type}
-    {OStmtOut : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → ιₛₒ s tr → Type}
-    [∀ s tr i, OracleInterface (OStmtOut s tr i)]
-    {WitnessOut : (s : StatementIn) → Spec.Transcript (Context s) → Type}
-    (s : StatementWithOracles StatementIn OStmtIn) :
-    ((tr : Spec.Transcript (Context s.stmt)) ×
+    {Input : Type} {ιₛᵢ : Input → Type}
+    {OStmtIn : (i : Input) → ιₛᵢ i → Type}
+    [∀ i j, OracleInterface (OStmtIn i j)]
+    {Context : Input → Spec}
+    {Roles : (i : Input) → RoleDecoration (Context i)}
+    {OD : (i : Input) → OracleDecoration (Context i) (Roles i)}
+    {LocalStmt : Input → Type}
+    {StatementOut : (i : Input) → Spec.Transcript (Context i) → Type}
+    {ιₛₒ : (i : Input) → (tr : Spec.Transcript (Context i)) → Type}
+    {OStmtOut : (i : Input) → (tr : Spec.Transcript (Context i)) → ιₛₒ i tr → Type}
+    [∀ i tr j, OracleInterface (OStmtOut i tr j)]
+    {WitnessOut : (i : Input) → Spec.Transcript (Context i) → Type}
+    (i : Input)
+    (s : StatementWithOracles LocalStmt OStmtIn i) :
+    ((tr : Spec.Transcript (Context i)) ×
       HonestProverOutput
-        (StatementWithOracles (StatementOut s.stmt tr) (fun _ => OStmtOut s.stmt tr))
-        (WitnessOut s.stmt tr) ×
-      (StatementOut s.stmt tr × QueryImpl [OStmtOut s.stmt tr]ₒ
+        (StatementWithOracles (fun _ => StatementOut i tr) (fun _ => OStmtOut i tr) i)
+        (WitnessOut i tr) ×
+      (StatementOut i tr × QueryImpl [OStmtOut i tr]ₒ
         (OracleComp
-          ([OStmtIn s.stmt]ₒ + toOracleSpec (Context s.stmt) (Roles s.stmt)
-            (OD s.stmt) tr)))) →
-    ((tr : Spec.Transcript (Context s.stmt)) ×
-      StatementWithOracles (StatementOut s.stmt tr) (fun _ => OStmtOut s.stmt tr) ×
-      (StatementOut s.stmt tr × QueryImpl [OStmtOut s.stmt tr]ₒ
+          ([OStmtIn i]ₒ + toOracleSpec (Context i) (Roles i)
+            (OD i) tr)))) →
+    ((tr : Spec.Transcript (Context i)) ×
+      StatementWithOracles (fun _ => StatementOut i tr) (fun _ => OStmtOut i tr) i ×
+      (StatementOut i tr × QueryImpl [OStmtOut i tr]ₒ
         (OracleComp
-          ([OStmtIn s.stmt]ₒ + toOracleSpec (Context s.stmt) (Roles s.stmt)
-            (OD s.stmt) tr)))) :=
+          ([OStmtIn i]ₒ + toOracleSpec (Context i) (Roles i)
+            (OD i) tr)))) :=
   fun ⟨tr, out, view⟩ => ⟨tr, out.stmt, view⟩
 
 /-- Two oracle reductions with the same public interface are *honestly
@@ -506,40 +514,43 @@ sequential composition, since suffix reductions consume the honest prover's
 private output witness. -/
 def HonestExecutionEquivalent
     {ι : Type} {oSpec : OracleSpec ι}
-    {StatementIn : Type} {ιₛᵢ : StatementIn → Type}
-    {OStmtIn : (s : StatementIn) → ιₛᵢ s → Type}
-    [∀ s i, OracleInterface (OStmtIn s i)]
-    {WitnessIn₁ WitnessIn₂ : Type}
-    {Context : StatementIn → Spec}
-    {Roles : (s : StatementIn) → RoleDecoration (Context s)}
-    {OD : (s : StatementIn) → OracleDecoration (Context s) (Roles s)}
-    {StatementOut : (s : StatementIn) → Spec.Transcript (Context s) → Type}
-    {ιₛₒ : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → Type}
-    {OStmtOut : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → ιₛₒ s tr → Type}
-    [∀ s tr i, OracleInterface (OStmtOut s tr i)]
-    {WitnessOut₁ WitnessOut₂ : (s : StatementIn) → Spec.Transcript (Context s) → Type}
-    (liftWitnessIn : (s : StatementWithOracles StatementIn OStmtIn) → WitnessIn₁ → WitnessIn₂)
+    {Input : Type} {ιₛᵢ : Input → Type}
+    {OStmtIn : (i : Input) → ιₛᵢ i → Type}
+    [∀ i j, OracleInterface (OStmtIn i j)]
+    {Context : Input → Spec}
+    {Roles : (i : Input) → RoleDecoration (Context i)}
+    {OD : (i : Input) → OracleDecoration (Context i) (Roles i)}
+    {LocalStmt WitnessIn₁ WitnessIn₂ : Input → Type}
+    {StatementOut : (i : Input) → Spec.Transcript (Context i) → Type}
+    {ιₛₒ : (i : Input) → (tr : Spec.Transcript (Context i)) → Type}
+    {OStmtOut : (i : Input) → (tr : Spec.Transcript (Context i)) → ιₛₒ i tr → Type}
+    [∀ i tr j, OracleInterface (OStmtOut i tr j)]
+    {WitnessOut₁ WitnessOut₂ : (i : Input) → Spec.Transcript (Context i) → Type}
+    (liftWitnessIn :
+      (i : Input) → StatementWithOracles LocalStmt OStmtIn i → WitnessIn₁ i → WitnessIn₂ i)
     (liftWitnessOut :
-      (s : StatementWithOracles StatementIn OStmtIn) →
-      (tr : Spec.Transcript (Context s.stmt)) →
-      WitnessOut₁ s.stmt tr → WitnessOut₂ s.stmt tr)
-    (reduction₁ : OracleReduction oSpec StatementIn OStmtIn WitnessIn₁
-      Context Roles OD StatementOut OStmtOut WitnessOut₁)
-    (reduction₂ : OracleReduction oSpec StatementIn OStmtIn WitnessIn₂
-      Context Roles OD StatementOut OStmtOut WitnessOut₂) : Prop :=
-  ∀ (s : StatementWithOracles StatementIn OStmtIn) (w : WitnessIn₁),
+      (i : Input) → (s : StatementWithOracles LocalStmt OStmtIn i) →
+      (tr : Spec.Transcript (Context i)) →
+      WitnessOut₁ i tr → WitnessOut₂ i tr)
+    (reduction₁ : OracleReduction oSpec Input OStmtIn Context Roles OD LocalStmt WitnessIn₁
+      StatementOut OStmtOut WitnessOut₁)
+    (reduction₂ : OracleReduction oSpec Input OStmtIn Context Roles OD LocalStmt WitnessIn₂
+      StatementOut OStmtOut WitnessOut₂) : Prop :=
+  ∀ (i : Input) (s : StatementWithOracles LocalStmt OStmtIn i) (w : WitnessIn₁ i),
     (OracleReduction.mapExecuteWitness
       (oSpec := oSpec)
       (Context := Context)
       (Roles := Roles)
       (OD := OD)
+      (LocalStmt := LocalStmt)
       (StatementOut := StatementOut)
       (OStmtOut := OStmtOut)
       (WitnessOut₁ := WitnessOut₁)
       (WitnessOut₂ := WitnessOut₂)
+      (i := i)
       (s := s)
-      (liftWitness := liftWitnessOut s)) <$> reduction₁.execute s w =
-      reduction₂.execute s (liftWitnessIn s w)
+      (liftWitness := liftWitnessOut i s)) <$> reduction₁.execute i s w =
+      reduction₂.execute i s (liftWitnessIn i s w)
 
 end OracleReduction
 
@@ -654,6 +665,74 @@ theorem runWithOracleCounterpart_mapOutputWithRoles
               next
               xc.2)
   exact go spec roles od accSpec accImpl fP strat cpt
+
+/-- Mapping the honest prover's private witness output after executing an oracle
+reduction is equivalent to first mapping the honest prover output of its
+strategy and then executing. -/
+theorem OracleReduction.mapExecuteWitness_eq_execute_mappedOutput
+    {ι : Type} {oSpec : OracleSpec ι}
+    {Input : Type} {ιₛᵢ : Input → Type}
+    {OStmtIn : (i : Input) → ιₛᵢ i → Type}
+    [∀ i j, OracleInterface (OStmtIn i j)]
+    {Context : Input → Spec}
+    {Roles : (i : Input) → RoleDecoration (Context i)}
+    {OD : (i : Input) → OracleDecoration (Context i) (Roles i)}
+    {LocalStmt : Input → Type}
+    {WitnessIn : Input → Type}
+    {StatementOut : (i : Input) → Spec.Transcript (Context i) → Type}
+    {ιₛₒ : (i : Input) → (tr : Spec.Transcript (Context i)) → Type}
+    {OStmtOut : (i : Input) → (tr : Spec.Transcript (Context i)) → ιₛₒ i tr → Type}
+    [∀ i tr j, OracleInterface (OStmtOut i tr j)]
+    {WitnessOut₁ WitnessOut₂ : (i : Input) → Spec.Transcript (Context i) → Type}
+    (reduction : OracleReduction oSpec Input OStmtIn Context Roles OD LocalStmt WitnessIn
+      StatementOut OStmtOut WitnessOut₁)
+    (i : Input)
+    (s : StatementWithOracles LocalStmt OStmtIn i)
+    (w : WitnessIn i)
+    (liftWitness : (tr : Spec.Transcript (Context i)) →
+      WitnessOut₁ i tr → WitnessOut₂ i tr) :
+    (OracleReduction.mapExecuteWitness
+      (oSpec := oSpec)
+      (Context := Context)
+      (Roles := Roles)
+      (OD := OD)
+      (LocalStmt := LocalStmt)
+      (StatementOut := StatementOut)
+      (OStmtOut := OStmtOut)
+      (WitnessOut₁ := WitnessOut₁)
+      (WitnessOut₂ := WitnessOut₂)
+      (i := i)
+      (s := s)
+      liftWitness) <$>
+      reduction.execute i s w =
+    (do
+      let strategy ← reduction.prover i s w
+      let a ←
+        runWithOracleCounterpart
+          (OracleInterface.simOracle0 (OStmtIn i) s.oracleStmt)
+          (Context i) (Roles i) (OD i) []ₒ (fun q => q.elim)
+          (Spec.Strategy.mapOutputWithRoles
+            (fun tr out =>
+              (⟨out.stmt, liftWitness tr out.wit⟩ :
+                HonestProverOutput
+                  (StatementWithOracles
+                    (fun _ => StatementOut i tr) (fun _ => OStmtOut i tr) i)
+                  (WitnessOut₂ i tr)))
+            strategy)
+          (reduction.verifier i []ₒ s.stmt)
+      pure
+        ((⟨a.1, a.2.1, ⟨a.2.2, reduction.simulate i a.1⟩⟩ :
+          (tr : Spec.Transcript (Context i)) ×
+            HonestProverOutput
+              (StatementWithOracles
+                (fun _ => StatementOut i tr) (fun _ => OStmtOut i tr) i)
+              (WitnessOut₂ i tr) ×
+            (StatementOut i tr × QueryImpl [OStmtOut i tr]ₒ
+              (OracleComp
+                ([OStmtIn i]ₒ + toOracleSpec (Context i) (Roles i)
+                  (OD i) tr)))))) := by
+        simp [OracleReduction.execute, OracleReduction.mapExecuteWitness,
+          runWithOracleCounterpart_mapOutputWithRoles, bind_assoc, Functor.map_map]
 
 /-- Mapping the verifier-side output of a monadic counterpart before execution
 is equivalent to executing first and then mapping the verifier component of the
@@ -775,31 +854,33 @@ theorem runWithOracleCounterpart_mapCounterpartOutput
 witness component erased afterwards. -/
 theorem OracleReduction.executePublic_eq_map_execute
     {ι : Type} {oSpec : OracleSpec ι}
-    {StatementIn : Type} {ιₛᵢ : StatementIn → Type}
-    {OStmtIn : (s : StatementIn) → ιₛᵢ s → Type}
-    [∀ s i, OracleInterface (OStmtIn s i)]
-    {WitnessIn : Type}
-    {Context : StatementIn → Spec}
-    {Roles : (s : StatementIn) → RoleDecoration (Context s)}
-    {OD : (s : StatementIn) → OracleDecoration (Context s) (Roles s)}
-    {StatementOut : (s : StatementIn) → Spec.Transcript (Context s) → Type}
-    {ιₛₒ : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → Type}
-    {OStmtOut : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → ιₛₒ s tr → Type}
-    [∀ s tr i, OracleInterface (OStmtOut s tr i)]
-    {WitnessOut : (s : StatementIn) → Spec.Transcript (Context s) → Type}
-    (reduction : OracleReduction oSpec StatementIn OStmtIn WitnessIn
-      Context Roles OD StatementOut OStmtOut WitnessOut)
-    (s : StatementWithOracles StatementIn OStmtIn) (w : WitnessIn) :
-    reduction.executePublic s w =
+    {Input : Type} {ιₛᵢ : Input → Type}
+    {OStmtIn : (i : Input) → ιₛᵢ i → Type}
+    [∀ i j, OracleInterface (OStmtIn i j)]
+    {Context : Input → Spec}
+    {Roles : (i : Input) → RoleDecoration (Context i)}
+    {OD : (i : Input) → OracleDecoration (Context i) (Roles i)}
+    {LocalStmt WitnessIn : Input → Type}
+    {StatementOut : (i : Input) → Spec.Transcript (Context i) → Type}
+    {ιₛₒ : (i : Input) → (tr : Spec.Transcript (Context i)) → Type}
+    {OStmtOut : (i : Input) → (tr : Spec.Transcript (Context i)) → ιₛₒ i tr → Type}
+    [∀ i tr j, OracleInterface (OStmtOut i tr j)]
+    {WitnessOut : (i : Input) → Spec.Transcript (Context i) → Type}
+    (reduction : OracleReduction oSpec Input OStmtIn Context Roles OD LocalStmt WitnessIn
+      StatementOut OStmtOut WitnessOut)
+    (i : Input) (s : StatementWithOracles LocalStmt OStmtIn i) (w : WitnessIn i) :
+    reduction.executePublic i s w =
       (OracleReduction.forgetExecuteWitness
         (oSpec := oSpec)
         (Context := Context)
         (Roles := Roles)
         (OD := OD)
+        (LocalStmt := LocalStmt)
         (StatementOut := StatementOut)
         (OStmtOut := OStmtOut)
         (WitnessOut := WitnessOut)
-        (s := s)) <$> reduction.execute s w := by
+        (i := i)
+        (s := s)) <$> reduction.execute i s w := by
   unfold OracleReduction.executePublic OracleReduction.execute OracleReduction.forgetExecuteWitness
   simp [runWithOracleCounterpart_mapOutputWithRoles]
 
@@ -807,60 +888,67 @@ theorem OracleReduction.executePublic_eq_map_execute
 the private prover witnesses. -/
 theorem OracleReduction.HonestExecutionEquivalent.toPublic
     {ι : Type} {oSpec : OracleSpec ι}
-    {StatementIn : Type} {ιₛᵢ : StatementIn → Type}
-    {OStmtIn : (s : StatementIn) → ιₛᵢ s → Type}
-    [∀ s i, OracleInterface (OStmtIn s i)]
-    {WitnessIn₁ WitnessIn₂ : Type}
-    {Context : StatementIn → Spec}
-    {Roles : (s : StatementIn) → RoleDecoration (Context s)}
-    {OD : (s : StatementIn) → OracleDecoration (Context s) (Roles s)}
-    {StatementOut : (s : StatementIn) → Spec.Transcript (Context s) → Type}
-    {ιₛₒ : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → Type}
-    {OStmtOut : (s : StatementIn) → (tr : Spec.Transcript (Context s)) → ιₛₒ s tr → Type}
-    [∀ s tr i, OracleInterface (OStmtOut s tr i)]
-    {WitnessOut₁ WitnessOut₂ : (s : StatementIn) → Spec.Transcript (Context s) → Type}
-    {liftWitnessIn : (s : StatementWithOracles StatementIn OStmtIn) → WitnessIn₁ → WitnessIn₂}
+    {Input : Type} {ιₛᵢ : Input → Type}
+    {OStmtIn : (i : Input) → ιₛᵢ i → Type}
+    [∀ i j, OracleInterface (OStmtIn i j)]
+    {Context : Input → Spec}
+    {Roles : (i : Input) → RoleDecoration (Context i)}
+    {OD : (i : Input) → OracleDecoration (Context i) (Roles i)}
+    {LocalStmt WitnessIn₁ WitnessIn₂ : Input → Type}
+    {StatementOut : (i : Input) → Spec.Transcript (Context i) → Type}
+    {ιₛₒ : (i : Input) → (tr : Spec.Transcript (Context i)) → Type}
+    {OStmtOut : (i : Input) → (tr : Spec.Transcript (Context i)) → ιₛₒ i tr → Type}
+    [∀ i tr j, OracleInterface (OStmtOut i tr j)]
+    {WitnessOut₁ WitnessOut₂ : (i : Input) → Spec.Transcript (Context i) → Type}
+    {liftWitnessIn :
+      (i : Input) → StatementWithOracles LocalStmt OStmtIn i → WitnessIn₁ i → WitnessIn₂ i}
     {liftWitnessOut :
-      (s : StatementWithOracles StatementIn OStmtIn) →
-      (tr : Spec.Transcript (Context s.stmt)) →
-      WitnessOut₁ s.stmt tr → WitnessOut₂ s.stmt tr}
-    {reduction₁ : OracleReduction oSpec StatementIn OStmtIn WitnessIn₁
-      Context Roles OD StatementOut OStmtOut WitnessOut₁}
-    {reduction₂ : OracleReduction oSpec StatementIn OStmtIn WitnessIn₂
-      Context Roles OD StatementOut OStmtOut WitnessOut₂}
+      (i : Input) → (s : StatementWithOracles LocalStmt OStmtIn i) →
+      (tr : Spec.Transcript (Context i)) →
+      WitnessOut₁ i tr → WitnessOut₂ i tr}
+    {reduction₁ : OracleReduction oSpec Input OStmtIn Context Roles OD LocalStmt WitnessIn₁
+      StatementOut OStmtOut WitnessOut₁}
+    {reduction₂ : OracleReduction oSpec Input OStmtIn Context Roles OD LocalStmt WitnessIn₂
+      StatementOut OStmtOut WitnessOut₂}
     (hEq : OracleReduction.HonestExecutionEquivalent
       liftWitnessIn liftWitnessOut reduction₁ reduction₂) :
     OracleReduction.HonestPubliclyEquivalent liftWitnessIn reduction₁ reduction₂ := by
-  intro s w
+  intro i s w
   have hForget :
       (OracleReduction.forgetExecuteWitness
         (oSpec := oSpec)
         (Context := Context)
         (Roles := Roles)
         (OD := OD)
+        (LocalStmt := LocalStmt)
         (StatementOut := StatementOut)
         (OStmtOut := OStmtOut)
         (WitnessOut := WitnessOut₂)
+        (i := i)
         (s := s)) ∘
         (OracleReduction.mapExecuteWitness
           (oSpec := oSpec)
           (Context := Context)
           (Roles := Roles)
           (OD := OD)
+          (LocalStmt := LocalStmt)
           (StatementOut := StatementOut)
           (OStmtOut := OStmtOut)
           (WitnessOut₁ := WitnessOut₁)
           (WitnessOut₂ := WitnessOut₂)
+          (i := i)
           (s := s)
-          (liftWitness := liftWitnessOut s)) =
+          (liftWitness := liftWitnessOut i s)) =
       (OracleReduction.forgetExecuteWitness
         (oSpec := oSpec)
         (Context := Context)
         (Roles := Roles)
         (OD := OD)
+        (LocalStmt := LocalStmt)
         (StatementOut := StatementOut)
         (OStmtOut := OStmtOut)
         (WitnessOut := WitnessOut₁)
+        (i := i)
         (s := s)) := by
     funext z
     cases z
@@ -872,14 +960,16 @@ theorem OracleReduction.HonestExecutionEquivalent.toPublic
       (Functor.map <|
         OracleReduction.forgetExecuteWitness
           (oSpec := oSpec)
-          (Context := Context)
-          (Roles := Roles)
-          (OD := OD)
-          (StatementOut := StatementOut)
-          (OStmtOut := OStmtOut)
-          (WitnessOut := WitnessOut₂)
-          (s := s))
-      (hEq s w)
+        (Context := Context)
+        (Roles := Roles)
+        (OD := OD)
+        (LocalStmt := LocalStmt)
+        (StatementOut := StatementOut)
+        (OStmtOut := OStmtOut)
+        (WitnessOut := WitnessOut₂)
+        (i := i)
+        (s := s))
+      (hEq i s w)
 
 end OracleDecoration
 

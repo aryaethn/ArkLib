@@ -44,6 +44,7 @@ theorem run_pullback
         InnerStmtIn
         InnerSpec
         InnerRoles
+        (fun _ => PUnit)
         InnerStmtOut)
     (outer : OuterStmtIn)
     {OutputP : Spec.Transcript (InnerSpec (projection.proj outer)) → Type}
@@ -55,15 +56,16 @@ theorem run_pullback
     Interaction.Verifier.run
         (pullback boundary verifier)
         outer
+        PUnit.unit
         prover =
       (fun z => ⟨z.1, z.2.1, boundary.lift outer z.1 z.2.2⟩) <$>
-        Interaction.Verifier.run verifier (projection.proj outer) prover := by
+        Interaction.Verifier.run verifier (projection.proj outer) PUnit.unit prover := by
   simpa [Interaction.Verifier.run, pullback] using
     (Spec.Strategy.runWithRoles_mapOutputWithRoles_mapOutput
       (fP := fun _ out => out)
       (fC := fun tr stmtOut => boundary.lift outer tr stmtOut)
       prover
-      (verifier (projection.proj outer)))
+      (verifier (projection.proj outer) PUnit.unit))
 
 /-- Soundness for a pulled-back verifier reduces to soundness of the inner
 verifier once accepting outer outputs are known to satisfy the boundary
@@ -85,6 +87,7 @@ theorem probAccept_pullback_le
         InnerStmtIn
         InnerSpec
         InnerRoles
+        (fun _ => PUnit)
         InnerStmtOut)
     (outerLangIn : Set OuterStmtIn)
     (innerLangIn : Set InnerStmtIn)
@@ -121,9 +124,9 @@ theorem probAccept_pullback_le
         (InnerRoles (projection.proj outer))
         OutputP) :
     Pr[fun z => z.2.2 ∈ outerLangOut outer z.1 |
-      Interaction.Verifier.run (pullback boundary verifier) outer prover] ≤
+      Interaction.Verifier.run (pullback boundary verifier) outer PUnit.unit prover] ≤
       Pr[fun z => z.2.2 ∈ innerLangOut (projection.proj outer) z.1 |
-        Interaction.Verifier.run verifier (projection.proj outer) prover] := by
+        Interaction.Verifier.run verifier (projection.proj outer) PUnit.unit prover] := by
   rw [run_pullback, probEvent_map]
   apply probEvent_mono
   intro z hz hOuter
@@ -221,9 +224,10 @@ theorem execute_pullback
     (reduction :
       Interaction.Reduction m
         InnerStmtIn
-        InnerWitIn
         InnerSpec
         InnerRoles
+        (fun _ => PUnit)
+        (fun _ => InnerWitIn)
         InnerStmtOut
         InnerWitOut)
     (outerStmt : OuterStmtIn)
@@ -231,6 +235,7 @@ theorem execute_pullback
     Interaction.Reduction.execute
         (pullback boundary reduction)
         outerStmt
+        PUnit.unit
         outerWit =
       (fun z =>
         let out :=
@@ -239,6 +244,7 @@ theorem execute_pullback
         Interaction.Reduction.execute
           reduction
           (projection.proj outerStmt)
+          PUnit.unit
           (boundary.wit.proj outerStmt outerWit) := by
   simp [Interaction.Reduction.execute, pullback, Prover.pullback, Verifier.pullback,
     Spec.Strategy.runWithRoles_mapOutputWithRoles_mapOutput]
@@ -272,9 +278,10 @@ variable
     (reduction :
       Interaction.Reduction m
         InnerStmtIn
-        InnerWitIn
         InnerSpec
         InnerRoles
+        (fun _ => PUnit)
+        (fun _ => InnerWitIn)
         InnerStmtOut
         InnerWitOut)
     (outerRelIn : Set (OuterStmtIn × OuterWitIn))
@@ -360,11 +367,13 @@ theorem completeness_pullback
         Interaction.Reduction.execute
           reduction
           (projection.proj outerStmt)
+          PUnit.unit
           (boundary.wit.proj outerStmt outerWit)] ≤
         Pr[outerGood |
           Interaction.Reduction.execute
             (pullback boundary reduction)
             outerStmt
+            PUnit.unit
             outerWit] := by
     rw [execute_pullback]
     rw [probEvent_map]
@@ -392,6 +401,7 @@ theorem completeness_pullback
           Interaction.Reduction.execute
             reduction
             (projection.proj outerStmt)
+            PUnit.unit
             (boundary.wit.proj outerStmt outerWit)] :=
       hComplete
         (projection.proj outerStmt)
@@ -401,6 +411,7 @@ theorem completeness_pullback
           Interaction.Reduction.execute
             (pullback boundary reduction)
             outerStmt
+            PUnit.unit
             outerWit] :=
       hmono
 

@@ -839,7 +839,14 @@ end OracleDecoration
 
 /-- A verifier-only oracle protocol surface, analogous to `Interaction.Verifier`.
 For each input statement it provides verifier interaction plus output-oracle
-query simulation. -/
+query simulation.
+
+This is the master oracle-side verifier object. A continuation-style verifier
+with shared ambient input and verifier-local statement state can be encoded
+extensionally by taking `StatementIn` to be a dependent sigma. We still keep
+`OracleVerifier.Continuation` as a structured specialization because it
+preserves the shared/local split in the types, which keeps composition APIs and
+proofs substantially more readable. -/
 structure OracleVerifier {ι : Type} (oSpec : OracleSpec ι)
     (StatementIn : Type) {ιₛᵢ : StatementIn → Type}
     (OStmtIn : (s : StatementIn) → ιₛᵢ s → Type)
@@ -883,7 +890,19 @@ instance
 
 namespace OracleVerifier
 
-/-- A verifier-only oracle continuation surface over shared input. -/
+/-- A verifier-only oracle continuation surface over shared input.
+
+This is not a separate foundation from `OracleVerifier`: it is the structured
+specialization obtained by splitting the input index into:
+
+- shared ambient data `shared`, which determines the protocol context, roles,
+  and oracle decoration, and
+- verifier-local statement data `stmt`, which is interpreted inside that fixed
+  protocol.
+
+We keep this layer because the shared/local split is semantically meaningful for
+continuation composition and avoids the projection noise that a flattened sigma
+encoding would introduce. -/
 structure Continuation {ι : Type} (oSpec : OracleSpec ι)
     (SharedIn : Type)
     (Context : SharedIn → Spec)

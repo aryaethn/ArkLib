@@ -18,7 +18,13 @@ namespace OracleReduction
 /-- A continuation oracle reduction over a shared input. The protocol context
 depends on the shared input, while the honest prover and verifier additionally
 receive their own carried local state. The input and output oracle-statement
-families are fixed across the continuation. -/
+families are fixed across the continuation.
+
+This is a structured specialization of the master indexed oracle objects in
+`Oracle/Core.lean`, not a separate foundation. We keep it because the shared
+ambient input and the local carried state play different roles in composition:
+the protocol context depends only on the shared part, while the prover and
+verifier each thread their own local state inside that fixed protocol. -/
 structure Continuation {ι : Type} (oSpec : OracleSpec ι)
     (SharedIn : Type)
     (Context : SharedIn → Spec)

@@ -483,10 +483,12 @@ structure OracleStatement
       (outer : OuterStmtIn) →
         Spec.Transcript (InnerSpec (projection.proj outer)) → Type}
     (toStatement : Statement projection InnerStmtOut OuterStmtOut)
-    {Outerιₛᵢ : Type} (OuterOStmtIn : Outerιₛᵢ → Type)
-    {Innerιₛᵢ : Type} (InnerOStmtIn : Innerιₛᵢ → Type)
-    [∀ i, OracleInterface (OuterOStmtIn i)]
-    [∀ i, OracleInterface (InnerOStmtIn i)]
+    {Outerιₛᵢ : OuterStmtIn → Type}
+    (OuterOStmtIn : (outer : OuterStmtIn) → Outerιₛᵢ outer → Type)
+    {Innerιₛᵢ : InnerStmtIn → Type}
+    (InnerOStmtIn : (inner : InnerStmtIn) → Innerιₛᵢ inner → Type)
+    [∀ outer i, OracleInterface (OuterOStmtIn outer i)]
+    [∀ inner i, OracleInterface (InnerOStmtIn inner i)]
     {Innerιₛₒ :
       (s : InnerStmtIn) → (tr : Spec.Transcript (InnerSpec s)) → Type}
     (InnerOStmtOut :
@@ -503,13 +505,22 @@ structure OracleStatement
     [∀ s tr i, OracleInterface (InnerOStmtOut s tr i)]
     [∀ outer tr i, OracleInterface (OuterOStmtOut outer tr i)] where
   access :
-    OracleStatementAccess projection
-      OuterOStmtIn InnerOStmtIn InnerOStmtOut OuterOStmtOut
+    (outer : OuterStmtIn) →
+      OracleStatementAccess projection
+        (OuterOStmtIn outer)
+        (InnerOStmtIn (projection.proj outer))
+        InnerOStmtOut OuterOStmtOut
   reification :
-    OracleStatementReification projection
-      OuterOStmtIn InnerOStmtIn InnerOStmtOut OuterOStmtOut
+    (outer : OuterStmtIn) →
+      OracleStatementReification projection
+        (OuterOStmtIn outer)
+        (InnerOStmtIn (projection.proj outer))
+        InnerOStmtOut OuterOStmtOut
   coherent :
-    OracleStatementReification.Realizes access reification
+    ∀ outer,
+      OracleStatementReification.Realizes
+        (access outer)
+        (reification outer)
 
 /-- A fully bundled oracle context boundary: plain context boundary + oracle
 access + oracle reification + coherence proof.
@@ -539,10 +550,12 @@ structure OracleContext
         OuterWitIn InnerWitIn
         InnerStmtOut OuterStmtOut
         InnerWitOut OuterWitOut)
-    {Outerιₛᵢ : Type} (OuterOStmtIn : Outerιₛᵢ → Type)
-    {Innerιₛᵢ : Type} (InnerOStmtIn : Innerιₛᵢ → Type)
-    [∀ i, OracleInterface (OuterOStmtIn i)]
-    [∀ i, OracleInterface (InnerOStmtIn i)]
+    {Outerιₛᵢ : OuterStmtIn → Type}
+    (OuterOStmtIn : (outer : OuterStmtIn) → Outerιₛᵢ outer → Type)
+    {Innerιₛᵢ : InnerStmtIn → Type}
+    (InnerOStmtIn : (inner : InnerStmtIn) → Innerιₛᵢ inner → Type)
+    [∀ outer i, OracleInterface (OuterOStmtIn outer i)]
+    [∀ inner i, OracleInterface (InnerOStmtIn inner i)]
     {Innerιₛₒ :
       (s : InnerStmtIn) → (tr : Spec.Transcript (InnerSpec s)) → Type}
     (InnerOStmtOut :
@@ -559,15 +572,22 @@ structure OracleContext
     [∀ s tr i, OracleInterface (InnerOStmtOut s tr i)]
     [∀ outer tr i, OracleInterface (OuterOStmtOut outer tr i)] where
   access :
-    OracleStatementAccess projection
-      OuterOStmtIn InnerOStmtIn InnerOStmtOut OuterOStmtOut
+    (outer : OuterStmtIn) →
+      OracleStatementAccess projection
+        (OuterOStmtIn outer)
+        (InnerOStmtIn (projection.proj outer))
+        InnerOStmtOut OuterOStmtOut
   reification :
-    OracleStatementReification projection
-      OuterOStmtIn InnerOStmtIn InnerOStmtOut OuterOStmtOut
+    (outer : OuterStmtIn) →
+      OracleStatementReification projection
+        (OuterOStmtIn outer)
+        (InnerOStmtIn (projection.proj outer))
+        InnerOStmtOut OuterOStmtOut
   coherent :
-    OracleStatementReification.Realizes
-      access
-      reification
+    ∀ outer,
+      OracleStatementReification.Realizes
+        (access outer)
+        (reification outer)
 
 end Boundary
 
@@ -605,10 +625,12 @@ def pullback
         OuterWitIn InnerWitIn
         InnerStmtOut OuterStmtOut
         InnerWitOut OuterWitOut)
-    {Outerιₛᵢ : Type} {OuterOStmtIn : Outerιₛᵢ → Type}
-    {Innerιₛᵢ : Type} {InnerOStmtIn : Innerιₛᵢ → Type}
-    [∀ i, OracleInterface (OuterOStmtIn i)]
-    [∀ i, OracleInterface (InnerOStmtIn i)]
+    {Outerιₛᵢ : OuterStmtIn → Type}
+    {OuterOStmtIn : (outer : OuterStmtIn) → Outerιₛᵢ outer → Type}
+    {Innerιₛᵢ : InnerStmtIn → Type}
+    {InnerOStmtIn : (inner : InnerStmtIn) → Innerιₛᵢ inner → Type}
+    [∀ outer i, OracleInterface (OuterOStmtIn outer i)]
+    [∀ inner i, OracleInterface (InnerOStmtIn inner i)]
     {Innerιₛₒ :
       (s : InnerStmtIn) → (tr : Spec.Transcript (InnerSpec s)) → Type}
     {InnerOStmtOut :
@@ -646,7 +668,7 @@ def pullback
     let outerOStmtIn := sWithOracles.oracleStmt
     let innerStmt := toContext.stmt.proj outerStmt
     let innerOStmtIn :=
-      boundary.reification.materializeIn outerStmt outerOStmtIn
+      (boundary.reification outerStmt).materializeIn outerStmt outerOStmtIn
     let innerWit :=
       toContext.wit.proj outerStmt outerWit
     let strat ← reduction.prover ⟨innerStmt, innerOStmtIn⟩ innerWit
@@ -657,7 +679,7 @@ def pullback
         let outerStmtOut :=
           toContext.stmt.lift outerStmt tr innerStmtOut
         let outerOStmtOut :=
-          boundary.reification.materializeOut
+          (boundary.reification outerStmt).materializeOut
             outerStmt
             outerOStmtIn
             tr
@@ -678,7 +700,7 @@ def pullback
       reduction.verifier
   simulate outerStmt tr :=
     Boundary.OracleStatementAccess.pullbackSimulate
-      (access := boundary.access)
+      (access := boundary.access outerStmt)
       outerStmt
       tr
       (toOracleSpec

@@ -36,10 +36,11 @@ structure Continuation {ι : Type} (oSpec : OracleSpec ι)
     [∀ shared tr i, OracleInterface (OStmtOut shared tr i)]
     (WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type) where
   prover : (shared : SharedIn) →
-    StatementWithOracles (StatementIn shared) (OStmtIn shared) → WitnessIn shared →
+    StatementWithOracles (StatementIn shared) (fun _ => OStmtIn shared) →
+      WitnessIn shared →
       OracleComp oSpec (Spec.Strategy.withRoles (OracleComp oSpec) (Context shared) (Roles shared)
         (fun tr => HonestProverOutput
-          (StatementWithOracles (StatementOut shared tr) (OStmtOut shared tr))
+          (StatementWithOracles (StatementOut shared tr) (fun _ => OStmtOut shared tr))
           (WitnessOut shared tr)))
   verifier : (shared : SharedIn) → {ιₐ : Type} → (accSpec : OracleSpec ιₐ) →
     StatementIn shared →
@@ -106,7 +107,7 @@ def fix
     (shared : SharedIn) :
     OracleReduction oSpec
       (StatementIn shared)
-      (OStmtIn shared)
+      (fun _ => OStmtIn shared)
       (WitnessIn shared)
       (fun _ => Context shared)
       (fun _ => Roles shared)
@@ -323,7 +324,8 @@ def chainComp
       Spec.Transcript (Chain.toSpec (chain shared)) → Type}
     (proverInit :
       (shared : SharedIn) →
-      StatementWithOracles (StatementIn shared) (OStmtIn shared) → WitnessIn shared →
+      StatementWithOracles (StatementIn shared) (fun _ => OStmtIn shared) →
+        WitnessIn shared →
       OracleComp oSpec (ProverState shared (chain shared)))
     (proverStep :
       (shared : SharedIn) →
@@ -335,11 +337,11 @@ def chainComp
               (fun tr => ProverState shared (cont tr))))
     (proverResult :
       (shared : SharedIn) →
-      (s : StatementWithOracles (StatementIn shared) (OStmtIn shared)) →
+      (s : StatementWithOracles (StatementIn shared) (fun _ => OStmtIn shared)) →
       (tr : Spec.Transcript (Chain.toSpec (chain shared))) →
       ProverState shared Chain.nil →
       HonestProverOutput
-        (StatementWithOracles (StatementOut shared tr) (OStmtOut shared tr))
+        (StatementWithOracles (StatementOut shared tr) (fun _ => OStmtOut shared tr))
         (WitnessOut shared tr))
     (verifierInit :
       (shared : SharedIn) → StatementIn shared →
@@ -487,11 +489,12 @@ def execute
     (reduction : Continuation oSpec SharedIn Context Roles OD
       StatementIn OStmtIn WitnessIn StatementOut OStmtOut WitnessOut)
     (shared : SharedIn)
-    (s : StatementWithOracles (StatementIn shared) (OStmtIn shared)) (w : WitnessIn shared)
+    (s : StatementWithOracles (StatementIn shared) (fun _ => OStmtIn shared))
+    (w : WitnessIn shared)
     {ιₐ : Type} (accSpec : OracleSpec ιₐ) (accImpl : QueryImpl accSpec Id) :
     OracleComp oSpec ((tr : Spec.Transcript (Context shared)) ×
       HonestProverOutput
-        (StatementWithOracles (StatementOut shared tr) (OStmtOut shared tr))
+        (StatementWithOracles (StatementOut shared tr) (fun _ => OStmtOut shared tr))
         (WitnessOut shared tr) ×
       (StatementOut shared tr × QueryImpl [OStmtOut shared tr]ₒ
         (OracleComp
@@ -565,24 +568,26 @@ private def liftSimulatedMidOracleContextContinuation
 
 private def liftPrefixOracleContext
     {ι : Type} {oSpec : OracleSpec ι}
-    {StatementIn : Type} {ιₛᵢ : Type} {OStmtIn : ιₛᵢ → Type}
-    [∀ i, OracleInterface (OStmtIn i)]
+    {StatementIn : Type} {ιₛᵢ : StatementIn → Type}
+    {OStmtIn : (s : StatementIn) → ιₛᵢ s → Type}
+    [∀ s i, OracleInterface (OStmtIn s i)]
     {ctx₁ : StatementIn → Spec}
     {roles₁ : (s : StatementIn) → RoleDecoration (ctx₁ s)}
     {OD₁ : (s : StatementIn) → OracleDecoration (ctx₁ s) (roles₁ s)}
     (s : StatementIn) (tr₁ : Spec.Transcript (ctx₁ s))
     {ιₐ : Type} (accSpec : OracleSpec ιₐ) :
-    QueryImpl ([OStmtIn]ₒ + toOracleSpec (ctx₁ s) (roles₁ s) (OD₁ s) tr₁)
-      (OracleComp ((oSpec + [OStmtIn]ₒ) + accSpec))
+    QueryImpl ([OStmtIn s]ₒ + toOracleSpec (ctx₁ s) (roles₁ s) (OD₁ s) tr₁)
+      (OracleComp ((oSpec + [OStmtIn s]ₒ) + accSpec))
   | .inl q =>
-      liftM <| query (spec := [OStmtIn]ₒ) q
+      liftM <| query (spec := [OStmtIn s]ₒ) q
   | .inr q =>
       pure <| OracleDecoration.answerQuery (ctx₁ s) (roles₁ s) (OD₁ s) tr₁ q
 
 private def retargetContinuationVerifier
     {ι : Type} {oSpec : OracleSpec ι}
-    {StatementIn : Type} {ιₛᵢ : Type} {OStmtIn : ιₛᵢ → Type}
-    [∀ i, OracleInterface (OStmtIn i)]
+    {StatementIn : Type} {ιₛᵢ : StatementIn → Type}
+    {OStmtIn : (s : StatementIn) → ιₛᵢ s → Type}
+    [∀ s i, OracleInterface (OStmtIn s i)]
     {WitnessIn : Type}
     {ctx₁ : StatementIn → Spec}
     {roles₁ : (s : StatementIn) → RoleDecoration (ctx₁ s)}
@@ -603,7 +608,7 @@ private def retargetContinuationVerifier
       (toMonadDecoration oSpec (OStmtMid s tr₁) spec roles od accSpec)
       Output →
     Spec.Counterpart.withMonads spec roles
-      (toMonadDecoration oSpec OStmtIn spec roles od accSpec)
+      (toMonadDecoration oSpec (OStmtIn s) spec roles od accSpec)
       Output
   | .done, _, _, _, _, _, cpt =>
       cpt
@@ -615,7 +620,7 @@ private def retargetContinuationVerifier
   | .node _ rest, ⟨.receiver, rRest⟩, odFn, Output, _, accSpec, cpt =>
       let route :
           QueryImpl ((oSpec + [OStmtMid s tr₁]ₒ) + accSpec)
-            (OracleComp ((oSpec + [OStmtIn]ₒ) + accSpec)) :=
+            (OracleComp ((oSpec + [OStmtIn s]ₒ) + accSpec)) :=
         fun
         | .inl (.inl q) =>
             liftM <| query (spec := oSpec) q
@@ -633,8 +638,9 @@ private def retargetContinuationVerifier
 
 private def liftSimulatedMidOracleContext
     {ι : Type} {oSpec : OracleSpec ι}
-    {StatementIn : Type} {ιₛᵢ : Type} {OStmtIn : ιₛᵢ → Type}
-    [∀ i, OracleInterface (OStmtIn i)]
+    {StatementIn : Type} {ιₛᵢ : StatementIn → Type}
+    {OStmtIn : (s : StatementIn) → ιₛᵢ s → Type}
+    [∀ s i, OracleInterface (OStmtIn s i)]
     {WitnessIn : Type}
     {ctx₁ : StatementIn → Spec}
     {roles₁ : (s : StatementIn) → RoleDecoration (ctx₁ s)}
@@ -661,7 +667,7 @@ private def liftSimulatedMidOracleContext
           (Role.Refine.append (OD₁ s) (fun tr => OD₂ s tr))
           (Spec.Transcript.append (ctx₁ s) (ctx₂ s) tr₁ tr₂))
       (OracleComp
-        ([OStmtIn]ₒ +
+        ([OStmtIn s]ₒ +
           toOracleSpec ((ctx₁ s).append (ctx₂ s))
             (Spec.Decoration.append (roles₁ s) (roles₂ s))
             (Role.Refine.append (OD₁ s) (fun tr => OD₂ s tr))
@@ -672,11 +678,11 @@ private def liftSimulatedMidOracleContext
           (spec₁ := ctx₁ s) (spec₂ := ctx₂ s)
           (roles₁ := roles₁ s) (roles₂ := roles₂ s)
           (od₁ := OD₁ s) (od₂ := fun tr => OD₂ s tr)
-          (OStmt := OStmtIn) tr₁ tr₂)
+          (OStmt := OStmtIn s) tr₁ tr₂)
         (reduction1.simulate s tr₁ q)
   | .inr q =>
       liftM <| query
-        (spec := [OStmtIn]ₒ +
+        (spec := [OStmtIn s]ₒ +
           toOracleSpec ((ctx₁ s).append (ctx₂ s))
             (Spec.Decoration.append (roles₁ s) (roles₂ s))
             (Role.Refine.append (OD₁ s) (fun tr => OD₂ s tr))
@@ -685,8 +691,9 @@ private def liftSimulatedMidOracleContext
 
 private theorem simulateQ_liftSimulatedMidOracleContext_eq
     {ι : Type} {oSpec : OracleSpec ι}
-    {StatementIn : Type} {ιₛᵢ : Type} {OStmtIn : ιₛᵢ → Type}
-    [∀ i, OracleInterface (OStmtIn i)]
+    {StatementIn : Type} {ιₛᵢ : StatementIn → Type}
+    {OStmtIn : (s : StatementIn) → ιₛᵢ s → Type}
+    [∀ s i, OracleInterface (OStmtIn s i)]
     {WitnessIn : Type}
     {ctx₁ : StatementIn → Spec}
     {roles₁ : (s : StatementIn) → RoleDecoration (ctx₁ s)}
@@ -706,7 +713,7 @@ private theorem simulateQ_liftSimulatedMidOracleContext_eq
     (s : StatementIn)
     (tr₁ : Spec.Transcript (ctx₁ s))
     (tr₂ : Spec.Transcript (ctx₂ s tr₁))
-    (oStmtIn : OracleStatement OStmtIn)
+    (oStmtIn : OracleStatement (OStmtIn s))
     (midImpl : QueryImpl [OStmtMid s tr₁]ₒ Id)
     (hMid : ∀ i (q : OracleInterface.Query (OStmtMid s tr₁ i)),
       simulateQ
@@ -744,14 +751,14 @@ private theorem simulateQ_liftSimulatedMidOracleContext_eq
                 (spec₁ := ctx₁ s) (spec₂ := ctx₂ s)
                 (roles₁ := roles₁ s) (roles₂ := roles₂ s)
                 (od₁ := OD₁ s) (od₂ := fun tr => OD₂ s tr)
-                (OStmt := OStmtIn) tr₁ tr₂)) =
+                (OStmt := OStmtIn s) tr₁ tr₂)) =
           OracleDecoration.oracleContextImpl (ctx₁ s) (roles₁ s) (OD₁ s) oStmtIn tr₁ := by
         funext q'
         exact simulateQ_liftAppendLeftContext_eq
           (spec₁ := ctx₁ s) (spec₂ := ctx₂ s)
             (roles₁ := roles₁ s) (roles₂ := roles₂ s)
             (od₁ := OD₁ s) (od₂ := fun tr => OD₂ s tr)
-            (OStmt := OStmtIn) tr₁ tr₂ oStmtIn q'
+            (OStmt := OStmtIn s) tr₁ tr₂ oStmtIn q'
       rw [simulateQ_ext (fun q' => congrFun hroute q')]
       simpa [QueryImpl.add] using hMid i q
   | inr q =>
@@ -872,8 +879,9 @@ private theorem simulateQ_liftAppendRightContext_withImpl_eq
 
 private def compSimulate
     {ι : Type} {oSpec : OracleSpec ι}
-    {StatementIn : Type} {ιₛᵢ : Type} {OStmtIn : ιₛᵢ → Type}
-    [∀ i, OracleInterface (OStmtIn i)]
+    {StatementIn : Type} {ιₛᵢ : StatementIn → Type}
+    {OStmtIn : (s : StatementIn) → ιₛᵢ s → Type}
+    [∀ s i, OracleInterface (OStmtIn s i)]
     {WitnessIn : Type}
     {ctx₁ : StatementIn → Spec}
     {roles₁ : (s : StatementIn) → RoleDecoration (ctx₁ s)}
@@ -915,7 +923,7 @@ private def compSimulate
     (s : StatementIn) (tr : Spec.Transcript ((ctx₁ s).append (ctx₂ s))) :
     QueryImpl
       [liftAppendOracleFamily (ctx₁ s) (ctx₂ s) (ιₛₒ s) (OStmtOut s) tr]ₒ
-      (OracleComp ([OStmtIn]ₒ + toOracleSpec ((ctx₁ s).append (ctx₂ s))
+      (OracleComp ([OStmtIn s]ₒ + toOracleSpec ((ctx₁ s).append (ctx₂ s))
         (Spec.Decoration.append (roles₁ s) (roles₂ s))
         (Role.Refine.append (OD₁ s) (fun tr₁ => OD₂ s tr₁)) tr)) := by
   intro qOut
@@ -945,19 +953,19 @@ private def compSimulate
       (Spec.Transcript.append_split (ctx₁ s) (ctx₂ s) tr)
   have hRouteTy :
       OracleComp
-        ([OStmtIn]ₒ +
+        ([OStmtIn s]ₒ +
           toOracleSpec ((ctx₁ s).append (ctx₂ s))
             (Spec.Decoration.append (roles₁ s) (roles₂ s))
             (Role.Refine.append (OD₁ s) (fun tr => OD₂ s tr))
             (Spec.Transcript.append (ctx₁ s) (ctx₂ s) tr₁ tr₂))
         (([OStmtOut s tr₁ tr₂]ₒ).Range qSplit) =
       OracleComp
-        ([OStmtIn]ₒ + toOracleSpec ((ctx₁ s).append (ctx₂ s))
+        ([OStmtIn s]ₒ + toOracleSpec ((ctx₁ s).append (ctx₂ s))
           (Spec.Decoration.append (roles₁ s) (roles₂ s))
           (Role.Refine.append (OD₁ s) (fun tr₁ => OD₂ s tr₁)) tr)
         ([liftAppendOracleFamily (ctx₁ s) (ctx₂ s) (ιₛₒ s) (OStmtOut s) tr]ₒ.Range qOut) := by
     let specFn := fun tr' =>
-      [OStmtIn]ₒ + toOracleSpec ((ctx₁ s).append (ctx₂ s))
+      [OStmtIn s]ₒ + toOracleSpec ((ctx₁ s).append (ctx₂ s))
         (Spec.Decoration.append (roles₁ s) (roles₂ s))
         (Role.Refine.append (OD₁ s) (fun tr => OD₂ s tr)) tr'
     let rangeSplit := (([OStmtOut s tr₁ tr₂]ₒ).Range qSplit)
@@ -983,8 +991,9 @@ over `ctx₁`, producing intermediate outputs. The second reduction is a
 continuation over the shared input `(s, tr₁)`, taking the intermediate bundled
 oracle statement and witness as its local input. -/
 def comp {ι : Type} {oSpec : OracleSpec ι}
-    {StatementIn : Type} {ιₛᵢ : Type} {OStmtIn : ιₛᵢ → Type}
-    [∀ i, OracleInterface (OStmtIn i)]
+    {StatementIn : Type} {ιₛᵢ : StatementIn → Type}
+    {OStmtIn : (s : StatementIn) → ιₛᵢ s → Type}
+    [∀ s i, OracleInterface (OStmtIn s i)]
     {WitnessIn : Type}
     {ctx₁ : StatementIn → Spec}
     {roles₁ : (s : StatementIn) → RoleDecoration (ctx₁ s)}
@@ -1037,28 +1046,52 @@ def comp {ι : Type} {oSpec : OracleSpec ι}
         (reduction2 sWithOracles.stmt tr₁).prover PUnit.unit midOut.stmt midOut.wit)
     pure <| Spec.Strategy.mapOutputWithRoles
       (fun tr out => by
+        let split := Spec.Transcript.split (ctx₁ sWithOracles.stmt) (ctx₂ sWithOracles.stmt) tr
         let splitOuter := Spec.Transcript.liftAppendProd
           (ctx₁ sWithOracles.stmt) (ctx₂ sWithOracles.stmt)
           (fun tr₁ tr₂ =>
             StatementWithOracles (StmtOut sWithOracles.stmt tr₁ tr₂)
-              (OStmtOut sWithOracles.stmt tr₁ tr₂))
+              (fun _ => OStmtOut sWithOracles.stmt tr₁ tr₂))
           (WitOut sWithOracles.stmt) tr out
-        let splitStmtOracle := Spec.Transcript.liftAppendProd
+        let splitStmtOracle := Spec.Transcript.unliftAppend
           (ctx₁ sWithOracles.stmt) (ctx₂ sWithOracles.stmt)
-          (StmtOut sWithOracles.stmt)
-          (fun tr₁ tr₂ => OracleStatement (OStmtOut sWithOracles.stmt tr₁ tr₂))
+          (fun tr₁ tr₂ =>
+            StatementWithOracles (StmtOut sWithOracles.stmt tr₁ tr₂)
+              (fun _ => OStmtOut sWithOracles.stmt tr₁ tr₂))
           tr splitOuter.1
+        have htr :
+            Spec.Transcript.append
+              (ctx₁ sWithOracles.stmt) (ctx₂ sWithOracles.stmt)
+              split.1 split.2 = tr := by
+          simpa [split] using
+            (Spec.Transcript.append_split
+              (ctx₁ sWithOracles.stmt) (ctx₂ sWithOracles.stmt) tr)
+        have stmtOut :
+            Spec.Transcript.liftAppend
+              (ctx₁ sWithOracles.stmt) (ctx₂ sWithOracles.stmt)
+              (StmtOut sWithOracles.stmt) tr := by
+          exact cast
+            (congrArg
+              (fun tr' =>
+                Spec.Transcript.liftAppend
+                  (ctx₁ sWithOracles.stmt) (ctx₂ sWithOracles.stmt)
+                  (StmtOut sWithOracles.stmt) tr')
+              htr)
+            (Spec.Transcript.packAppend
+              (ctx₁ sWithOracles.stmt) (ctx₂ sWithOracles.stmt)
+              (StmtOut sWithOracles.stmt)
+              split.1 split.2 splitStmtOracle.stmt)
         have oracleOut :
             OracleStatement
               (liftAppendOracleFamily (ctx₁ sWithOracles.stmt) (ctx₂ sWithOracles.stmt)
                 (ιₛₒ sWithOracles.stmt) (OStmtOut sWithOracles.stmt) tr) := by
-          simpa [liftAppendOracleFamily, liftAppendOracleIdx] using
-            (Spec.Transcript.unliftAppend
+          simpa [split, liftAppendOracleFamily, liftAppendOracleIdx] using
+            (Spec.Transcript.packAppend
               (ctx₁ sWithOracles.stmt) (ctx₂ sWithOracles.stmt)
               (fun tr₁ tr₂ =>
                 OracleStatement (OStmtOut sWithOracles.stmt tr₁ tr₂))
-              tr splitStmtOracle.2)
-        exact ⟨⟨splitStmtOracle.1, oracleOut⟩, splitOuter.2⟩)
+              split.1 split.2 splitStmtOracle.oracleStmt)
+        exact ⟨⟨stmtOut, oracleOut⟩, splitOuter.2⟩)
       strat
   verifier s {ιₐ} accSpec := by
     simpa [toMonadDecoration_append] using
@@ -1142,27 +1175,52 @@ def comp {ι : Type} {oSpec : OracleSpec ι}
         (reduction2 shared tr₁).prover PUnit.unit midOut.stmt midOut.wit)
     pure <| Spec.Strategy.mapOutputWithRoles
       (fun tr out =>
+        let split := Spec.Transcript.split (ctx₁ shared) (ctx₂ shared) tr
         let splitOuter := Spec.Transcript.liftAppendProd
           (ctx₁ shared) (ctx₂ shared)
           (fun tr₁ tr₂ =>
-            StatementWithOracles (StmtOut shared tr₁ tr₂) (OStmtOut shared tr₁ tr₂))
+              StatementWithOracles (StmtOut shared tr₁ tr₂)
+                (fun _ => OStmtOut shared tr₁ tr₂))
           (WitOut shared) tr out
-        let splitStmtOracle := Spec.Transcript.liftAppendProd
+        let splitStmtOracle := Spec.Transcript.unliftAppend
           (ctx₁ shared) (ctx₂ shared)
-          (StmtOut shared)
-          (fun tr₁ tr₂ => OracleStatement (OStmtOut shared tr₁ tr₂))
+          (fun tr₁ tr₂ =>
+            StatementWithOracles (StmtOut shared tr₁ tr₂)
+              (fun _ => OStmtOut shared tr₁ tr₂))
           tr splitOuter.1
+        have htr :
+            Spec.Transcript.append
+              (ctx₁ shared) (ctx₂ shared)
+              split.1 split.2 = tr := by
+          simpa [split] using
+            (Spec.Transcript.append_split
+              (ctx₁ shared) (ctx₂ shared) tr)
+        have stmtOut :
+            Spec.Transcript.liftAppend
+              (ctx₁ shared) (ctx₂ shared)
+              (StmtOut shared) tr := by
+          exact cast
+            (congrArg
+              (fun tr' =>
+                Spec.Transcript.liftAppend
+                  (ctx₁ shared) (ctx₂ shared)
+                  (StmtOut shared) tr')
+              htr)
+            (Spec.Transcript.packAppend
+              (ctx₁ shared) (ctx₂ shared)
+              (StmtOut shared)
+              split.1 split.2 splitStmtOracle.stmt)
         let oracleOut :
             OracleStatement
               (liftAppendOracleFamily (ctx₁ shared) (ctx₂ shared)
                 (ιₛₒ shared) (OStmtOut shared) tr) := by
-          simpa [liftAppendOracleFamily, liftAppendOracleIdx] using
-            (Spec.Transcript.unliftAppend
+          simpa [split, liftAppendOracleFamily, liftAppendOracleIdx] using
+            (Spec.Transcript.packAppend
               (ctx₁ shared) (ctx₂ shared)
               (fun tr₁ tr₂ =>
                 OracleStatement (OStmtOut shared tr₁ tr₂))
-              tr splitStmtOracle.2)
-        ⟨⟨splitStmtOracle.1, oracleOut⟩, splitOuter.2⟩)
+              split.1 split.2 splitStmtOracle.oracleStmt)
+        ⟨⟨stmtOut, oracleOut⟩, splitOuter.2⟩)
       strat
   verifier shared {ιₐ} accSpec stmt := by
     let reduction1Fixed := Continuation.fix reduction1 shared
@@ -1253,8 +1311,9 @@ against `midImpl`, then routing the suffix simulator through the appended
 message context and then routing mid-oracle queries through the prefix reduction
 agrees with `outImpl`. -/
 theorem simulate_comp {ι : Type} {oSpec : OracleSpec ι}
-    {StatementIn : Type} {ιₛᵢ : Type} {OStmtIn : ιₛᵢ → Type}
-    [∀ i, OracleInterface (OStmtIn i)]
+    {StatementIn : Type} {ιₛᵢ : StatementIn → Type}
+    {OStmtIn : (s : StatementIn) → ιₛᵢ s → Type}
+    [∀ s i, OracleInterface (OStmtIn s i)]
     {WitnessIn : Type}
     {ctx₁ : StatementIn → Spec}
     {roles₁ : (s : StatementIn) → RoleDecoration (ctx₁ s)}
@@ -1296,7 +1355,7 @@ theorem simulate_comp {ι : Type} {oSpec : OracleSpec ι}
     (s : StatementIn)
     (tr₁ : Spec.Transcript (ctx₁ s))
     (tr₂ : Spec.Transcript (ctx₂ s tr₁))
-    (oStmtIn : OracleStatement OStmtIn)
+    (oStmtIn : OracleStatement (OStmtIn s))
     (midImpl : QueryImpl [OStmtMid s tr₁]ₒ Id)
     (outImpl : QueryImpl [OStmtOut s tr₁ tr₂]ₒ Id)
     (hMid : ∀ i (q : OracleInterface.Query (OStmtMid s tr₁ i)),

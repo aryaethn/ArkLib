@@ -130,10 +130,12 @@ variable
       (outer : OuterStmtIn) →
         Spec.Transcript (InnerSpec (projection.proj outer)) → Type}
     {toStatement : Statement projection InnerStmtOut OuterStmtOut}
-    {Outerιₛᵢ : Type} {OuterOStmtIn : Outerιₛᵢ → Type}
-    {Innerιₛᵢ : Type} {InnerOStmtIn : Innerιₛᵢ → Type}
-    [∀ i, OracleInterface (OuterOStmtIn i)]
-    [∀ i, OracleInterface (InnerOStmtIn i)]
+    {Outerιₛᵢ : OuterStmtIn → Type}
+    {OuterOStmtIn : (outer : OuterStmtIn) → Outerιₛᵢ outer → Type}
+    {Innerιₛᵢ : InnerStmtIn → Type}
+    {InnerOStmtIn : (inner : InnerStmtIn) → Innerιₛᵢ inner → Type}
+    [∀ outer i, OracleInterface (OuterOStmtIn outer i)]
+    [∀ inner i, OracleInterface (InnerOStmtIn inner i)]
     {Innerιₛₒ :
       (s : InnerStmtIn) → (tr : Spec.Transcript (InnerSpec s)) → Type}
     {InnerOStmtOut :
@@ -166,18 +168,18 @@ variable
         (InnerSpec := fun inner => InnerSpec inner.stmt)
         (proj := fun outer =>
           ⟨projection.proj outer.stmt,
-            boundary.reification.materializeIn outer.stmt outer.oracleStmt⟩))
+            (boundary.reification outer.stmt).materializeIn outer.stmt outer.oracleStmt⟩))
       (fun inner tr =>
         StatementWithOracles
           (InnerStmtOut inner.stmt tr)
-          (InnerOStmtOut inner.stmt tr))
+          (fun _ => InnerOStmtOut inner.stmt tr))
       (fun outer tr =>
         StatementWithOracles
           (OuterStmtOut outer.stmt tr)
-          (OuterOStmtOut outer.stmt tr)) where
+          (fun _ => OuterOStmtOut outer.stmt tr)) where
   lift := fun outer tr innerOut =>
     ⟨toStatement.lift outer.stmt tr innerOut.stmt,
-      boundary.reification.materializeOut
+      (boundary.reification outer.stmt).materializeOut
         outer.stmt
         outer.oracleStmt
         tr
@@ -199,20 +201,20 @@ abbrev IsSound
         Set
           (StatementWithOracles
             (OuterStmtOut outer.stmt tr)
-            (OuterOStmtOut outer.stmt tr)))
+            (fun _ => OuterOStmtOut outer.stmt tr)))
     (innerLangOut :
       (inner : StatementWithOracles InnerStmtIn InnerOStmtIn) →
         (tr : Spec.Transcript (InnerSpec inner.stmt)) →
         Set
           (StatementWithOracles
             (InnerStmtOut inner.stmt tr)
-            (InnerOStmtOut inner.stmt tr)))
+            (fun _ => InnerOStmtOut inner.stmt tr)))
     (compat :
       (outer : StatementWithOracles OuterStmtIn OuterOStmtIn) →
         (tr : Spec.Transcript (InnerSpec (projection.proj outer.stmt))) →
         StatementWithOracles
           (InnerStmtOut (projection.proj outer.stmt) tr)
-          (InnerOStmtOut (projection.proj outer.stmt) tr) →
+          (fun _ => InnerOStmtOut (projection.proj outer.stmt) tr) →
         Prop) :=
   Statement.IsSound
     boundary.toConcreteStatement
@@ -245,10 +247,12 @@ variable
       OuterWitIn InnerWitIn
       InnerStmtOut OuterStmtOut
       InnerWitOut OuterWitOut}
-    {Outerιₛᵢ : Type} {OuterOStmtIn : Outerιₛᵢ → Type}
-    {Innerιₛᵢ : Type} {InnerOStmtIn : Innerιₛᵢ → Type}
-    [∀ i, OracleInterface (OuterOStmtIn i)]
-    [∀ i, OracleInterface (InnerOStmtIn i)]
+    {Outerιₛᵢ : OuterStmtIn → Type}
+    {OuterOStmtIn : (outer : OuterStmtIn) → Outerιₛᵢ outer → Type}
+    {Innerιₛᵢ : InnerStmtIn → Type}
+    {InnerOStmtIn : (inner : InnerStmtIn) → Innerιₛᵢ inner → Type}
+    [∀ outer i, OracleInterface (OuterOStmtIn outer i)]
+    [∀ inner i, OracleInterface (InnerOStmtIn inner i)]
     {Innerιₛₒ :
       (s : InnerStmtIn) → (tr : Spec.Transcript (InnerSpec s)) → Type}
     {InnerOStmtOut :
@@ -281,23 +285,23 @@ variable
         (InnerSpec := fun inner => InnerSpec inner.stmt)
         (proj := fun outer =>
           ⟨projection.proj outer.stmt,
-            boundary.reification.materializeIn outer.stmt outer.oracleStmt⟩))
+            (boundary.reification outer.stmt).materializeIn outer.stmt outer.oracleStmt⟩))
       OuterWitIn
       InnerWitIn
       (fun inner tr =>
         StatementWithOracles
           (InnerStmtOut inner.stmt tr)
-          (InnerOStmtOut inner.stmt tr))
+          (fun _ => InnerOStmtOut inner.stmt tr))
       (fun outer tr =>
         StatementWithOracles
           (OuterStmtOut outer.stmt tr)
-          (OuterOStmtOut outer.stmt tr))
+          (fun _ => OuterOStmtOut outer.stmt tr))
       (fun inner tr => InnerWitOut inner.stmt tr)
       (fun outer tr => OuterWitOut outer.stmt tr) where
   stmt := {
     lift := fun outer tr innerOut =>
       ⟨toContext.stmt.lift outer.stmt tr innerOut.stmt,
-        boundary.reification.materializeOut
+        (boundary.reification outer.stmt).materializeOut
           outer.stmt
           outer.oracleStmt
           tr
@@ -334,7 +338,7 @@ abbrev IsComplete
         (tr : Spec.Transcript (InnerSpec (projection.proj outer.stmt))) →
         StatementWithOracles
           (OuterStmtOut outer.stmt tr)
-          (OuterOStmtOut outer.stmt tr) →
+          (fun _ => OuterOStmtOut outer.stmt tr) →
         OuterWitOut outer.stmt tr →
         Prop)
     (innerRelOut :
@@ -342,7 +346,7 @@ abbrev IsComplete
         (tr : Spec.Transcript (InnerSpec inner.stmt)) →
         StatementWithOracles
           (InnerStmtOut inner.stmt tr)
-          (InnerOStmtOut inner.stmt tr) →
+          (fun _ => InnerOStmtOut inner.stmt tr) →
         InnerWitOut inner.stmt tr →
         Prop)
     (compat :
@@ -351,7 +355,7 @@ abbrev IsComplete
         (tr : Spec.Transcript (InnerSpec (projection.proj outer.stmt))) →
         StatementWithOracles
           (InnerStmtOut (projection.proj outer.stmt) tr)
-          (InnerOStmtOut (projection.proj outer.stmt) tr) →
+          (fun _ => InnerOStmtOut (projection.proj outer.stmt) tr) →
         InnerWitOut (projection.proj outer.stmt) tr →
         Prop) :=
   Context.IsComplete

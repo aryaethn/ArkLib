@@ -1308,11 +1308,12 @@ def pullback
         Spec.Transcript (InnerSpec (projection.proj outer)) → Type}
     (stmt :
       Boundary.Statement projection InnerStmtOut OuterStmtOut)
-    {Outerιₛᵢ Innerιₛᵢ : Type}
-    {OuterOStmtIn : Outerιₛᵢ → Type}
-    {InnerOStmtIn : Innerιₛᵢ → Type}
-    [∀ i, OracleInterface (OuterOStmtIn i)]
-    [∀ i, OracleInterface (InnerOStmtIn i)]
+    {Outerιₛᵢ : OuterStmtIn → Type}
+    {OuterOStmtIn : (outer : OuterStmtIn) → Outerιₛᵢ outer → Type}
+    {Innerιₛᵢ : InnerStmtIn → Type}
+    {InnerOStmtIn : (inner : InnerStmtIn) → Innerιₛᵢ inner → Type}
+    [∀ outer i, OracleInterface (OuterOStmtIn outer i)]
+    [∀ inner i, OracleInterface (InnerOStmtIn inner i)]
     {Innerιₛₒ :
       (s : InnerStmtIn) →
       (tr : Spec.Transcript (InnerSpec s)) →
@@ -1332,8 +1333,11 @@ def pullback
     [∀ s tr i, OracleInterface (InnerOStmtOut s tr i)]
     [∀ outer tr i, OracleInterface (OuterOStmtOut outer tr i)]
     (access :
-      Boundary.OracleStatementAccess projection
-        OuterOStmtIn InnerOStmtIn InnerOStmtOut OuterOStmtOut)
+      (outer : OuterStmtIn) →
+        Boundary.OracleStatementAccess projection
+          (OuterOStmtIn outer)
+          (InnerOStmtIn (stmt.proj outer))
+          InnerOStmtOut OuterOStmtOut)
     (verifier :
       Interaction.OracleVerifier oSpec
         InnerStmtIn InnerOStmtIn InnerSpec InnerRoles InnerOD
@@ -1345,7 +1349,7 @@ def pullback
       (fun outer => InnerOD (stmt.proj outer))
       OuterStmtOut OuterOStmtOut where
   toFun outer {_} accSpec :=
-    Boundary.pullbackCounterpart access.simulateIn
+    Boundary.pullbackCounterpart (access outer).simulateIn
       (InnerSpec (stmt.proj outer))
       (InnerRoles (stmt.proj outer))
       (InnerOD (stmt.proj outer))
@@ -1354,7 +1358,7 @@ def pullback
       (verifier (stmt.proj outer) accSpec)
   simulate outerStmt tr :=
     Boundary.OracleStatementAccess.pullbackSimulate
-      (access := access)
+      (access := access outerStmt)
       outerStmt
       tr
       (OracleDecoration.toOracleSpec
@@ -1389,11 +1393,12 @@ def pullbackVerifier
         Spec.Transcript (InnerSpec (projection.proj outer)) → Type}
     (stmt :
       Boundary.Statement projection InnerStmtOut OuterStmtOut)
-    {Outerιₛᵢ Innerιₛᵢ : Type}
-    {OuterOStmtIn : Outerιₛᵢ → Type}
-    {InnerOStmtIn : Innerιₛᵢ → Type}
-    [∀ i, OracleInterface (OuterOStmtIn i)]
-    [∀ i, OracleInterface (InnerOStmtIn i)]
+    {Outerιₛᵢ : OuterStmtIn → Type}
+    {OuterOStmtIn : (outer : OuterStmtIn) → Outerιₛᵢ outer → Type}
+    {Innerιₛᵢ : InnerStmtIn → Type}
+    {InnerOStmtIn : (inner : InnerStmtIn) → Innerιₛᵢ inner → Type}
+    [∀ outer i, OracleInterface (OuterOStmtIn outer i)]
+    [∀ inner i, OracleInterface (InnerOStmtIn inner i)]
     {Innerιₛₒ :
       (s : InnerStmtIn) →
       (tr : Spec.Transcript (InnerSpec s)) →
@@ -1413,8 +1418,11 @@ def pullbackVerifier
     [∀ s tr i, OracleInterface (InnerOStmtOut s tr i)]
     [∀ outer tr i, OracleInterface (OuterOStmtOut outer tr i)]
     (access :
-      Boundary.OracleStatementAccess projection
-        OuterOStmtIn InnerOStmtIn InnerOStmtOut OuterOStmtOut)
+      (outer : OuterStmtIn) →
+        Boundary.OracleStatementAccess projection
+          (OuterOStmtIn outer)
+          (InnerOStmtIn (stmt.proj outer))
+          InnerOStmtOut OuterOStmtOut)
     (verifier :
       (s : InnerStmtIn) →
         {ιₐ : Type} →
@@ -1422,7 +1430,7 @@ def pullbackVerifier
         Spec.Counterpart.withMonads
           (InnerSpec s)
           (InnerRoles s)
-          (toMonadDecoration oSpec InnerOStmtIn
+          (toMonadDecoration oSpec (InnerOStmtIn s)
             (InnerSpec s) (InnerRoles s) (InnerOD s) accSpec)
           (fun tr => InnerStmtOut s tr)) :
     (outer : OuterStmtIn) →
@@ -1431,14 +1439,14 @@ def pullbackVerifier
       Spec.Counterpart.withMonads
         (InnerSpec (stmt.proj outer))
         (InnerRoles (stmt.proj outer))
-        (toMonadDecoration oSpec OuterOStmtIn
+        (toMonadDecoration oSpec (OuterOStmtIn outer)
           (InnerSpec (stmt.proj outer))
           (InnerRoles (stmt.proj outer))
           (InnerOD (stmt.proj outer))
           accSpec)
         (fun tr => OuterStmtOut outer tr) :=
   fun outer {_} accSpec =>
-    Boundary.pullbackCounterpart access.simulateIn
+    Boundary.pullbackCounterpart (access outer).simulateIn
       (InnerSpec (stmt.proj outer))
       (InnerRoles (stmt.proj outer))
       (InnerOD (stmt.proj outer))

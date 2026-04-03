@@ -56,7 +56,7 @@ def foldRoundContinuation {SharedIn : Type} {ι : Type} {oSpec : OracleSpec ι}
             HonestProverOutput
               (StatementWithOracles
                 (FoldChallengePrefix (F := F) i.1.succ)
-                (FoldCodewordPrefix (F := F) (n := n) D x s i.1.succ))
+                (fun _ => FoldCodewordPrefix (F := F) (n := n) D x s i.1.succ))
               (HonestPoly (F := F) s d i.1.succ)) := by
       intro α
       let nextPoly : HonestPoly (F := F) s d i.1.succ :=
@@ -76,7 +76,7 @@ def foldRoundContinuation {SharedIn : Type} {ι : Type} {oSpec : OracleSpec ι}
           HonestProverOutput
             (StatementWithOracles
               (FoldChallengePrefix (F := F) i.1.succ)
-              (FoldCodewordPrefix (F := F) (n := n) D x s i.1.succ))
+              (fun _ => FoldCodewordPrefix (F := F) (n := n) D x s i.1.succ))
             (HonestPoly (F := F) s d i.1.succ) :=
         ⟨⟨nextChallenges, nextCodewords⟩, nextPoly⟩
       simpa [Spec.SyntaxOver.Family, Spec.pairedSyntax, Spec.Participant.focal] using
@@ -86,7 +86,7 @@ def foldRoundContinuation {SharedIn : Type} {ι : Type} {oSpec : OracleSpec ι}
                 HonestProverOutput
                   (StatementWithOracles
                     (FoldChallengePrefix (F := F) i.1.succ)
-                    (FoldCodewordPrefix (F := F) (n := n) D x s i.1.succ))
+                    (fun _ => FoldCodewordPrefix (F := F) (n := n) D x s i.1.succ))
                   (HonestPoly (F := F) s d i.1.succ) from
               ⟨nextCodeword, nextOutput⟩)) :
           OracleComp oSpec
@@ -95,7 +95,7 @@ def foldRoundContinuation {SharedIn : Type} {ι : Type} {oSpec : OracleSpec ι}
                 HonestProverOutput
                   (StatementWithOracles
                     (FoldChallengePrefix (F := F) i.1.succ)
-                    (FoldCodewordPrefix (F := F) (n := n) D x s i.1.succ))
+                    (fun _ => FoldCodewordPrefix (F := F) (n := n) D x s i.1.succ))
                   (HonestPoly (F := F) s d i.1.succ))))
     pure proverStep
   verifier shared {_} _accSpec prevChallenges := do

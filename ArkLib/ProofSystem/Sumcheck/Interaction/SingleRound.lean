@@ -364,7 +364,8 @@ theorem roundContinuation_publicEq_stateful
     {n prefixLen : ℕ} (h : prefixLen < n)
     (prefixTr : Spec.Transcript (Sumcheck.fullSpec R deg prefixLen))
     (sampleChallenge : OracleComp oSpec R)
-    (sWithOracles : StatementWithOracles (RoundClaim R) (Sumcheck.PolyFamily R deg n)) :
+    (sWithOracles :
+      StatementWithOracles (RoundClaim R) (fun _ => Sumcheck.PolyFamily R deg n)) :
     (Spec.Strategy.mapOutputWithRoles (fun _ out => out.stmt) ·) <$>
       (roundContinuationStateful (R := R) (deg := deg) D
         (totalVars := n)
@@ -386,7 +387,8 @@ theorem roundContinuationOption_proverEq_stateful
     {n prefixLen : ℕ} (h : prefixLen < n)
     (prefixTr : Spec.Transcript (Sumcheck.fullSpec R deg prefixLen))
     (sampleChallenge : OracleComp oSpec R)
-    (sWithOracles : StatementWithOracles (Option (RoundClaim R)) (Sumcheck.PolyFamily R deg n)) :
+    (sWithOracles :
+      StatementWithOracles (Option (RoundClaim R)) (fun _ => Sumcheck.PolyFamily R deg n)) :
     (Spec.Strategy.mapOutputWithRoles
       (fun tr out =>
         ⟨out.stmt,
@@ -410,7 +412,7 @@ theorem roundContinuationOption_proverEq_stateful
               (fun _ =>
                 HonestProverOutput
                   (StatementWithOracles (Option (RoundClaim R))
-                    (Sumcheck.PolyFamily R deg n))
+                    (fun _ => Sumcheck.PolyFamily R deg n))
                   (Sumcheck.PolyStmt R deg (n - (prefixLen + 1)))))))
       <|
       (roundProverStep_map_honestProverOutputWitness
@@ -428,7 +430,7 @@ theorem roundContinuationOption_proverEq_stateful
           (⟨⟨nextClaim, sWithOracles.oracleStmt⟩, PUnit.unit⟩ :
             HonestProverOutput
               (StatementWithOracles (Option (RoundClaim R))
-                (Sumcheck.PolyFamily R deg n))
+                (fun _ => Sumcheck.PolyFamily R deg n))
               PUnit)))
 
 /-- A single-round sum-check oracle reduction. The input oracle statement is the
@@ -441,7 +443,7 @@ noncomputable def roundOracleReduction
     (sampleChallenge : OracleComp oSpec R) :
     OracleReduction oSpec
       (RoundClaim R)
-      (Sumcheck.PolyFamily R deg (numVars + 1))
+      (fun _ => Sumcheck.PolyFamily R deg (numVars + 1))
       PUnit
       (fun _ => roundSpec R deg)
       (fun _ => roundRoles R deg)
@@ -469,7 +471,7 @@ noncomputable def roundOracleReductionStateful
     (sampleChallenge : OracleComp oSpec R) :
     OracleReduction oSpec
       (RoundClaim R)
-      (Sumcheck.PolyFamily R deg (numVars + 1))
+      (fun _ => Sumcheck.PolyFamily R deg (numVars + 1))
       (Sumcheck.PolyStmt R deg (numVars + 1))
       (fun _ => roundSpec R deg)
       (fun _ => roundRoles R deg)
@@ -485,7 +487,9 @@ theorem roundOracleReduction_executePublic_eq_stateful
     {m_dom : ℕ} (D : Fin m_dom → R)
     (numVars : ℕ)
     (sampleChallenge : OracleComp oSpec R)
-    (s : StatementWithOracles (RoundClaim R) (Sumcheck.PolyFamily R deg (numVars + 1))) :
+    (s :
+      StatementWithOracles (RoundClaim R)
+        (fun _ => Sumcheck.PolyFamily R deg (numVars + 1))) :
     Interaction.OracleDecoration.OracleReduction.executePublic
       (roundOracleReduction (R := R) (deg := deg) D numVars sampleChallenge)
       s PUnit.unit =
@@ -518,10 +522,12 @@ theorem roundOracleReduction_executePublic_eq_stateful
         (Nat.succ_pos numVars) prefixTr sampleChallenge s)
   let pack :
       ((tr : Spec.Transcript (roundSpec R deg)) ×
-        StatementWithOracles (Option (RoundClaim R)) (Sumcheck.PolyFamily R deg (numVars + 1)) ×
+        StatementWithOracles (Option (RoundClaim R))
+          (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)) ×
         Option (RoundClaim R)) →
       ((tr : Spec.Transcript (roundSpec R deg)) ×
-        StatementWithOracles (Option (RoundClaim R)) (Sumcheck.PolyFamily R deg (numVars + 1)) ×
+        StatementWithOracles (Option (RoundClaim R))
+          (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)) ×
         (Option (RoundClaim R) ×
           QueryImpl [Sumcheck.PolyFamily R deg (numVars + 1)]ₒ
             (OracleComp
@@ -554,7 +560,7 @@ theorem roundOracleReduction_executePublic_eq_stateful
         (Spec.Strategy.mapOutputWithRoles
           (fun _ (out : HonestProverOutput
               (StatementWithOracles (Option (RoundClaim R))
-                (Sumcheck.PolyFamily R deg (numVars + 1)))
+                (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)))
               PUnit) => out.stmt) ·) <$>
           (roundContinuation (R := R) (deg := deg) D
             (n := numVars + 1) (prefixLen := 0)
@@ -566,7 +572,7 @@ theorem roundOracleReduction_executePublic_eq_stateful
         (Spec.Strategy.mapOutputWithRoles
           (fun _ (out : HonestProverOutput
               (StatementWithOracles (Option (RoundClaim R))
-                (Sumcheck.PolyFamily R deg (numVars + 1)))
+                (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)))
               (Sumcheck.PolyStmt R deg numVars)) => out.stmt) ·) <$>
           (roundContinuationStateful (R := R) (deg := deg) D
             (totalVars := numVars + 1) numVars sampleChallenge).prover
@@ -581,7 +587,9 @@ theorem roundOracleReduction_execute_eq_stateful
     {m_dom : ℕ} (D : Fin m_dom → R)
     (numVars : ℕ)
     (sampleChallenge : OracleComp oSpec R)
-    (s : StatementWithOracles (RoundClaim R) (Sumcheck.PolyFamily R deg (numVars + 1))) :
+    (s :
+      StatementWithOracles (RoundClaim R)
+        (fun _ => Sumcheck.PolyFamily R deg (numVars + 1))) :
     OracleReduction.mapExecuteWitness
       (oSpec := oSpec)
       (Context := fun _ => roundSpec R deg)
@@ -635,7 +643,7 @@ theorem roundOracleReduction_execute_eq_stateful
                 (fun _ =>
                   HonestProverOutput
                     (StatementWithOracles (Option (RoundClaim R))
-                      (Sumcheck.PolyFamily R deg (numVars + 1)))
+                      (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)))
                     (Sumcheck.PolyStmt R deg numVars)))))
         <|
         (roundProverStep_map_honestProverOutputWitness
@@ -651,7 +659,7 @@ theorem roundOracleReduction_execute_eq_stateful
             (⟨⟨nextClaim, s.oracleStmt⟩, PUnit.unit⟩ :
               HonestProverOutput
                 (StatementWithOracles (Option (RoundClaim R))
-                  (Sumcheck.PolyFamily R deg (numVars + 1)))
+                  (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)))
                 PUnit)))
   let verifier :=
     (roundContinuation (R := R) (deg := deg) D
@@ -674,11 +682,11 @@ theorem roundOracleReduction_execute_eq_stateful
       ∀ tr,
         HonestProverOutput
           (StatementWithOracles (Option (RoundClaim R))
-            (Sumcheck.PolyFamily R deg (numVars + 1)))
+            (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)))
           PUnit →
         HonestProverOutput
           (StatementWithOracles (Option (RoundClaim R))
-            (Sumcheck.PolyFamily R deg (numVars + 1)))
+            (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)))
           (Sumcheck.PolyStmt R deg numVars) :=
     fun tr out =>
       ⟨out.stmt,
@@ -690,13 +698,13 @@ theorem roundOracleReduction_execute_eq_stateful
         (fun _ =>
           HonestProverOutput
             (StatementWithOracles (Option (RoundClaim R))
-              (Sumcheck.PolyFamily R deg (numVars + 1)))
+              (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)))
             (Sumcheck.PolyStmt R deg numVars)) →
       OracleComp oSpec
         ((tr : Spec.Transcript (roundSpec R deg)) ×
           HonestProverOutput
             (StatementWithOracles (Option (RoundClaim R))
-              (Sumcheck.PolyFamily R deg (numVars + 1)))
+              (fun _ => Sumcheck.PolyFamily R deg (numVars + 1)))
             (Sumcheck.PolyStmt R deg numVars) ×
           (Option (RoundClaim R) ×
             QueryImpl [Sumcheck.PolyFamily R deg (numVars + 1)]ₒ

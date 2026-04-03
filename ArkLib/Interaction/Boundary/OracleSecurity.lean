@@ -58,11 +58,12 @@ theorem simulates_pullback
         Spec.Transcript (InnerSpec (projection.proj outer)) → Type}
     (toStatement :
       Boundary.Statement projection InnerStmtOut OuterStmtOut)
-    {Outerιₛᵢ Innerιₛᵢ : Type}
-    {OuterOStmtIn : Outerιₛᵢ → Type}
-    {InnerOStmtIn : Innerιₛᵢ → Type}
-    [∀ i, OracleInterface (OuterOStmtIn i)]
-    [∀ i, OracleInterface (InnerOStmtIn i)]
+    {Outerιₛᵢ : OuterStmtIn → Type}
+    {OuterOStmtIn : (outer : OuterStmtIn) → Outerιₛᵢ outer → Type}
+    {Innerιₛᵢ : InnerStmtIn → Type}
+    {InnerOStmtIn : (inner : InnerStmtIn) → Innerιₛᵢ inner → Type}
+    [∀ outer i, OracleInterface (OuterOStmtIn outer i)]
+    [∀ inner i, OracleInterface (InnerOStmtIn inner i)]
     {Innerιₛₒ :
       (s : InnerStmtIn) → (tr : Spec.Transcript (InnerSpec s)) → Type}
     {InnerOStmtOut :
@@ -89,7 +90,7 @@ theorem simulates_pullback
         InnerSpec InnerRoles InnerOD
         InnerStmtOut InnerOStmtOut)
     (outer : OuterStmtIn)
-    (oStmtIn : Interaction.OracleStatement OuterOStmtIn)
+    (oStmtIn : Interaction.OracleStatement (OuterOStmtIn outer))
     (tr : Spec.Transcript (InnerSpec (toStatement.proj outer)))
     (innerOStmtOut :
       Interaction.OracleStatement (InnerOStmtOut (toStatement.proj outer) tr))
@@ -97,7 +98,7 @@ theorem simulates_pullback
       Interaction.OracleVerifier.Simulates
         verifier
         (toStatement.proj outer)
-        (boundary.reification.materializeIn outer oStmtIn)
+        ((boundary.reification outer).materializeIn outer oStmtIn)
         tr
         innerOStmtOut) :
     Interaction.OracleVerifier.Simulates
@@ -108,14 +109,14 @@ theorem simulates_pullback
       outer
       oStmtIn
       tr
-      (boundary.reification.materializeOut outer oStmtIn tr innerOStmtOut) := by
+      ((boundary.reification outer).materializeOut outer oStmtIn tr innerOStmtOut) := by
   intro i q
   simpa [Interaction.OracleVerifier.Simulates,
     Interaction.OracleVerifier.pullback] using
     Boundary.OracleStatementReification.pullbackSimulate_materialize
-      boundary.access
-      boundary.reification
-      boundary.coherent
+      (boundary.access outer)
+      (boundary.reification outer)
+      (boundary.coherent outer)
       outer
       oStmtIn
       tr
@@ -169,10 +170,12 @@ private abbrev InnerExecuteView
         OuterWitIn InnerWitIn
         InnerStmtOut OuterStmtOut
         InnerWitOut OuterWitOut)
-    {Outerιₛᵢ : Type} {OuterOStmtIn : Outerιₛᵢ → Type}
-    {Innerιₛᵢ : Type} {InnerOStmtIn : Innerιₛᵢ → Type}
-    [∀ i, OracleInterface (OuterOStmtIn i)]
-    [∀ i, OracleInterface (InnerOStmtIn i)]
+    {Outerιₛᵢ : OuterStmtIn → Type}
+    {OuterOStmtIn : (outer : OuterStmtIn) → Outerιₛᵢ outer → Type}
+    {Innerιₛᵢ : InnerStmtIn → Type}
+    {InnerOStmtIn : (inner : InnerStmtIn) → Innerιₛᵢ inner → Type}
+    [∀ outer i, OracleInterface (OuterOStmtIn outer i)]
+    [∀ inner i, OracleInterface (InnerOStmtIn inner i)]
     {Innerιₛₒ :
       (s : InnerStmtIn) → (tr : Spec.Transcript (InnerSpec s)) → Type}
     {InnerOStmtOut :
@@ -185,13 +188,13 @@ private abbrev InnerExecuteView
     HonestProverOutput
       (StatementWithOracles
         (InnerStmtOut (toContext.stmt.proj outerStmt.stmt) tr)
-        (InnerOStmtOut (toContext.stmt.proj outerStmt.stmt) tr))
+        (fun _ => InnerOStmtOut (toContext.stmt.proj outerStmt.stmt) tr))
       (InnerWitOut (toContext.stmt.proj outerStmt.stmt) tr) ×
     ((InnerStmtOut (toContext.stmt.proj outerStmt.stmt) tr) ×
       QueryImpl
         [InnerOStmtOut (toContext.stmt.proj outerStmt.stmt) tr]ₒ
         (OracleComp
-          ([InnerOStmtIn]ₒ +
+          ([InnerOStmtIn (toContext.stmt.proj outerStmt.stmt)]ₒ +
             OracleDecoration.toOracleSpec
               (InnerSpec (toContext.stmt.proj outerStmt.stmt))
               (InnerRoles (toContext.stmt.proj outerStmt.stmt))
@@ -224,10 +227,12 @@ private abbrev OuterExecuteView
         OuterWitIn InnerWitIn
         InnerStmtOut OuterStmtOut
         InnerWitOut OuterWitOut)
-    {Outerιₛᵢ : Type} {OuterOStmtIn : Outerιₛᵢ → Type}
-    {Innerιₛᵢ : Type} {InnerOStmtIn : Innerιₛᵢ → Type}
-    [∀ i, OracleInterface (OuterOStmtIn i)]
-    [∀ i, OracleInterface (InnerOStmtIn i)]
+    {Outerιₛᵢ : OuterStmtIn → Type}
+    {OuterOStmtIn : (outer : OuterStmtIn) → Outerιₛᵢ outer → Type}
+    {Innerιₛᵢ : InnerStmtIn → Type}
+    {InnerOStmtIn : (inner : InnerStmtIn) → Innerιₛᵢ inner → Type}
+    [∀ outer i, OracleInterface (OuterOStmtIn outer i)]
+    [∀ inner i, OracleInterface (InnerOStmtIn inner i)]
     {Innerιₛₒ :
       (s : InnerStmtIn) → (tr : Spec.Transcript (InnerSpec s)) → Type}
     {InnerOStmtOut :
@@ -249,13 +254,13 @@ private abbrev OuterExecuteView
     HonestProverOutput
       (StatementWithOracles
         (toContext.StmtOut outerStmt.stmt tr)
-        (OuterOStmtOut outerStmt.stmt tr))
+        (fun _ => OuterOStmtOut outerStmt.stmt tr))
       (toContext.WitOut outerStmt.stmt tr) ×
     ((toContext.StmtOut outerStmt.stmt tr) ×
       QueryImpl
         [OuterOStmtOut outerStmt.stmt tr]ₒ
         (OracleComp
-          ([OuterOStmtIn]ₒ +
+          ([OuterOStmtIn outerStmt.stmt]ₒ +
             OracleDecoration.toOracleSpec
               (InnerSpec (toContext.stmt.proj outerStmt.stmt))
               (InnerRoles (toContext.stmt.proj outerStmt.stmt))
@@ -284,10 +289,12 @@ private def materializedInput
         OuterWitIn InnerWitIn
         InnerStmtOut OuterStmtOut
         InnerWitOut OuterWitOut)
-    {Outerιₛᵢ : Type} {OuterOStmtIn : Outerιₛᵢ → Type}
-    {Innerιₛᵢ : Type} {InnerOStmtIn : Innerιₛᵢ → Type}
-    [∀ i, OracleInterface (OuterOStmtIn i)]
-    [∀ i, OracleInterface (InnerOStmtIn i)]
+    {Outerιₛᵢ : OuterStmtIn → Type}
+    {OuterOStmtIn : (outer : OuterStmtIn) → Outerιₛᵢ outer → Type}
+    {Innerιₛᵢ : InnerStmtIn → Type}
+    {InnerOStmtIn : (inner : InnerStmtIn) → Innerιₛᵢ inner → Type}
+    [∀ outer i, OracleInterface (OuterOStmtIn outer i)]
+    [∀ inner i, OracleInterface (InnerOStmtIn inner i)]
     {Innerιₛₒ :
       (s : InnerStmtIn) → (tr : Spec.Transcript (InnerSpec s)) → Type}
     {InnerOStmtOut :
@@ -310,7 +317,7 @@ private def materializedInput
     (outerStmt : StatementWithOracles OuterStmtIn OuterOStmtIn) :
     StatementWithOracles InnerStmtIn InnerOStmtIn :=
   ⟨toContext.stmt.proj outerStmt.stmt,
-    boundary.reification.materializeIn
+    (boundary.reification outerStmt.stmt).materializeIn
       outerStmt.stmt
       outerStmt.oracleStmt⟩
 
@@ -346,10 +353,12 @@ private def mapExecuteOutput
         OuterWitIn InnerWitIn
         InnerStmtOut OuterStmtOut
         InnerWitOut OuterWitOut)
-    {Outerιₛᵢ : Type} {OuterOStmtIn : Outerιₛᵢ → Type}
-    {Innerιₛᵢ : Type} {InnerOStmtIn : Innerιₛᵢ → Type}
-    [∀ i, OracleInterface (OuterOStmtIn i)]
-    [∀ i, OracleInterface (InnerOStmtIn i)]
+    {Outerιₛᵢ : OuterStmtIn → Type}
+    {OuterOStmtIn : (outer : OuterStmtIn) → Outerιₛᵢ outer → Type}
+    {Innerιₛᵢ : InnerStmtIn → Type}
+    {InnerOStmtIn : (inner : InnerStmtIn) → Innerιₛᵢ inner → Type}
+    [∀ outer i, OracleInterface (OuterOStmtIn outer i)]
+    [∀ inner i, OracleInterface (InnerOStmtIn inner i)]
     {Innerιₛₒ :
       (s : InnerStmtIn) → (tr : Spec.Transcript (InnerSpec s)) → Type}
     {InnerOStmtOut :
@@ -403,7 +412,7 @@ private def mapExecuteOutput
       z.2.1.wit
   ⟨z.1,
     ⟨⟨out.1,
-        boundary.reification.materializeOut
+        (boundary.reification outerStmt.stmt).materializeOut
           outerStmt.stmt
           outerStmt.oracleStmt
           z.1
@@ -411,7 +420,7 @@ private def mapExecuteOutput
       out.2⟩,
     ⟨toContext.stmt.lift outerStmt.stmt z.1 z.2.2.1,
       Boundary.OracleStatementAccess.pullbackSimulate
-        (access := boundary.access)
+        (access := boundary.access outerStmt.stmt)
         outerStmt.stmt
         z.1
         (OracleDecoration.toOracleSpec
@@ -452,10 +461,12 @@ private theorem runWithOracleCounterpart_pullbackVerifier
         OuterWitIn InnerWitIn
         InnerStmtOut OuterStmtOut
         InnerWitOut OuterWitOut)
-    {Outerιₛᵢ : Type} {OuterOStmtIn : Outerιₛᵢ → Type}
-    {Innerιₛᵢ : Type} {InnerOStmtIn : Innerιₛᵢ → Type}
-    [∀ i, OracleInterface (OuterOStmtIn i)]
-    [∀ i, OracleInterface (InnerOStmtIn i)]
+    {Outerιₛᵢ : OuterStmtIn → Type}
+    {OuterOStmtIn : (outer : OuterStmtIn) → Outerιₛᵢ outer → Type}
+    {Innerιₛᵢ : InnerStmtIn → Type}
+    {InnerOStmtIn : (inner : InnerStmtIn) → Innerιₛᵢ inner → Type}
+    [∀ outer i, OracleInterface (OuterOStmtIn outer i)]
+    [∀ inner i, OracleInterface (InnerOStmtIn inner i)]
     {Innerιₛₒ :
       (s : InnerStmtIn) → (tr : Spec.Transcript (InnerSpec s)) → Type}
     {InnerOStmtOut :
@@ -493,14 +504,14 @@ private theorem runWithOracleCounterpart_pullbackVerifier
         (InnerRoles (toContext.stmt.proj outerStmt.stmt))
         (OracleDecoration.toMonadDecoration
           oSpec
-          InnerOStmtIn
+          (InnerOStmtIn (toContext.stmt.proj outerStmt.stmt))
           (InnerSpec (toContext.stmt.proj outerStmt.stmt))
           (InnerRoles (toContext.stmt.proj outerStmt.stmt))
           (InnerOD (toContext.stmt.proj outerStmt.stmt))
           accSpec)
         (fun tr => InnerStmtOut (toContext.stmt.proj outerStmt.stmt) tr)) :
     OracleDecoration.runWithOracleCounterpart
-        (OracleInterface.simOracle0 OuterOStmtIn outerStmt.oracleStmt)
+        (OracleInterface.simOracle0 (OuterOStmtIn outerStmt.stmt) outerStmt.oracleStmt)
         (InnerSpec (toContext.stmt.proj outerStmt.stmt))
         (InnerRoles (toContext.stmt.proj outerStmt.stmt))
         (InnerOD (toContext.stmt.proj outerStmt.stmt))
@@ -508,7 +519,7 @@ private theorem runWithOracleCounterpart_pullbackVerifier
         accImpl
         strat
         (Boundary.pullbackCounterpart
-          boundary.access.simulateIn
+          (boundary.access outerStmt.stmt).simulateIn
           (InnerSpec (toContext.stmt.proj outerStmt.stmt))
           (InnerRoles (toContext.stmt.proj outerStmt.stmt))
           (InnerOD (toContext.stmt.proj outerStmt.stmt))
@@ -519,8 +530,8 @@ private theorem runWithOracleCounterpart_pullbackVerifier
         ⟨z.1, z.2.1, toContext.stmt.lift outerStmt.stmt z.1 z.2.2⟩) <$>
         OracleDecoration.runWithOracleCounterpart
           (OracleInterface.simOracle0
-            InnerOStmtIn
-            (boundary.reification.materializeIn
+            (InnerOStmtIn (toContext.stmt.proj outerStmt.stmt))
+            ((boundary.reification outerStmt.stmt).materializeIn
               outerStmt.stmt
               outerStmt.oracleStmt))
           (InnerSpec (toContext.stmt.proj outerStmt.stmt))
@@ -533,15 +544,15 @@ private theorem runWithOracleCounterpart_pullbackVerifier
   simpa using
     Boundary.runWithOracleCounterpart_pullbackCounterpart
       (oSpec := oSpec)
-      boundary.access.simulateIn
-      (OracleInterface.simOracle0 OuterOStmtIn outerStmt.oracleStmt)
+      (boundary.access outerStmt.stmt).simulateIn
+      (OracleInterface.simOracle0 (OuterOStmtIn outerStmt.stmt) outerStmt.oracleStmt)
       (OracleInterface.simOracle0
-        InnerOStmtIn
-        (boundary.reification.materializeIn
+        (InnerOStmtIn (toContext.stmt.proj outerStmt.stmt))
+        ((boundary.reification outerStmt.stmt).materializeIn
           outerStmt.stmt
           outerStmt.oracleStmt))
       (Boundary.OracleStatementReification.realizes_materializeIn
-        (hRealizes := boundary.coherent)
+        (hRealizes := boundary.coherent outerStmt.stmt)
         outerStmt.stmt
         outerStmt.oracleStmt)
       (InnerSpec (toContext.stmt.proj outerStmt.stmt))
@@ -586,10 +597,12 @@ theorem simulates_pullback
         OuterWitIn InnerWitIn
         InnerStmtOut OuterStmtOut
         InnerWitOut OuterWitOut)
-    {Outerιₛᵢ : Type} {OuterOStmtIn : Outerιₛᵢ → Type}
-    {Innerιₛᵢ : Type} {InnerOStmtIn : Innerιₛᵢ → Type}
-    [∀ i, OracleInterface (OuterOStmtIn i)]
-    [∀ i, OracleInterface (InnerOStmtIn i)]
+    {Outerιₛᵢ : OuterStmtIn → Type}
+    {OuterOStmtIn : (outer : OuterStmtIn) → Outerιₛᵢ outer → Type}
+    {Innerιₛᵢ : InnerStmtIn → Type}
+    {InnerOStmtIn : (inner : InnerStmtIn) → Innerιₛᵢ inner → Type}
+    [∀ outer i, OracleInterface (OuterOStmtIn outer i)]
+    [∀ inner i, OracleInterface (InnerOStmtIn inner i)]
     {Innerιₛₒ :
       (s : InnerStmtIn) → (tr : Spec.Transcript (InnerSpec s)) → Type}
     {InnerOStmtOut :
@@ -615,7 +628,7 @@ theorem simulates_pullback
         InnerSpec InnerRoles InnerOD
         InnerStmtOut InnerOStmtOut InnerWitOut)
     (outer : OuterStmtIn)
-    (oStmtIn : Interaction.OracleStatement OuterOStmtIn)
+    (oStmtIn : Interaction.OracleStatement (OuterOStmtIn outer))
     (tr : Spec.Transcript (InnerSpec (toContext.stmt.proj outer)))
     (innerOStmtOut :
       Interaction.OracleStatement (InnerOStmtOut (toContext.stmt.proj outer) tr))
@@ -623,7 +636,7 @@ theorem simulates_pullback
       Interaction.OracleDecoration.OracleReduction.Simulates
         reduction
         (toContext.stmt.proj outer)
-        (boundary.reification.materializeIn outer oStmtIn)
+        ((boundary.reification outer).materializeIn outer oStmtIn)
         tr
         innerOStmtOut) :
     Interaction.OracleDecoration.OracleReduction.Simulates
@@ -634,14 +647,14 @@ theorem simulates_pullback
       outer
       oStmtIn
       tr
-      (boundary.reification.materializeOut outer oStmtIn tr innerOStmtOut) := by
+      ((boundary.reification outer).materializeOut outer oStmtIn tr innerOStmtOut) := by
   intro i q
   simpa [Interaction.OracleDecoration.OracleReduction.Simulates,
     Interaction.OracleDecoration.OracleReduction.pullback] using
     Boundary.OracleStatementReification.pullbackSimulate_materialize
-      boundary.access
-      boundary.reification
-      boundary.coherent
+      (boundary.access outer)
+      (boundary.reification outer)
+      (boundary.coherent outer)
       outer
       oStmtIn
       tr

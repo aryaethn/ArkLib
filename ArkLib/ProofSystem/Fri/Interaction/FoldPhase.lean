@@ -36,7 +36,7 @@ variable (x : Fˣ)
 variable {k : ℕ} (s : Fin (k + 1) → ℕ+) (d : ℕ)
 
 private abbrev FoldPhaseChain :=
-  OracleReduction.Continuation.Chain
+  OracleReduction.Chain
 
 /-- Total challenge vector used internally while the fold phase is running.
 Entries beyond the current round are irrelevant until they are filled in. -/
@@ -92,20 +92,20 @@ private def foldPhaseChain : FoldPhaseChain k :=
 
 /-- Context for the full non-final folding phase. -/
 abbrev foldPhaseContext : Spec :=
-  OracleReduction.Continuation.Chain.toSpec
+  OracleReduction.Chain.toSpec
     (n := k) (foldPhaseChain (D := D) (n := n) (x := x) (s := s))
 
 /-- Role decoration for the full non-final folding phase. -/
 abbrev foldPhaseRoles :
     RoleDecoration (foldPhaseContext (D := D) (n := n) (x := x) (s := s) (k := k)) :=
-  OracleReduction.Continuation.Chain.roles (foldPhaseChain (D := D) (n := n) (x := x) (s := s))
+  OracleReduction.Chain.roles (foldPhaseChain (D := D) (n := n) (x := x) (s := s))
 
 /-- Oracle decoration for the full non-final folding phase. -/
 abbrev foldPhaseOD :
     OracleDecoration
       (foldPhaseContext (D := D) (n := n) (x := x) (s := s) (k := k))
       (foldPhaseRoles (D := D) (n := n) (x := x) (s := s) (k := k)) :=
-  OracleReduction.Continuation.Chain.od (foldPhaseChain (D := D) (n := n) (x := x) (s := s))
+  OracleReduction.Chain.od (foldPhaseChain (D := D) (n := n) (x := x) (s := s))
 
 /-- Honest prover state threaded through the remaining non-final fold rounds. -/
 private inductive FoldPhaseProverState :
@@ -140,7 +140,7 @@ private def foldPhaseCodewordAt
   let rec go (remaining start : Nat) (h : start + remaining = k)
       (j : Fin remaining)
       (tr : Spec.Transcript
-        (OracleReduction.Continuation.Chain.toSpec
+        (OracleReduction.Chain.toSpec
           (foldPhaseChainFrom (D := D) (n := n) (x := x) (s := s) (k := k)
             remaining start h))) :
       Codeword (F := F) s n (start + j.1 + 1) :=
@@ -151,7 +151,7 @@ private def foldPhaseCodewordAt
         let split :=
           Spec.Transcript.split
             (foldRoundSpec (F := F) (n := n) D x s round)
-            (fun _ => OracleReduction.Continuation.Chain.toSpec
+            (fun _ => OracleReduction.Chain.toSpec
               (foldPhaseChainFrom (D := D) (n := n) (x := x) (s := s) (k := k)
                 remaining start.succ (nextStateEq (k := k) h)))
             tr
@@ -162,7 +162,7 @@ private def foldPhaseCodewordAt
         let split :=
           Spec.Transcript.split
             (foldRoundSpec (F := F) (n := n) D x s round)
-            (fun _ => OracleReduction.Continuation.Chain.toSpec
+            (fun _ => OracleReduction.Chain.toSpec
               (foldPhaseChainFrom (D := D) (n := n) (x := x) (s := s) (k := k)
                 remaining start.succ (nextStateEq (k := k) h)))
             tr
@@ -189,7 +189,7 @@ private def foldPhaseFinalProverOutput
     (tr : Spec.Transcript (foldPhaseContext (D := D) (n := n) (x := x) (s := s) (k := k)))
     (st : FoldPhaseProverState
       (F := F) (D := D) (n := n) (x := x) (s := s) (d := d) (k := k)
-      OracleReduction.Continuation.Chain.nil) :
+      OracleReduction.Chain.nil) :
     HonestProverOutput
       (StatementWithOracles
         (fun _ => FoldChallenges (F := F) (k := k))
@@ -214,7 +214,7 @@ private def foldPhaseFinalProverOutput
 private def foldPhaseFinalChallenges
     (st : FoldPhaseVerifierState
       (F := F) (D := D) (n := n) (x := x) (s := s) (k := k)
-      OracleReduction.Continuation.Chain.nil) :
+      OracleReduction.Chain.nil) :
     FoldChallenges (F := F) (k := k) :=
   match st with
   | .mk challenges =>
@@ -330,7 +330,7 @@ statement is trivial; the substantive input is the initial codeword oracle and
 the honest polynomial witness. -/
 def foldPhaseContinuation {ι : Type} {oSpec : OracleSpec ι}
     (sampleChallenge : (i : Fin k) → OracleComp oSpec F) :
-    OracleReduction.Continuation (ι := ι) oSpec PUnit
+    OracleReduction (ι := ι) oSpec PUnit
       (fun _ => foldPhaseContext (D := D) (n := n) (x := x) (s := s) (k := k))
       (fun _ => foldPhaseRoles (D := D) (n := n) (x := x) (s := s) (k := k))
       (fun _ => foldPhaseOD (D := D) (n := n) (x := x) (s := s) (k := k))
@@ -340,7 +340,7 @@ def foldPhaseContinuation {ι : Type} {oSpec : OracleSpec ι}
       (fun _ _ => FoldChallenges (F := F) (k := k))
       (fun _ _ => FoldCodewordOracleFamily (F := F) (n := n) D x s)
       (fun _ _ => HonestPoly (F := F) s d k) :=
-  OracleReduction.Continuation.chainComp
+  OracleReduction.chainComp
     (ι := ι) (oSpec := oSpec)
     (SharedIn := PUnit)
     (chain := fun _ => foldPhaseChain (D := D) (n := n) (x := x) (s := s))

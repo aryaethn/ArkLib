@@ -64,7 +64,7 @@ private def terminalPhase {ι : Type} {oSpec : OracleSpec ι}
     (h_domain : totalShift s ≤ n)
     (sampleFinalChallenge : OracleComp oSpec F)
     (sampleQueries : OracleComp oSpec (QueryBatch (n := n) s l)) :
-    OracleReduction.Continuation oSpec
+    OracleReduction oSpec
       PUnit
       (fun _ => finalQueryContext (F := F) (n := n) (s := s) (d := d) (l := l))
       (fun _ => finalQueryRoles (F := F) (n := n) (s := s) (d := d) (l := l))
@@ -91,7 +91,7 @@ private def terminalPhase {ι : Type} {oSpec : OracleSpec ι}
           (fun _ => queryRoundSpec (n := n) (s := s) (l := l))
           (fun _ _ => PUnit)
           tr) :=
-  OracleReduction.Continuation.comp
+  OracleReduction.comp
     (StmtMid := fun _ _ => FinalStatement (F := F) (k := k) (d := d))
     (ιₛₘ := fun _ _ => Fin (k + 1))
     (OStmtMid := fun _ _ => FoldCodewordOracleFamily (F := F) (n := n) D x s)
@@ -127,7 +127,7 @@ def friContinuation {ι : Type} {oSpec : OracleSpec ι}
     (sampleFoldChallenge : (i : Fin k) → OracleComp oSpec F)
     (sampleFinalChallenge : OracleComp oSpec F)
     (sampleQueries : OracleComp oSpec (QueryBatch (n := n) s l)) :=
-  OracleReduction.Continuation.comp
+  OracleReduction.comp
     (StmtMid := fun _ _ => FoldChallenges (F := F) (k := k))
     (ιₛₘ := fun _ _ => Fin (k + 1))
     (OStmtMid := fun _ _ => FoldCodewordOracleFamily (F := F) (n := n) D x s)

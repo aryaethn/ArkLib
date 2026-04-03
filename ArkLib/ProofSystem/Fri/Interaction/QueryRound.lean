@@ -249,7 +249,7 @@ def queryRoundContinuation
     (toFinalStatement :
       (shared : SharedIn) → StatementIn shared → FinalStatement (F := F) (k := k) (d := d))
     (sampleQueries : SharedIn → OracleComp oSpec (QueryBatch (n := n) s l)) :
-    OracleReduction.Continuation oSpec SharedIn
+    OracleReduction oSpec SharedIn
       (fun _ => queryRoundSpec (n := n) (s := s) (l := l))
       (fun _ => queryRoundRoles (n := n) (s := s) (l := l))
       (fun _ => queryRoundOD (n := n) (s := s) (l := l))

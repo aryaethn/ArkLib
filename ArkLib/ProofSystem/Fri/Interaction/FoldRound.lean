@@ -35,7 +35,7 @@ variable {k : ℕ} (s : Fin (k + 1) → ℕ+) (d : ℕ)
 def foldRoundContinuation {SharedIn : Type} {ι : Type} {oSpec : OracleSpec ι}
     (i : Fin k)
     (sampleChallenge : SharedIn → OracleComp oSpec F) :
-    OracleReduction.Continuation (ι := ι) oSpec SharedIn
+    OracleReduction (ι := ι) oSpec SharedIn
       (fun _ => foldRoundSpec (F := F) (n := n) D x s i)
       (fun _ => foldRoundRoles (F := F) (n := n) D x s i)
       (fun _ => foldRoundOD (F := F) (n := n) D x s i)

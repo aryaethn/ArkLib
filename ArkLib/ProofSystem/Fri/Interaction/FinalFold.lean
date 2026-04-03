@@ -34,7 +34,7 @@ def finalFoldContinuation {SharedIn : Type} {ι : Type} {oSpec : OracleSpec ι}
     (toFoldChallenges :
       (shared : SharedIn) → StatementIn shared → FoldChallenges (F := F) (k := k))
     (sampleChallenge : SharedIn → OracleComp oSpec F) :
-    OracleReduction.Continuation (ι := ι) oSpec SharedIn
+    OracleReduction (ι := ι) oSpec SharedIn
       (fun _ => finalFoldSpec (F := F) (d := d))
       (fun _ => finalFoldRoles (F := F) (d := d))
       (fun _ => finalFoldOD (F := F) (d := d))

@@ -1,0 +1,220 @@
+/- 
+Copyright (c) 2026 ArkLib Contributors. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Quang Dao
+-/
+import ArkLib.Interaction.Concurrent.Independence
+
+/-!
+# Concurrent interaction examples
+
+This file gives small definitional examples for the current concurrent layer.
+
+The examples are intentionally focused on:
+
+* binary structural parallelism;
+* frontier events and residuals;
+* per-party observation profiles over concurrently live components.
+* scheduler ownership versus atomic payload ownership;
+* the combined current local view of the next frontier event.
+
+They are meant to exercise the current expressivity surface before later layers
+such as fairness or richer execution semantics are added.
+-/
+
+universe u
+
+namespace Interaction
+namespace Concurrent
+namespace Examples
+
+/-- Three parties for the toy concurrent examples: two honest parties and a
+network adversary. -/
+inductive Party where
+  | alice
+  | bob
+  | adv
+
+deriving instance DecidableEq for Party
+
+/-- One atomic message-delivery step whose payload is a pair of a public header
+and a private payload bit. -/
+def delivery : Spec :=
+  .node (Nat × Bool) (fun _ => .done)
+
+/-- A profile where Alice originates the payload, Bob sees the whole message,
+and the adversary sees only the public header. -/
+def deliveryProfile : Profile Party delivery :=
+  .node (fun
+      | .alice => .active
+      | .bob => .observe
+      | .adv => .quotient Nat Prod.fst)
+    (fun _ => .done)
+
+example : Profile.ObsType Party.alice deliveryProfile = (Nat × Bool) := rfl
+
+example : Profile.ObsType Party.bob deliveryProfile = (Nat × Bool) := rfl
+
+example : Profile.ObsType Party.adv deliveryProfile = Nat := rfl
+
+example :
+    Profile.observe Party.adv deliveryProfile (.move (3, true)) = (3 : Nat) := rfl
+
+/-- A second atomic node that only Bob fully observes, while the adversary
+learns nothing. -/
+def ack : Spec :=
+  .node Bool (fun _ => .done)
+
+/-- Local observations for the acknowledgement node. -/
+def ackProfile : Profile Party ack :=
+  .node (fun
+      | .alice => .hidden
+      | .bob => .observe
+      | .adv => .hidden)
+    (fun _ => .done)
+
+/-- A concurrent system where delivery and acknowledgement are both live. -/
+def inFlight : Spec :=
+  .par delivery ack
+
+/-- The corresponding concurrent observation profile. -/
+def inFlightProfile : Profile Party inFlight :=
+  .par deliveryProfile ackProfile
+
+/-- Control ownership for the delivery step: Alice chooses the payload. -/
+def deliveryControl : Control Party delivery :=
+  .node .alice (fun _ => .done)
+
+/-- Control ownership for the acknowledgement step: Bob chooses the bit. -/
+def ackControl : Control Party ack :=
+  .node .bob (fun _ => .done)
+
+/-- The adversary controls scheduling between the two concurrently live
+subsystems, while Alice and Bob still control their respective atomic nodes. -/
+def inFlightControl : Control Party inFlight :=
+  .par .adv deliveryControl ackControl
+
+example :
+    Profile.ObsType Party.adv inFlightProfile = Sum Nat PUnit := rfl
+
+example :
+    Profile.ObsType Party.bob inFlightProfile = Sum (Nat × Bool) Bool := rfl
+
+example :
+    Profile.observe Party.adv inFlightProfile (.left (.move (5, false))) =
+      (Sum.inl (α := Nat) (β := PUnit) 5) := rfl
+
+example :
+    Profile.observe Party.adv inFlightProfile (.right (.move true)) = Sum.inr PUnit.unit := rfl
+
+example :
+    Profile.residual inFlightProfile (.left (.move (7, true))) = .par .done ackProfile := rfl
+
+example :
+    Profile.residual inFlightProfile (.right (.move false)) = .par deliveryProfile .done := rfl
+
+example : Control.scheduler? inFlightControl = some .adv := rfl
+
+example : Control.current? inFlightControl = some .adv := rfl
+
+example :
+    Control.controllers inFlightControl (.left (.move (5, false))) = [.adv, .alice] := rfl
+
+example :
+    Control.controllers inFlightControl (.right (.move true)) = [.adv, .bob] := rfl
+
+def afterDelivery : Control Party (.par .done ack) :=
+  Control.residual inFlightControl (.left (.move (7, true)))
+
+example : Control.scheduler? afterDelivery = none := rfl
+
+example : Control.current? afterDelivery = some .bob := rfl
+
+example : Control.controllers afterDelivery (.right (.move false)) = [.bob] := rfl
+
+example : Current.controller? inFlightControl = some .adv := rfl
+
+example : Current.scheduler? inFlightControl = some .adv := rfl
+
+example :
+    Current.view Party.adv inFlightControl inFlightProfile = Multiparty.LocalView.active := by
+  rfl
+
+example :
+    Current.observe Party.adv inFlightControl inFlightProfile
+      (Front.left (.move (5, false))) =
+      (Front.left (.move (5, false))) := rfl
+
+example :
+    Current.observe Party.alice inFlightControl inFlightProfile (.left (.move (5, false))) =
+      (show PLift (Sum (Nat × Bool) PUnit) from ⟨Sum.inl (5, false)⟩) := rfl
+
+example :
+    Current.observe Party.bob inFlightControl inFlightProfile (.right (.move true)) =
+      (show PLift (Sum (Nat × Bool) Bool) from ⟨Sum.inr true⟩) := rfl
+
+def afterDeliveryProfile : Profile Party (.par .done ack) :=
+  Profile.residual inFlightProfile (.left (.move (7, true)))
+
+example : Current.controller? afterDelivery = some .bob := rfl
+
+example : Current.scheduler? afterDelivery = none := rfl
+
+example :
+    Current.view Party.bob afterDelivery afterDeliveryProfile = Multiparty.LocalView.active := by
+  rfl
+
+example :
+    Current.view Party.adv afterDelivery afterDeliveryProfile = Multiparty.LocalView.hidden := by
+  rfl
+
+example :
+    Current.observe Party.adv afterDelivery afterDeliveryProfile (.right (.move false)) =
+      PUnit.unit := rfl
+
+/-- A three-way concurrent system used to illustrate recursive independence
+inside one branch of a larger parallel spec. -/
+def threeWay : Spec :=
+  .par delivery (.par ack ack)
+
+example :
+    Independent
+      (Front.left (right := ack) (.move (4, true)) : Front inFlight)
+      (Front.right (left := delivery) (.move false)) :=
+  .left_right (.move (4, true)) (.move false)
+
+example :
+    Independent.afterLeft
+      (Independent.left_right
+        (left := delivery) (right := ack) (.move (4, true)) (.move false)) =
+      Front.right (.move false) := rfl
+
+example :
+    Independent.afterRight
+      (Independent.left_right
+        (left := delivery) (right := ack) (.move (4, true)) (.move false)) =
+      Front.left (.move (4, true)) := rfl
+
+example :
+    Independent.diamond
+      (Independent.left_right
+        (left := delivery) (right := ack) (.move (4, true)) (.move false)) = rfl := rfl
+
+example :
+    Independent
+      (Front.right (left := delivery) (Front.left (.move true)) : Front threeWay)
+      (Front.right (left := delivery) (Front.right (.move false))) :=
+  .right (.left_right (.move true) (.move false))
+
+example :
+    Independent.diamond
+      (.right
+        (Independent.left_right
+          (left := ack) (right := ack) (.move true) (.move false)) :
+        Independent
+          (Front.right (left := delivery) (Front.left (.move true)) : Front threeWay)
+          (Front.right (left := delivery) (Front.right (.move false)))) = rfl := rfl
+
+end Examples
+end Concurrent
+end Interaction

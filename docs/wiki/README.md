@@ -38,3 +38,5 @@ For reusable cross-cutting workflows that are not tied to one repo area, see
 - [`../../BACKGROUND.md`](../../BACKGROUND.md) - background references.
 - [`../../INTERACTION_BOUNDARIES.md`](../../INTERACTION_BOUNDARIES.md) - current interaction
   boundary-layer design reference.
+- [`../../INTERACTION_CONCURRENT_SPEC.md`](../../INTERACTION_CONCURRENT_SPEC.md) - concurrent
+  interaction design reference.

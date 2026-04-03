@@ -89,6 +89,43 @@ inductive LocalView (X : Type u) : Type (u + 1) where
 namespace LocalView
 
 /--
+`ObsType view` is the type of concrete observations made by a participant with
+local view `view` when some actual move `x` occurs.
+
+Reading by cases:
+* for `active` and `observe`, the participant learns the full move;
+* for `hidden`, the participant learns nothing (`PUnit`);
+* for `quotient Obs toObs`, the participant learns only the quotient
+  observation `toObs x : Obs`.
+
+This packages the information content of a `LocalView` independently from the
+more structured endpoint semantics of `LocalView.Action`.
+-/
+def ObsType {X : Type u} : LocalView X → Type u
+  | .active => X
+  | .observe => X
+  | .hidden => PUnit
+  | .quotient Obs _ => Obs
+
+/--
+`obsOf view x` is the concrete observation exposed by local view `view` when
+the actual move was `x`.
+
+This forgets any control or continuation structure and keeps only the
+information that is revealed:
+* `active` and `observe` reveal the full move;
+* `hidden` reveals nothing;
+* `quotient Obs toObs` reveals `toObs x`.
+-/
+def obsOf {X : Type u} (view : LocalView X) : X → view.ObsType
+  | x =>
+      match view with
+      | .active => x
+      | .observe => x
+      | .hidden => PUnit.unit
+      | .quotient _ toObs => toObs x
+
+/--
 `LocalView.Action view m Cont` is the canonical local node type for a fixed
 participant with local view `view` at a node whose move space is `X`.
 

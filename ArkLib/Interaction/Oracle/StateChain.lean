@@ -44,10 +44,9 @@ private def stateChainVerifier
                 ((accSpecAfter (spec i st) (roles i st) (od i st) accSpec tr).2)
                 verifierStep n (i + 1) (advance i st tr) b'))
 
-/-- N-ary state chain composition of oracle reductions. At each stage, the step
-functions transform prover state and verifier state. Each stage's verifier sees
-oracle access from `oSpec + [OStmtIn]ₒ` plus the accumulated spec. -/
-def OracleReduction.stateChainComp {ι : Type} {oSpec : OracleSpec ι}
+/-- Concrete-input specialization of state-chain composition for oracle
+reductions. The canonical ambient-spine version is defined below. -/
+private def stateChainCompConcrete {ι : Type} {oSpec : OracleSpec ι}
     {StatementIn : Type} {ιₛᵢ : StatementIn → Type}
     {OStmtIn : (s : StatementIn) → ιₛᵢ s → Type}
     [∀ s i, OracleInterface (OStmtIn s i)]
@@ -96,11 +95,12 @@ def OracleReduction.stateChainComp {ι : Type} {oSpec : OracleSpec ι}
           (Spec.stateChain Stage spec advance n 0 (initStage s))
           (Spec.Decoration.stateChain roles n 0 (initStage s))
           (Role.Refine.stateChain (fun i st => od i st) n 0 (initStage s)) tr))) :
-    OracleReduction oSpec StatementIn OStmtIn
+    OracleReduction oSpec StatementIn
       (fun s => Spec.stateChain Stage spec advance n 0 (initStage s))
       (fun s => Spec.Decoration.stateChain roles n 0 (initStage s))
       (fun s => Role.Refine.stateChain (fun i st => od i st) n 0 (initStage s))
       (fun _ => PUnit)
+      OStmtIn
       WitnessIn
       (fun s => Spec.Transcript.stateChainFamily VerifierState n 0 (initStage s))
       OStmtOut
@@ -115,14 +115,12 @@ def OracleReduction.stateChainComp {ι : Type} {oSpec : OracleSpec ι}
     stateChainVerifier od accSpec (verifierStep s) n 0 (initStage s) (verifierInit s)
   simulate := simulateResult
 
-namespace OracleReduction.Continuation
-
 /-- N-ary state chain composition of oracle continuations. The shared input
 determines the full chained protocol, while the continuation-local statement and
 witness are only used to initialize and interpret the carried prover/verifier
 state. Each stage's verifier sees oracle access from `oSpec + [OStmtIn]ₒ` plus
 the accumulated sender-message spec. -/
-def stateChainComp {ι : Type} {oSpec : OracleSpec ι}
+def OracleReduction.stateChainComp {ι : Type} {oSpec : OracleSpec ι}
     {SharedIn : Type}
     {StatementIn : SharedIn → Type}
     {ιₛᵢ : SharedIn → Type}
@@ -176,7 +174,7 @@ def stateChainComp {ι : Type} {oSpec : OracleSpec ι}
           (Spec.stateChain Stage spec advance n 0 (initStage shared))
           (Spec.Decoration.stateChain roles n 0 (initStage shared))
           (Role.Refine.stateChain (fun i st => od i st) n 0 (initStage shared)) tr))) :
-    OracleReduction.Continuation oSpec SharedIn
+    OracleReduction oSpec SharedIn
       (fun shared => Spec.stateChain Stage spec advance n 0 (initStage shared))
       (fun shared => Spec.Decoration.stateChain roles n 0 (initStage shared))
       (fun shared => Role.Refine.stateChain (fun i st => od i st) n 0 (initStage shared))
@@ -201,8 +199,6 @@ def stateChainComp {ι : Type} {oSpec : OracleSpec ι}
       (verifierInit shared stmt)
   simulate shared tr :=
     simulateResult shared tr
-
-end OracleReduction.Continuation
 
 end OracleDecoration
 

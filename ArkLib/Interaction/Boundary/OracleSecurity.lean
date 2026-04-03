@@ -92,22 +92,21 @@ theorem simulates_pullback
     (verifier :
       Interaction.OracleVerifier
         oSpec
-        InnerStmtIn InnerOStmtIn
-        InnerSpec InnerRoles InnerOD
-        (fun _ => PUnit) InnerStmtOut InnerOStmtOut)
+        InnerStmtIn InnerSpec InnerRoles InnerOD
+        (fun _ => PUnit) InnerOStmtIn InnerStmtOut InnerOStmtOut)
     (outer : OuterStmtIn)
     (oStmtIn : Interaction.OracleStatement (OuterOStmtIn outer))
     (tr : Spec.Transcript (InnerSpec (toStatement.proj outer)))
     (innerOStmtOut :
       Interaction.OracleStatement (InnerOStmtOut (toStatement.proj outer) tr))
     (hInner :
-      Interaction.OracleVerifier.Simulates
+      Interaction.OracleVerifier.SimulatesConcrete
         verifier
         (toStatement.proj outer)
         ((boundary.reification outer).materializeIn outer oStmtIn)
         tr
         innerOStmtOut) :
-    Interaction.OracleVerifier.Simulates
+    Interaction.OracleVerifier.SimulatesConcrete
       (Interaction.OracleVerifier.pullback
         toStatement
         boundary.access
@@ -117,7 +116,7 @@ theorem simulates_pullback
       tr
       ((boundary.reification outer).materializeOut outer oStmtIn tr innerOStmtOut) := by
   intro i q
-  simpa [Interaction.OracleVerifier.Simulates,
+  simpa [Interaction.OracleVerifier.SimulatesConcrete,
     Interaction.OracleVerifier.pullback] using
     Boundary.OracleStatementReification.pullbackSimulate_materialize
       (boundary.access outer)
@@ -141,7 +140,7 @@ theorem simulates_pullback
       (by
         intro q'
         rcases q' with ⟨i, q⟩
-        simpa [Interaction.OracleVerifier.Simulates,
+        simpa [Interaction.OracleVerifier.SimulatesConcrete,
           OracleDecoration.oracleContextImpl, QueryImpl.add] using hInner i q)
       ⟨i, q⟩
 
@@ -388,9 +387,9 @@ private def mapExecuteOutput
         OuterOStmtIn InnerOStmtIn InnerOStmtOut OuterOStmtOut)
     (reduction :
       Interaction.OracleDecoration.OracleReduction oSpec
-        InnerStmtIn InnerOStmtIn
-        InnerSpec InnerRoles InnerOD
+        InnerStmtIn InnerSpec InnerRoles InnerOD
         (fun _ => PUnit)
+        InnerOStmtIn
         (fun _ => InnerWitIn)
         InnerStmtOut InnerOStmtOut InnerWitOut)
     (outerStmt : ConcreteInput OuterStmtIn OuterOStmtIn)
@@ -634,9 +633,9 @@ theorem simulates_pullback
         OuterOStmtIn InnerOStmtIn InnerOStmtOut OuterOStmtOut)
     (reduction :
       Interaction.OracleDecoration.OracleReduction oSpec
-        InnerStmtIn InnerOStmtIn
-        InnerSpec InnerRoles InnerOD
+        InnerStmtIn InnerSpec InnerRoles InnerOD
         (fun _ => PUnit)
+        InnerOStmtIn
         (fun _ => InnerWitIn)
         InnerStmtOut InnerOStmtOut InnerWitOut)
     (outer : OuterStmtIn)
@@ -645,13 +644,13 @@ theorem simulates_pullback
     (innerOStmtOut :
       Interaction.OracleStatement (InnerOStmtOut (toContext.stmt.proj outer) tr))
     (hInner :
-      Interaction.OracleDecoration.OracleReduction.Simulates
+      Interaction.OracleDecoration.OracleReduction.SimulatesConcrete
         reduction
         (toContext.stmt.proj outer)
         ((boundary.reification outer).materializeIn outer oStmtIn)
         tr
         innerOStmtOut) :
-    Interaction.OracleDecoration.OracleReduction.Simulates
+    Interaction.OracleDecoration.OracleReduction.SimulatesConcrete
       (Interaction.OracleDecoration.OracleReduction.pullback
         toContext
         boundary
@@ -661,7 +660,7 @@ theorem simulates_pullback
       tr
       ((boundary.reification outer).materializeOut outer oStmtIn tr innerOStmtOut) := by
   intro i q
-  simpa [Interaction.OracleDecoration.OracleReduction.Simulates,
+  simpa [Interaction.OracleDecoration.OracleReduction.SimulatesConcrete,
     Interaction.OracleDecoration.OracleReduction.pullback] using
     Boundary.OracleStatementReification.pullbackSimulate_materialize
       (boundary.access outer)
@@ -685,7 +684,7 @@ theorem simulates_pullback
       (by
         intro q'
         rcases q' with ⟨i, q⟩
-        simpa [Interaction.OracleDecoration.OracleReduction.Simulates,
+        simpa [Interaction.OracleDecoration.OracleReduction.SimulatesConcrete,
           OracleDecoration.oracleContextImpl, QueryImpl.add] using hInner i q)
       ⟨i, q⟩
 

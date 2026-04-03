@@ -651,18 +651,19 @@ def pullback
       Boundary.OracleContext toContext
         OuterOStmtIn InnerOStmtIn InnerOStmtOut OuterOStmtOut)
     (reduction :
-      OracleReduction oSpec InnerStmtIn InnerOStmtIn
+      OracleReduction oSpec InnerStmtIn
         InnerSpec InnerRoles InnerOD
         (fun _ => PUnit)
+        InnerOStmtIn
         (fun _ => InnerWitIn)
         InnerStmtOut InnerOStmtOut InnerWitOut) :
     OracleReduction oSpec
       OuterStmtIn
-      OuterOStmtIn
       (fun outer => InnerSpec (toContext.stmt.proj outer))
       (fun outer => InnerRoles (toContext.stmt.proj outer))
       (fun outer => InnerOD (toContext.stmt.proj outer))
       (fun _ => PUnit)
+      OuterOStmtIn
       (fun _ => OuterWitIn)
       OuterStmtOut
       (fun outer tr => OuterOStmtOut outer tr)

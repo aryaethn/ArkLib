@@ -1340,14 +1340,14 @@ def pullback
           InnerOStmtOut OuterOStmtOut)
     (verifier :
       Interaction.OracleVerifier oSpec
-        InnerStmtIn InnerOStmtIn InnerSpec InnerRoles InnerOD
-        (fun _ => PUnit) InnerStmtOut InnerOStmtOut) :
+        InnerStmtIn InnerSpec InnerRoles InnerOD
+        (fun _ => PUnit) InnerOStmtIn InnerStmtOut InnerOStmtOut) :
     Interaction.OracleVerifier oSpec
-      OuterStmtIn OuterOStmtIn
+      OuterStmtIn
       (fun outer => InnerSpec (stmt.proj outer))
       (fun outer => InnerRoles (stmt.proj outer))
       (fun outer => InnerOD (stmt.proj outer))
-      (fun _ => PUnit) OuterStmtOut OuterOStmtOut where
+      (fun _ => PUnit) OuterOStmtIn OuterStmtOut OuterOStmtOut where
   toFun outer {_} accSpec _ :=
     Boundary.pullbackCounterpart (access outer).simulateIn
       (InnerSpec (stmt.proj outer))

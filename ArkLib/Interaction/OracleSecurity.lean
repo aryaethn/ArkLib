@@ -70,142 +70,7 @@ end OracleStatement
 
 namespace OracleReduction
 
-namespace Extractor
-
-/-- A straightline extractor for a top-level oracle reduction observes the full
-input statement (including oracle data), the transcript, the full output
-statement (including output oracle data), and the malicious prover's terminal
-witness output. -/
-structure Straightline
-    (Input : Type _) {ιₛᵢ : Input → Type _}
-    (OStmtIn : (i : Input) → ιₛᵢ i → Type _)
-    [∀ i j, OracleInterface (OStmtIn i j)]
-    (LocalStmt WitnessIn : Input → Type _)
-    (Context : Input → Spec)
-    (StatementOut : (i : Input) → Spec.Transcript (Context i) → Type _)
-    {ιₛₒ : (i : Input) → (tr : Spec.Transcript (Context i)) → Type _}
-    (OStmtOut : (i : Input) → (tr : Spec.Transcript (Context i)) → ιₛₒ i tr → Type _)
-    [∀ i tr j, OracleInterface (OStmtOut i tr j)]
-    (WitnessOut : (i : Input) → Spec.Transcript (Context i) → Type _) where
-  toFun : ∀ (i : Input)
-      (s : StatementWithOracles LocalStmt OStmtIn i)
-      (tr : Spec.Transcript (Context i)),
-      StatementWithOracles (fun _ => StatementOut i tr) (fun _ => OStmtOut i tr) i →
-      WitnessOut i tr → WitnessIn i
-
-instance
-    {Input : Type _} {ιₛᵢ : Input → Type _}
-    {OStmtIn : (i : Input) → ιₛᵢ i → Type _}
-    [∀ i j, OracleInterface (OStmtIn i j)]
-    {LocalStmt WitnessIn : Input → Type _}
-    {Context : Input → Spec}
-    {StatementOut : (i : Input) → Spec.Transcript (Context i) → Type _}
-    {ιₛₒ : (i : Input) → (tr : Spec.Transcript (Context i)) → Type _}
-    {OStmtOut : (i : Input) → (tr : Spec.Transcript (Context i)) → ιₛₒ i tr → Type _}
-    [∀ i tr j, OracleInterface (OStmtOut i tr j)]
-    {WitnessOut : (i : Input) → Spec.Transcript (Context i) → Type _} :
-    CoeFun
-      (Straightline (Input := Input) (OStmtIn := OStmtIn)
-        (LocalStmt := LocalStmt) (WitnessIn := WitnessIn)
-        (Context := Context) (StatementOut := StatementOut)
-        (OStmtOut := OStmtOut) (WitnessOut := WitnessOut))
-      (fun _ => ∀ (i : Input) (s : StatementWithOracles LocalStmt OStmtIn i)
-        (tr : Spec.Transcript (Context i)),
-        StatementWithOracles (fun _ => StatementOut i tr) (fun _ => OStmtOut i tr) i →
-        WitnessOut i tr → WitnessIn i) where
-  coe E := E.toFun
-
-end Extractor
-
-/-- Honest completeness for an oracle reduction: on valid full inputs, honest
-execution produces a valid full output, the prover and verifier agree on the
-plain output statement, and the verifier's oracle-access semantics agree with
-the honest prover's concrete output oracle statements. -/
-def completeness
-    {ι : Type _} {oSpec : OracleSpec ι} [HasEvalSPMF (OracleComp oSpec)]
-    {Input : Type _} {ιₛᵢ : Input → Type _}
-    {OStmtIn : (i : Input) → ιₛᵢ i → Type _}
-    [∀ i j, OracleInterface (OStmtIn i j)]
-    {Context : Input → Spec}
-    {Roles : (i : Input) → RoleDecoration (Context i)}
-    {OD : (i : Input) → OracleDecoration (Context i) (Roles i)}
-    {LocalStmt WitnessIn : Input → Type _}
-    {StatementOut : (i : Input) → Spec.Transcript (Context i) → Type _}
-    {ιₛₒ : (i : Input) → (tr : Spec.Transcript (Context i)) → Type _}
-    {OStmtOut : (i : Input) → (tr : Spec.Transcript (Context i)) → ιₛₒ i tr → Type _}
-    [∀ i tr j, OracleInterface (OStmtOut i tr j)]
-    {WitnessOut : (i : Input) → Spec.Transcript (Context i) → Type _}
-    (reduction : OracleReduction oSpec Input OStmtIn
-      Context Roles OD LocalStmt WitnessIn StatementOut OStmtOut WitnessOut)
-    (relIn : ∀ (i : Input), StatementWithOracles LocalStmt OStmtIn i → WitnessIn i → Prop)
-    (relOut : ∀ (i : Input) (tr : Spec.Transcript (Context i)),
-      StatementWithOracles (fun _ => StatementOut i tr) (fun _ => OStmtOut i tr) i →
-      WitnessOut i tr → Prop)
-    (ε : ℝ≥0∞) : Prop :=
-  ∀ (i : Input) (s : StatementWithOracles LocalStmt OStmtIn i) (w : WitnessIn i),
-      relIn i s w →
-    1 - ε ≤ Pr[fun z =>
-      z.2.1.stmt.stmt = z.2.2.1 ∧
-        OracleDecoration.OracleReduction.Simulates
-          reduction i s.oracleStmt z.1 z.2.1.stmt.oracleStmt ∧
-        relOut i z.1 z.2.1.stmt z.2.1.wit
-      | reduction.execute i s w]
-
-/-- Perfect completeness for an oracle reduction: completeness with error `0`. -/
-def perfectCompleteness
-    {ι : Type _} {oSpec : OracleSpec ι} [HasEvalSPMF (OracleComp oSpec)]
-    {Input : Type _} {ιₛᵢ : Input → Type _}
-    {OStmtIn : (i : Input) → ιₛᵢ i → Type _}
-    [∀ i j, OracleInterface (OStmtIn i j)]
-    {Context : Input → Spec}
-    {Roles : (i : Input) → RoleDecoration (Context i)}
-    {OD : (i : Input) → OracleDecoration (Context i) (Roles i)}
-    {LocalStmt WitnessIn : Input → Type _}
-    {StatementOut : (i : Input) → Spec.Transcript (Context i) → Type _}
-    {ιₛₒ : (i : Input) → (tr : Spec.Transcript (Context i)) → Type _}
-    {OStmtOut : (i : Input) → (tr : Spec.Transcript (Context i)) → ιₛₒ i tr → Type _}
-    [∀ i tr j, OracleInterface (OStmtOut i tr j)]
-    {WitnessOut : (i : Input) → Spec.Transcript (Context i) → Type _}
-    (reduction : OracleReduction oSpec Input OStmtIn
-      Context Roles OD LocalStmt WitnessIn StatementOut OStmtOut WitnessOut)
-    (relIn : ∀ (i : Input), StatementWithOracles LocalStmt OStmtIn i → WitnessIn i → Prop)
-    (relOut : ∀ (i : Input) (tr : Spec.Transcript (Context i)),
-      StatementWithOracles (fun _ => StatementOut i tr) (fun _ => OStmtOut i tr) i →
-      WitnessOut i tr → Prop) : Prop :=
-  reduction.completeness relIn relOut 0
-
-/-- A top-level oracle reduction accepts a plain verifier output `stmtOut` when
-there exists concrete output oracle data that both agrees with `simulate` and
-lands in the designated output language. -/
-def Accepts
-    {ι : Type _} {oSpec : OracleSpec ι}
-    {Input : Type _} {ιₛᵢ : Input → Type _}
-    {OStmtIn : (i : Input) → ιₛᵢ i → Type _}
-    [∀ i j, OracleInterface (OStmtIn i j)]
-    {Context : Input → Spec}
-    {Roles : (i : Input) → RoleDecoration (Context i)}
-    {OD : (i : Input) → OracleDecoration (Context i) (Roles i)}
-    {LocalStmt WitnessIn : Input → Type _}
-    {StatementOut : (i : Input) → Spec.Transcript (Context i) → Type _}
-    {ιₛₒ : (i : Input) → (tr : Spec.Transcript (Context i)) → Type _}
-    {OStmtOut : (i : Input) → (tr : Spec.Transcript (Context i)) → ιₛₒ i tr → Type _}
-    [∀ i tr j, OracleInterface (OStmtOut i tr j)]
-    {WitnessOut : (i : Input) → Spec.Transcript (Context i) → Type _}
-    (reduction : OracleReduction oSpec Input OStmtIn
-      Context Roles OD LocalStmt WitnessIn StatementOut OStmtOut WitnessOut)
-    (langOut : ∀ (i : Input) (tr : Spec.Transcript (Context i)),
-      Set (StatementWithOracles (fun _ => StatementOut i tr) (fun _ => OStmtOut i tr) i))
-    (i : Input)
-    (s : StatementWithOracles LocalStmt OStmtIn i)
-    (tr : Spec.Transcript (Context i))
-    (stmtOut : StatementOut i tr) : Prop :=
-  ∃ oStmtOut : OracleStatement (OStmtOut i tr),
-    OracleDecoration.OracleReduction.Simulates reduction i s.oracleStmt tr oStmtOut ∧
-      ⟨stmtOut, oStmtOut⟩ ∈ langOut i tr
-
-namespace Continuation
-
-/-- Query-level agreement between a continuation's output-oracle simulation and
+/-- Query-level agreement between a reduction's output-oracle simulation and
 concrete output oracle data, relative to an arbitrary deterministic
 implementation of the input oracle family. -/
 def Simulates
@@ -215,126 +80,102 @@ def Simulates
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
     {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
     {StatementIn : SharedIn → Type _}
-    {ιₛᵢ : SharedIn → Type _} {OStmtIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
-    [∀ shared i, OracleInterface (OStmtIn shared i)]
+    {ιₛᵢ : SharedIn → Type _}
+    {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
+    [∀ shared i, OracleInterface (OStatementIn shared i)]
     {WitnessIn : SharedIn → Type _}
     {StatementOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _}
     {ιₛₒ : (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → Type _}
-    {OStmtOut :
+    {OStatementOut :
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type _}
-    [∀ shared tr i, OracleInterface (OStmtOut shared tr i)]
+    [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
     {WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _}
-    (reduction : Continuation oSpec SharedIn Context Roles OD
-      StatementIn OStmtIn WitnessIn StatementOut OStmtOut WitnessOut)
-    (shared : SharedIn) (inputImpl : QueryImpl [OStmtIn shared]ₒ Id)
+    (reduction : OracleReduction oSpec SharedIn Context Roles OD
+      StatementIn OStatementIn WitnessIn StatementOut OStatementOut WitnessOut)
+    (shared : SharedIn) (inputImpl : QueryImpl [OStatementIn shared]ₒ Id)
     (tr : Spec.Transcript (Context shared))
-    (oStmtOut : OracleStatement (OStmtOut shared tr)) : Prop :=
-  ∀ i (q : OracleInterface.Query (OStmtOut shared tr i)),
-    simulateQ (QueryImpl.add inputImpl
-      (OracleDecoration.answerQuery (Context shared) (Roles shared) (OD shared) tr))
-      (reduction.simulate shared tr ⟨i, q⟩) =
-        pure (OracleInterface.answer (oStmtOut i) q)
+    (oStatementOut : OracleStatement (OStatementOut shared tr)) : Prop :=
+  ∀ i (q : OracleInterface.Query (OStatementOut shared tr i)),
+    simulateQ
+        (QueryImpl.add inputImpl
+          (OracleDecoration.answerQuery
+            (Context shared) (Roles shared) (OD shared) tr))
+        (reduction.simulate shared tr ⟨i, q⟩) =
+      pure (OracleInterface.answer (oStatementOut i) q)
 
-/-- An abstract continuation input is in the input language when some concrete
+/-- An abstract reduction input is in the input language when some concrete
 oracle statement realizes the supplied input oracle implementation and yields a
 full input statement in `langIn`. -/
 def InLangIn
     {SharedIn : Type _}
     {StatementIn : SharedIn → Type _}
-    {ιₛᵢ : SharedIn → Type _} {OStmtIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
-    [∀ shared i, OracleInterface (OStmtIn shared i)]
+    {ιₛᵢ : SharedIn → Type _}
+    {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
+    [∀ shared i, OracleInterface (OStatementIn shared i)]
     (langIn : ∀ shared,
-      Set (StatementWithOracles StatementIn OStmtIn shared))
+      Set (StatementWithOracles StatementIn OStatementIn shared))
     (shared : SharedIn) (stmt : StatementIn shared)
-    (inputImpl : QueryImpl [OStmtIn shared]ₒ Id) : Prop :=
-  ∃ oStmtIn : OracleStatement (OStmtIn shared),
-    OracleStatement.Realizes inputImpl oStmtIn ∧
-      ⟨stmt, oStmtIn⟩ ∈ langIn shared
-
-/-- A continuation accepts a plain verifier output `stmtOut` when some concrete
-output oracle statement both agrees with the verifier's oracle-only semantics
-and lands in the target language. -/
-def Accepts
-    {ι : Type _} {oSpec : OracleSpec ι}
-    {SharedIn : Type _}
-    {Context : SharedIn → Spec}
-    {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
-    {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
-    {StatementIn : SharedIn → Type _}
-    {ιₛᵢ : SharedIn → Type _} {OStmtIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
-    [∀ shared i, OracleInterface (OStmtIn shared i)]
-    {WitnessIn : SharedIn → Type _}
-    {StatementOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _}
-    {ιₛₒ : (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → Type _}
-    {OStmtOut :
-      (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type _}
-    [∀ shared tr i, OracleInterface (OStmtOut shared tr i)]
-    {WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _}
-    (reduction : Continuation oSpec SharedIn Context Roles OD
-      StatementIn OStmtIn WitnessIn StatementOut OStmtOut WitnessOut)
-    (langOut : ∀ (shared : SharedIn) (tr : Spec.Transcript (Context shared)),
-      Set (StatementWithOracles (fun _ => StatementOut shared tr) (fun _ => OStmtOut shared tr) shared))
-    (shared : SharedIn) (inputImpl : QueryImpl [OStmtIn shared]ₒ Id)
-    (tr : Spec.Transcript (Context shared))
-    (stmtOut : StatementOut shared tr) : Prop :=
-  ∃ oStmtOut : OracleStatement (OStmtOut shared tr),
-    Simulates reduction shared inputImpl tr oStmtOut ∧
-      ⟨stmtOut, oStmtOut⟩ ∈ langOut shared tr
+    (inputImpl : QueryImpl [OStatementIn shared]ₒ Id) : Prop :=
+  ∃ oStatementIn : OracleStatement (OStatementIn shared),
+    OracleStatement.Realizes inputImpl oStatementIn ∧
+      ⟨stmt, oStatementIn⟩ ∈ langIn shared
 
 namespace Extractor
 
-/-- A straightline extractor for a continuation observes a concrete realized
-full input statement, the transcript, the full output statement, and the
-malicious prover's terminal witness output. -/
+/-- A straightline extractor for an oracle reduction observes a concrete
+realized full input statement, the transcript, the full output statement, and
+the malicious prover's terminal witness output. -/
 structure Straightline
     (SharedIn : Type _)
     (Context : SharedIn → Spec)
     (StatementIn : SharedIn → Type _) {ιₛᵢ : SharedIn → Type _}
-    (OStmtIn : (shared : SharedIn) → ιₛᵢ shared → Type _)
-    [∀ shared i, OracleInterface (OStmtIn shared i)]
+    (OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type _)
+    [∀ shared i, OracleInterface (OStatementIn shared i)]
     (WitnessIn : SharedIn → Type _)
     (StatementOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _)
     {ιₛₒ : (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → Type _}
-    (OStmtOut :
+    (OStatementOut :
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type _)
-    [∀ shared tr i, OracleInterface (OStmtOut shared tr i)]
+    [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
     (WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _) where
   toFun : ∀ (shared : SharedIn)
-      (_ : StatementWithOracles StatementIn OStmtIn shared)
+      (_ : StatementWithOracles StatementIn OStatementIn shared)
       (tr : Spec.Transcript (Context shared)),
-      StatementWithOracles (fun _ => StatementOut shared tr) (fun _ => OStmtOut shared tr) shared →
-      WitnessOut shared tr → WitnessIn shared
+      StatementWithOracles
+          (fun _ => StatementOut shared tr) (fun _ => OStatementOut shared tr) shared →
+        WitnessOut shared tr → WitnessIn shared
 
 instance
     {SharedIn : Type _}
     {Context : SharedIn → Spec}
     {StatementIn : SharedIn → Type _} {ιₛᵢ : SharedIn → Type _}
-    {OStmtIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
-    [∀ shared i, OracleInterface (OStmtIn shared i)]
+    {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
+    [∀ shared i, OracleInterface (OStatementIn shared i)]
     {WitnessIn : SharedIn → Type _}
     {StatementOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _}
     {ιₛₒ : (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → Type _}
-    {OStmtOut :
+    {OStatementOut :
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type _}
-    [∀ shared tr i, OracleInterface (OStmtOut shared tr i)]
+    [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
     {WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _} :
     CoeFun
       (Straightline (SharedIn := SharedIn) (Context := Context)
-        (StatementIn := StatementIn) (OStmtIn := OStmtIn)
+        (StatementIn := StatementIn) (OStatementIn := OStatementIn)
         (WitnessIn := WitnessIn) (StatementOut := StatementOut)
-        (OStmtOut := OStmtOut) (WitnessOut := WitnessOut))
+        (OStatementOut := OStatementOut) (WitnessOut := WitnessOut))
       (fun _ => ∀ (shared : SharedIn)
-        (_ : StatementWithOracles StatementIn OStmtIn shared)
+        (_ : StatementWithOracles StatementIn OStatementIn shared)
         (tr : Spec.Transcript (Context shared)),
-        StatementWithOracles (fun _ => StatementOut shared tr) (fun _ => OStmtOut shared tr) shared →
-        WitnessOut shared tr → WitnessIn shared) where
+        StatementWithOracles
+            (fun _ => StatementOut shared tr) (fun _ => OStatementOut shared tr) shared →
+          WitnessOut shared tr → WitnessIn shared) where
   coe E := E.toFun
 
 end Extractor
 
-/-- Honest completeness for a continuation oracle reduction. This quantifies
-over arbitrary accumulated oracle context because continuations can start after
-an earlier phase of a larger reduction. -/
+/-- Honest completeness for an oracle reduction. This quantifies over
+arbitrary accumulated oracle context because oracle reductions can start after
+an earlier phase of a larger protocol. -/
 def completeness
     {ι : Type _} {oSpec : OracleSpec ι} [HasEvalSPMF (OracleComp oSpec)]
     {SharedIn : Type _}
@@ -342,39 +183,40 @@ def completeness
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
     {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
     {StatementIn : SharedIn → Type _}
-    {ιₛᵢ : SharedIn → Type _} {OStmtIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
-    [∀ shared i, OracleInterface (OStmtIn shared i)]
+    {ιₛᵢ : SharedIn → Type _}
+    {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
+    [∀ shared i, OracleInterface (OStatementIn shared i)]
     {WitnessIn : SharedIn → Type _}
     {StatementOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _}
     {ιₛₒ : (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → Type _}
-    {OStmtOut :
+    {OStatementOut :
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type _}
-    [∀ shared tr i, OracleInterface (OStmtOut shared tr i)]
+    [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
     {WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _}
-    (reduction : Continuation oSpec SharedIn Context Roles OD
-      StatementIn OStmtIn WitnessIn StatementOut OStmtOut WitnessOut)
+    (reduction : OracleReduction oSpec SharedIn Context Roles OD
+      StatementIn OStatementIn WitnessIn StatementOut OStatementOut WitnessOut)
     (relIn : ∀ (shared : SharedIn),
-      StatementWithOracles StatementIn OStmtIn shared →
+      StatementWithOracles StatementIn OStatementIn shared →
         WitnessIn shared → Prop)
     (relOut : ∀ (shared : SharedIn) (tr : Spec.Transcript (Context shared)),
-      StatementWithOracles (fun _ => StatementOut shared tr) (fun _ => OStmtOut shared tr) shared →
-      WitnessOut shared tr → Prop)
+      StatementWithOracles
+          (fun _ => StatementOut shared tr) (fun _ => OStatementOut shared tr) shared →
+        WitnessOut shared tr → Prop)
     (ε : ℝ≥0∞) : Prop :=
   ∀ (shared : SharedIn)
-    (s : StatementWithOracles StatementIn OStmtIn shared)
-      (w : WitnessIn shared) {ιₐ : Type _} (accSpec : OracleSpec ιₐ)
-      (accImpl : QueryImpl accSpec Id),
+    (s : StatementWithOracles StatementIn OStatementIn shared)
+    (w : WitnessIn shared) {ιₐ : Type _} (accSpec : OracleSpec ιₐ)
+    (accImpl : QueryImpl accSpec Id),
       relIn shared s w →
         1 - ε ≤ Pr[fun z =>
           z.2.1.stmt.stmt = z.2.2.1 ∧
             Simulates reduction shared
-              (OracleInterface.simOracle0 (OStmtIn shared) s.oracleStmt)
+              (OracleInterface.simOracle0 (OStatementIn shared) s.oracleStmt)
               z.1 z.2.1.stmt.oracleStmt ∧
             relOut shared z.1 z.2.1.stmt z.2.1.wit
           | reduction.execute shared s w accSpec accImpl]
 
-/-- Perfect completeness for a continuation oracle reduction: completeness with
-error `0`. -/
+/-- Perfect completeness for an oracle reduction: completeness with error `0`. -/
 def perfectCompleteness
     {ι : Type _} {oSpec : OracleSpec ι} [HasEvalSPMF (OracleComp oSpec)]
     {SharedIn : Type _}
@@ -382,26 +224,58 @@ def perfectCompleteness
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
     {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
     {StatementIn : SharedIn → Type _}
-    {ιₛᵢ : SharedIn → Type _} {OStmtIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
-    [∀ shared i, OracleInterface (OStmtIn shared i)]
+    {ιₛᵢ : SharedIn → Type _}
+    {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
+    [∀ shared i, OracleInterface (OStatementIn shared i)]
     {WitnessIn : SharedIn → Type _}
     {StatementOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _}
     {ιₛₒ : (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → Type _}
-    {OStmtOut :
+    {OStatementOut :
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type _}
-    [∀ shared tr i, OracleInterface (OStmtOut shared tr i)]
+    [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
     {WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _}
-    (reduction : Continuation oSpec SharedIn Context Roles OD
-      StatementIn OStmtIn WitnessIn StatementOut OStmtOut WitnessOut)
+    (reduction : OracleReduction oSpec SharedIn Context Roles OD
+      StatementIn OStatementIn WitnessIn StatementOut OStatementOut WitnessOut)
     (relIn : ∀ (shared : SharedIn),
-      StatementWithOracles StatementIn OStmtIn shared →
+      StatementWithOracles StatementIn OStatementIn shared →
         WitnessIn shared → Prop)
     (relOut : ∀ (shared : SharedIn) (tr : Spec.Transcript (Context shared)),
-      StatementWithOracles (fun _ => StatementOut shared tr) (fun _ => OStmtOut shared tr) shared →
-      WitnessOut shared tr → Prop) : Prop :=
+      StatementWithOracles
+          (fun _ => StatementOut shared tr) (fun _ => OStatementOut shared tr) shared →
+        WitnessOut shared tr → Prop) : Prop :=
   reduction.completeness relIn relOut 0
 
-end Continuation
+/-- An oracle reduction accepts a plain verifier output `stmtOut` when some
+concrete output oracle statement both agrees with the reduction's oracle-only
+semantics and lands in the target language. -/
+def Accepts
+    {ι : Type _} {oSpec : OracleSpec ι}
+    {SharedIn : Type _}
+    {Context : SharedIn → Spec}
+    {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
+    {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
+    {StatementIn : SharedIn → Type _}
+    {ιₛᵢ : SharedIn → Type _}
+    {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
+    [∀ shared i, OracleInterface (OStatementIn shared i)]
+    {WitnessIn : SharedIn → Type _}
+    {StatementOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _}
+    {ιₛₒ : (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → Type _}
+    {OStatementOut :
+      (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type _}
+    [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
+    {WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _}
+    (reduction : OracleReduction oSpec SharedIn Context Roles OD
+      StatementIn OStatementIn WitnessIn StatementOut OStatementOut WitnessOut)
+    (langOut : ∀ (shared : SharedIn) (tr : Spec.Transcript (Context shared)),
+      Set (StatementWithOracles
+        (fun _ => StatementOut shared tr) (fun _ => OStatementOut shared tr) shared))
+    (shared : SharedIn) (inputImpl : QueryImpl [OStatementIn shared]ₒ Id)
+    (tr : Spec.Transcript (Context shared))
+    (stmtOut : StatementOut shared tr) : Prop :=
+  ∃ oStatementOut : OracleStatement (OStatementOut shared tr),
+    Simulates reduction shared inputImpl tr oStatementOut ∧
+      ⟨stmtOut, oStatementOut⟩ ∈ langOut shared tr
 end OracleReduction
 
 end OracleDecoration
@@ -412,142 +286,22 @@ namespace OracleVerifier
 oracle statement realizes the supplied input implementation and yields a full
 input in `langIn`. -/
 def InLangIn
-    {Input : Type _}
-    {ιₛᵢ : Input → Type _}
-    {OStmtIn : (i : Input) → ιₛᵢ i → Type _}
-    [∀ i j, OracleInterface (OStmtIn i j)]
-    {LocalStmt : Input → Type _}
-    (langIn : ∀ (i : Input), Set (StatementWithOracles LocalStmt OStmtIn i))
-    (i : Input) (stmt : LocalStmt i) (inputImpl : QueryImpl [OStmtIn i]ₒ Id) : Prop :=
-  ∃ oStmtIn : OracleStatement (OStmtIn i),
-    OracleDecoration.OracleStatement.Realizes inputImpl oStmtIn ∧
-      ⟨stmt, oStmtIn⟩ ∈ langIn i
-
-/-- A verifier-only oracle protocol accepts a plain output when some concrete
-realization of the abstract input oracle implementation, together with some
-concrete output oracle family realizing the verifier's simulation, lands in the
-target language. -/
-def Accepts
-    {ι : Type _} {oSpec : OracleSpec ι}
-    {Input : Type _} {ιₛᵢ : Input → Type _}
-    {OStmtIn : (i : Input) → ιₛᵢ i → Type _}
-    [∀ i j, OracleInterface (OStmtIn i j)]
-    {Context : Input → Spec}
-    {Roles : (i : Input) → RoleDecoration (Context i)}
-    {OD : (i : Input) → OracleDecoration (Context i) (Roles i)}
-    {LocalStmt : Input → Type _}
-    {StatementOut : (i : Input) → Spec.Transcript (Context i) → Type _}
-    {ιₛₒ : (i : Input) → (tr : Spec.Transcript (Context i)) → Type _}
-    {OStmtOut : (i : Input) → (tr : Spec.Transcript (Context i)) → ιₛₒ i tr → Type _}
-    [∀ i tr j, OracleInterface (OStmtOut i tr j)]
-    (verifier : Interaction.OracleVerifier oSpec Input OStmtIn Context Roles OD
-      LocalStmt StatementOut OStmtOut)
-    (langOut : ∀ (i : Input) (tr : Spec.Transcript (Context i)),
-      Set (StatementWithOracles (fun _ => StatementOut i tr) (fun _ => OStmtOut i tr) i))
-    (i : Input)
-    (stmt : LocalStmt i)
-    (inputImpl : QueryImpl [OStmtIn i]ₒ Id)
-    (tr : Spec.Transcript (Context i))
-    (stmtOut : StatementOut i tr) : Prop :=
-  ∃ oStmtIn : OracleStatement (OStmtIn i),
-    ∃ oStmtOut : OracleStatement (OStmtOut i tr),
-      OracleDecoration.OracleStatement.Realizes inputImpl oStmtIn ∧
-        Interaction.OracleVerifier.Simulates verifier i oStmtIn tr oStmtOut ∧
-        ⟨stmtOut, oStmtOut⟩ ∈ langOut i tr
-
-/-- Soundness for a verifier-only oracle protocol. The input oracle access may
-be any deterministic implementation; invalidity means that no concrete full
-input in `langIn` realizes that implementation. -/
-def soundness
-    {ι : Type _} {oSpec : OracleSpec ι} [HasEvalSPMF (OracleComp oSpec)]
-    {Input : Type _} {ιₛᵢ : Input → Type _}
-    {OStmtIn : (i : Input) → ιₛᵢ i → Type _}
-    [∀ i j, OracleInterface (OStmtIn i j)]
-    {Context : Input → Spec}
-    {Roles : (i : Input) → RoleDecoration (Context i)}
-    {OD : (i : Input) → OracleDecoration (Context i) (Roles i)}
-    {LocalStmt : Input → Type _}
-    {StatementOut : (i : Input) → Spec.Transcript (Context i) → Type _}
-    {ιₛₒ : (i : Input) → (tr : Spec.Transcript (Context i)) → Type _}
-    {OStmtOut : (i : Input) → (tr : Spec.Transcript (Context i)) → ιₛₒ i tr → Type _}
-    [∀ i tr j, OracleInterface (OStmtOut i tr j)]
-    (verifier : Interaction.OracleVerifier oSpec Input OStmtIn Context Roles OD
-      LocalStmt StatementOut OStmtOut)
-    (langIn : ∀ (i : Input), Set (StatementWithOracles LocalStmt OStmtIn i))
-    (langOut : ∀ (i : Input) (tr : Spec.Transcript (Context i)),
-      Set (StatementWithOracles (fun _ => StatementOut i tr) (fun _ => OStmtOut i tr) i))
-    (ε : ℝ≥0∞) : Prop :=
-  ∀ (i : Input) (stmt : LocalStmt i) (inputImpl : QueryImpl [OStmtIn i]ₒ Id)
-      {OutputP : Spec.Transcript (Context i) → Type _}
-      (prover : Spec.Strategy.withRoles (OracleComp oSpec) (Context i) (Roles i) OutputP)
-      {ιₐ : Type _} (accSpec : OracleSpec ιₐ) (accImpl : QueryImpl accSpec Id),
-      ¬ InLangIn langIn i stmt inputImpl →
-        Pr[fun z => Accepts verifier langOut i stmt inputImpl z.1 z.2.2.1
-          | OracleVerifier.run verifier i stmt inputImpl prover accSpec accImpl] ≤ ε
-
-/-- Knowledge soundness for a verifier-only oracle protocol. The bad event says
-that some concrete realization of the abstract input implementation together
-with some compatible realization of the output oracle access satisfies the
-output relation, yet the extractor's recovered witness does not validate that
-realized full input. -/
-def knowledgeSoundness
-    {ι : Type _} {oSpec : OracleSpec ι} [HasEvalSPMF (OracleComp oSpec)]
-    {Input : Type _} {ιₛᵢ : Input → Type _}
-    {OStmtIn : (i : Input) → ιₛᵢ i → Type _}
-    [∀ i j, OracleInterface (OStmtIn i j)]
-    {Context : Input → Spec}
-    {Roles : (i : Input) → RoleDecoration (Context i)}
-    {OD : (i : Input) → OracleDecoration (Context i) (Roles i)}
-    {LocalStmt WitnessIn : Input → Type _}
-    {StatementOut : (i : Input) → Spec.Transcript (Context i) → Type _}
-    {ιₛₒ : (i : Input) → (tr : Spec.Transcript (Context i)) → Type _}
-    {OStmtOut : (i : Input) → (tr : Spec.Transcript (Context i)) → ιₛₒ i tr → Type _}
-    [∀ i tr j, OracleInterface (OStmtOut i tr j)]
-    {WitnessOut : (i : Input) → Spec.Transcript (Context i) → Type _}
-    (verifier : Interaction.OracleVerifier oSpec Input OStmtIn Context Roles OD
-      LocalStmt StatementOut OStmtOut)
-    (relIn : ∀ (i : Input), Set (StatementWithOracles LocalStmt OStmtIn i × WitnessIn i))
-    (relOut : ∀ (i : Input) (tr : Spec.Transcript (Context i)),
-      Set (StatementWithOracles (fun _ => StatementOut i tr) (fun _ => OStmtOut i tr) i ×
-        WitnessOut i tr))
-    (ε : ℝ≥0∞) : Prop :=
-  ∃ extractor : OracleDecoration.OracleReduction.Extractor.Straightline
-      Input OStmtIn LocalStmt WitnessIn Context StatementOut OStmtOut WitnessOut,
-  ∀ (i : Input) (stmt : LocalStmt i) (inputImpl : QueryImpl [OStmtIn i]ₒ Id)
-      (prover : Spec.Strategy.withRoles (OracleComp oSpec) (Context i) (Roles i)
-        (WitnessOut i))
-      {ιₐ : Type _} (accSpec : OracleSpec ιₐ) (accImpl : QueryImpl accSpec Id),
-      Pr[fun z =>
-        ∃ oStmtIn : OracleStatement (OStmtIn i),
-          ∃ oStmtOut : OracleStatement (OStmtOut i z.1),
-            OracleDecoration.OracleStatement.Realizes inputImpl oStmtIn ∧
-              Interaction.OracleVerifier.Simulates verifier i oStmtIn z.1 oStmtOut ∧
-              (⟨z.2.2.1, oStmtOut⟩, z.2.1) ∈ relOut i z.1 ∧
-              (⟨stmt, oStmtIn⟩,
-                extractor i ⟨stmt, oStmtIn⟩ z.1 ⟨z.2.2.1, oStmtOut⟩ z.2.1) ∉ relIn i
-        | OracleVerifier.run verifier i stmt inputImpl prover accSpec accImpl] ≤ ε
-
-namespace Continuation
-
-/-- An oracle verifier continuation input is valid when some concrete input
-oracle statement realizes the supplied query implementation and lies in the
-input language. -/
-def InLangIn
     {SharedIn : Type _}
     {StatementIn : SharedIn → Type _}
-    {ιₛᵢ : SharedIn → Type _} {OStmtIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
-    [∀ shared i, OracleInterface (OStmtIn shared i)]
+    {ιₛᵢ : SharedIn → Type _}
+    {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
+    [∀ shared i, OracleInterface (OStatementIn shared i)]
     (langIn : ∀ shared,
-      Set (StatementWithOracles StatementIn OStmtIn shared))
+      Set (StatementWithOracles StatementIn OStatementIn shared))
     (shared : SharedIn) (stmt : StatementIn shared)
-    (inputImpl : QueryImpl [OStmtIn shared]ₒ Id) : Prop :=
-  ∃ oStmtIn : OracleStatement (OStmtIn shared),
-    OracleDecoration.OracleStatement.Realizes inputImpl oStmtIn ∧
-      ⟨stmt, oStmtIn⟩ ∈ langIn shared
+    (inputImpl : QueryImpl [OStatementIn shared]ₒ Id) : Prop :=
+  ∃ oStatementIn : OracleStatement (OStatementIn shared),
+    OracleDecoration.OracleStatement.Realizes inputImpl oStatementIn ∧
+      ⟨stmt, oStatementIn⟩ ∈ langIn shared
 
-/-- A verifier-only oracle continuation accepts a plain output when some
-concrete output oracle family realizes the verifier's simulation and lies in
-the target language. -/
+/-- Query-level agreement between a verifier's output-oracle simulation and
+concrete output oracle data, relative to an arbitrary deterministic
+implementation of the input oracle family. -/
 def Simulates
     {ι : Type _} {oSpec : OracleSpec ι}
     {SharedIn : Type _}
@@ -555,27 +309,30 @@ def Simulates
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
     {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
     {StatementIn : SharedIn → Type _}
-    {ιₛᵢ : SharedIn → Type _} {OStmtIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
-    [∀ shared i, OracleInterface (OStmtIn shared i)]
+    {ιₛᵢ : SharedIn → Type _}
+    {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
+    [∀ shared i, OracleInterface (OStatementIn shared i)]
     {StatementOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _}
     {ιₛₒ : (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → Type _}
-    {OStmtOut :
+    {OStatementOut :
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type _}
-    [∀ shared tr i, OracleInterface (OStmtOut shared tr i)]
-    (verifier : Interaction.OracleVerifier.Continuation oSpec SharedIn Context Roles OD
-      StatementIn OStmtIn StatementOut OStmtOut)
-    (shared : SharedIn) (inputImpl : QueryImpl [OStmtIn shared]ₒ Id)
+    [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
+    (verifier : Interaction.OracleVerifier oSpec SharedIn Context Roles OD
+      StatementIn OStatementIn StatementOut OStatementOut)
+    (shared : SharedIn) (inputImpl : QueryImpl [OStatementIn shared]ₒ Id)
     (tr : Spec.Transcript (Context shared))
-    (oStmtOut : OracleStatement (OStmtOut shared tr)) : Prop :=
-  ∀ i (q : OracleInterface.Query (OStmtOut shared tr i)),
-    simulateQ (QueryImpl.add inputImpl
-      (OracleDecoration.answerQuery (Context shared) (Roles shared) (OD shared) tr))
-      (verifier.simulate shared tr ⟨i, q⟩) =
-        pure (OracleInterface.answer (oStmtOut i) q)
+    (oStatementOut : OracleStatement (OStatementOut shared tr)) : Prop :=
+  ∀ i (q : OracleInterface.Query (OStatementOut shared tr i)),
+    simulateQ
+        (QueryImpl.add inputImpl
+          (OracleDecoration.answerQuery
+            (Context shared) (Roles shared) (OD shared) tr))
+        (verifier.simulate shared tr ⟨i, q⟩) =
+      pure (OracleInterface.answer (oStatementOut i) q)
 
-/-- A verifier-only oracle continuation accepts a plain output when some
-concrete output oracle family realizes the verifier's simulation and lies in
-the target language. -/
+/-- A verifier-only oracle protocol accepts a plain output when some concrete
+output oracle family realizes the verifier's simulation and lies in the target
+language. -/
 def Accepts
     {ι : Type _} {oSpec : OracleSpec ι}
     {SharedIn : Type _}
@@ -583,27 +340,29 @@ def Accepts
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
     {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
     {StatementIn : SharedIn → Type _}
-    {ιₛᵢ : SharedIn → Type _} {OStmtIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
-    [∀ shared i, OracleInterface (OStmtIn shared i)]
+    {ιₛᵢ : SharedIn → Type _}
+    {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
+    [∀ shared i, OracleInterface (OStatementIn shared i)]
     {StatementOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _}
     {ιₛₒ : (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → Type _}
-    {OStmtOut :
+    {OStatementOut :
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type _}
-    [∀ shared tr i, OracleInterface (OStmtOut shared tr i)]
-    (verifier : Interaction.OracleVerifier.Continuation oSpec SharedIn Context Roles OD
-      StatementIn OStmtIn StatementOut OStmtOut)
+    [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
+    (verifier : Interaction.OracleVerifier oSpec SharedIn Context Roles OD
+      StatementIn OStatementIn StatementOut OStatementOut)
     (langOut : ∀ (shared : SharedIn) (tr : Spec.Transcript (Context shared)),
-      Set (StatementWithOracles (fun _ => StatementOut shared tr) (fun _ => OStmtOut shared tr) shared))
-    (shared : SharedIn) (inputImpl : QueryImpl [OStmtIn shared]ₒ Id)
+      Set (StatementWithOracles
+        (fun _ => StatementOut shared tr) (fun _ => OStatementOut shared tr) shared))
+    (shared : SharedIn) (inputImpl : QueryImpl [OStatementIn shared]ₒ Id)
     (tr : Spec.Transcript (Context shared))
     (stmtOut : StatementOut shared tr) : Prop :=
-  ∃ oStmtOut : OracleStatement (OStmtOut shared tr),
-    Simulates verifier shared inputImpl tr oStmtOut ∧
-      ⟨stmtOut, oStmtOut⟩ ∈ langOut shared tr
+  ∃ oStatementOut : OracleStatement (OStatementOut shared tr),
+    Simulates verifier shared inputImpl tr oStatementOut ∧
+      ⟨stmtOut, oStatementOut⟩ ∈ langOut shared tr
 
-/-- Soundness for a verifier-only oracle continuation. The input oracle access
-is allowed to be any deterministic implementation; invalidity means that no
-full input statement in `langIn` realizes that implementation. -/
+/-- Soundness for a verifier-only oracle protocol. The input oracle access may
+be any deterministic implementation; invalidity means that no concrete full
+input in `langIn` realizes that implementation. -/
 def soundness
     {ι : Type _} {oSpec : OracleSpec ι} [HasEvalSPMF (OracleComp oSpec)]
     {SharedIn : Type _}
@@ -611,34 +370,36 @@ def soundness
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
     {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
     {StatementIn : SharedIn → Type _}
-    {ιₛᵢ : SharedIn → Type _} {OStmtIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
-    [∀ shared i, OracleInterface (OStmtIn shared i)]
+    {ιₛᵢ : SharedIn → Type _}
+    {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
+    [∀ shared i, OracleInterface (OStatementIn shared i)]
     {StatementOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _}
     {ιₛₒ : (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → Type _}
-    {OStmtOut :
+    {OStatementOut :
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type _}
-    [∀ shared tr i, OracleInterface (OStmtOut shared tr i)]
-    (verifier : Interaction.OracleVerifier.Continuation oSpec SharedIn Context Roles OD
-      StatementIn OStmtIn StatementOut OStmtOut)
+    [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
+    (verifier : Interaction.OracleVerifier oSpec SharedIn Context Roles OD
+      StatementIn OStatementIn StatementOut OStatementOut)
     (langIn : ∀ shared,
-      Set (StatementWithOracles StatementIn OStmtIn shared))
+      Set (StatementWithOracles StatementIn OStatementIn shared))
     (langOut : ∀ (shared : SharedIn) (tr : Spec.Transcript (Context shared)),
-      Set (StatementWithOracles (fun _ => StatementOut shared tr) (fun _ => OStmtOut shared tr) shared))
+      Set (StatementWithOracles
+        (fun _ => StatementOut shared tr) (fun _ => OStatementOut shared tr) shared))
     (ε : ℝ≥0∞) : Prop :=
-  ∀ (shared : SharedIn) (stmt : StatementIn shared) (inputImpl : QueryImpl [OStmtIn shared]ₒ Id)
+  ∀ (shared : SharedIn) (stmt : StatementIn shared)
+      (inputImpl : QueryImpl [OStatementIn shared]ₒ Id)
       {OutputP : Spec.Transcript (Context shared) → Type _}
       (prover : Spec.Strategy.withRoles (OracleComp oSpec) (Context shared)
         (Roles shared) OutputP)
       {ιₐ : Type _} (accSpec : OracleSpec ιₐ) (accImpl : QueryImpl accSpec Id),
       ¬ InLangIn langIn shared stmt inputImpl →
         Pr[fun z => Accepts verifier langOut shared inputImpl z.1 z.2.2.1
-          | OracleVerifier.Continuation.run verifier shared stmt inputImpl prover accSpec accImpl] ≤ ε
+          | OracleVerifier.run verifier shared stmt inputImpl prover accSpec accImpl] ≤ ε
 
-/-- Knowledge soundness for a verifier-only oracle continuation. The bad event
-says that some realization of the input oracle access together with some
-compatible realization of the output oracle access satisfies the output
-relation, yet the extractor's recovered witness does not validate that
-realized full input. -/
+/-- Knowledge soundness for a verifier-only oracle protocol. The bad event says
+that some realization of the input oracle access together with some compatible
+realization of the output oracle access satisfies the output relation, yet the
+extractor's recovered witness does not validate that realized full input. -/
 def knowledgeSoundness
     {ι : Type _} {oSpec : OracleSpec ι} [HasEvalSPMF (OracleComp oSpec)]
     {SharedIn : Type _}
@@ -646,42 +407,43 @@ def knowledgeSoundness
     {Roles : (shared : SharedIn) → RoleDecoration (Context shared)}
     {OD : (shared : SharedIn) → OracleDecoration (Context shared) (Roles shared)}
     {StatementIn : SharedIn → Type _}
-    {ιₛᵢ : SharedIn → Type _} {OStmtIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
-    [∀ shared i, OracleInterface (OStmtIn shared i)]
+    {ιₛᵢ : SharedIn → Type _}
+    {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type _}
+    [∀ shared i, OracleInterface (OStatementIn shared i)]
     {WitnessIn : SharedIn → Type _}
     {StatementOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _}
     {ιₛₒ : (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → Type _}
-    {OStmtOut :
+    {OStatementOut :
       (shared : SharedIn) → (tr : Spec.Transcript (Context shared)) → ιₛₒ shared tr → Type _}
-    [∀ shared tr i, OracleInterface (OStmtOut shared tr i)]
+    [∀ shared tr i, OracleInterface (OStatementOut shared tr i)]
     {WitnessOut : (shared : SharedIn) → Spec.Transcript (Context shared) → Type _}
-    (verifier : Interaction.OracleVerifier.Continuation oSpec SharedIn Context Roles OD
-      StatementIn OStmtIn StatementOut OStmtOut)
+    (verifier : Interaction.OracleVerifier oSpec SharedIn Context Roles OD
+      StatementIn OStatementIn StatementOut OStatementOut)
     (relIn : ∀ shared,
-      Set (StatementWithOracles StatementIn OStmtIn shared ×
-        WitnessIn shared))
+      Set (StatementWithOracles StatementIn OStatementIn shared × WitnessIn shared))
     (relOut : ∀ (shared : SharedIn) (tr : Spec.Transcript (Context shared)),
-      Set (StatementWithOracles (fun _ => StatementOut shared tr) (fun _ => OStmtOut shared tr) shared ×
-        WitnessOut shared tr))
+      Set (StatementWithOracles
+        (fun _ => StatementOut shared tr) (fun _ => OStatementOut shared tr) shared ×
+          WitnessOut shared tr))
     (ε : ℝ≥0∞) : Prop :=
-  ∃ extractor : OracleDecoration.OracleReduction.Continuation.Extractor.Straightline
-      SharedIn Context StatementIn OStmtIn WitnessIn StatementOut OStmtOut WitnessOut,
-  ∀ (shared : SharedIn) (stmt : StatementIn shared) (inputImpl : QueryImpl [OStmtIn shared]ₒ Id)
+  ∃ extractor : OracleDecoration.OracleReduction.Extractor.Straightline
+      SharedIn Context StatementIn OStatementIn WitnessIn
+      StatementOut OStatementOut WitnessOut,
+  ∀ (shared : SharedIn) (stmt : StatementIn shared)
+      (inputImpl : QueryImpl [OStatementIn shared]ₒ Id)
       (prover : Spec.Strategy.withRoles (OracleComp oSpec) (Context shared)
         (Roles shared) (WitnessOut shared))
       {ιₐ : Type _} (accSpec : OracleSpec ιₐ) (accImpl : QueryImpl accSpec Id),
       Pr[fun z =>
-        ∃ oStmtIn : OracleStatement (OStmtIn shared),
-          ∃ oStmtOut : OracleStatement (OStmtOut shared z.1),
-            OracleDecoration.OracleStatement.Realizes inputImpl oStmtIn ∧
-              Simulates verifier shared inputImpl z.1 oStmtOut ∧
-              (⟨z.2.2.1, oStmtOut⟩, z.2.1) ∈ relOut shared z.1 ∧
-              (⟨stmt, oStmtIn⟩,
-                extractor shared ⟨stmt, oStmtIn⟩ z.1 ⟨z.2.2.1, oStmtOut⟩ z.2.1)
-                  ∉ relIn shared
-        | OracleVerifier.Continuation.run verifier shared stmt inputImpl prover accSpec accImpl] ≤ ε
-
-end Continuation
+        ∃ oStatementIn : OracleStatement (OStatementIn shared),
+          ∃ oStatementOut : OracleStatement (OStatementOut shared z.1),
+            OracleDecoration.OracleStatement.Realizes inputImpl oStatementIn ∧
+              Simulates verifier shared inputImpl z.1 oStatementOut ∧
+              (⟨z.2.2.1, oStatementOut⟩, z.2.1) ∈ relOut shared z.1 ∧
+              (⟨stmt, oStatementIn⟩,
+                extractor shared ⟨stmt, oStatementIn⟩ z.1
+                  ⟨z.2.2.1, oStatementOut⟩ z.2.1) ∉ relIn shared
+        | OracleVerifier.run verifier shared stmt inputImpl prover accSpec accImpl] ≤ ε
 end OracleVerifier
 
 end Interaction

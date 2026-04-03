@@ -265,6 +265,7 @@ first transcript. The composed output types are factored two-argument families,
 lifted through `Transcript.liftAppend`. -/
 def Reduction.comp {m : Type u → Type u} [Monad m]
     {SharedIn : Type v}
+    {StatementIn : SharedIn → Type w}
     {WitnessIn : SharedIn → Type w}
     {ctx₁ : SharedIn → Spec}
     {roles₁ : (i : SharedIn) → RoleDecoration (ctx₁ i)}
@@ -274,39 +275,40 @@ def Reduction.comp {m : Type u → Type u} [Monad m]
       RoleDecoration (ctx₂ i tr₁)}
     {StmtOut WitOut : (i : SharedIn) → (tr₁ : Spec.Transcript (ctx₁ i)) →
       Spec.Transcript (ctx₂ i tr₁) → Type u}
-    (reduction1 : Reduction m SharedIn ctx₁ roles₁ (fun _ => PUnit) WitnessIn StmtMid WitMid)
+    (reduction1 : Reduction m SharedIn ctx₁ roles₁ StatementIn WitnessIn StmtMid WitMid)
     (reduction2 : Reduction m
-      ((i : SharedIn) × Spec.Transcript (ctx₁ i))
-      (fun shared => ctx₂ shared.1 shared.2)
-      (fun shared => roles₂ shared.1 shared.2)
-      (fun shared => StmtMid shared.1 shared.2)
-      (fun shared => WitMid shared.1 shared.2)
-      (fun shared tr₂ => StmtOut shared.1 shared.2 tr₂)
-      (fun shared tr₂ => WitOut shared.1 shared.2 tr₂)) :
+      ((i : SharedIn) × StatementIn i × Spec.Transcript (ctx₁ i))
+      (fun shared => ctx₂ shared.1 shared.2.2)
+      (fun shared => roles₂ shared.1 shared.2.2)
+      (fun shared => StmtMid shared.1 shared.2.2)
+      (fun shared => WitMid shared.1 shared.2.2)
+      (fun shared tr₂ => StmtOut shared.1 shared.2.2 tr₂)
+      (fun shared tr₂ => WitOut shared.1 shared.2.2 tr₂)) :
     Reduction m SharedIn
       (fun i => (ctx₁ i).append (ctx₂ i))
       (fun i => (roles₁ i).append (roles₂ i))
-      (fun _ => PUnit)
+      StatementIn
       WitnessIn
       (fun i => Spec.Transcript.liftAppend (ctx₁ i) (ctx₂ i) (StmtOut i))
       (fun i => Spec.Transcript.liftAppend (ctx₁ i) (ctx₂ i) (WitOut i)) where
-  prover i _ w := do
-    let strat₁ ← reduction1.prover i PUnit.unit w
+  prover i stmt w := do
+    let strat₁ ← reduction1.prover i stmt w
     let strat ← Spec.Strategy.compWithRoles strat₁ (fun tr₁ midOut =>
-      reduction2.prover ⟨i, tr₁⟩ midOut.stmt midOut.wit)
+      reduction2.prover ⟨i, stmt, tr₁⟩ midOut.stmt midOut.wit)
     pure <| Spec.Strategy.mapOutputWithRoles
       (fun tr out =>
         Spec.Transcript.liftAppendProd (ctx₁ i) (ctx₂ i) (StmtOut i) (WitOut i) tr out)
       strat
-  verifier i _ :=
-    Spec.Counterpart.append (reduction1.verifier i PUnit.unit) (fun tr₁ sMid =>
-      reduction2.verifier ⟨i, tr₁⟩ sMid)
+  verifier i stmt :=
+    Spec.Counterpart.append (reduction1.verifier i stmt) (fun tr₁ sMid =>
+      reduction2.verifier ⟨i, stmt, tr₁⟩ sMid)
 
 /-- Executing a sequentially composed reduction factors into first executing the
 prefix reduction and then the suffix interaction induced by its outputs. -/
 theorem Reduction.execute_comp
     {m : Type u → Type u} [Monad m] [Spec.LawfulCommMonad m]
     {SharedIn : Type v}
+    {StatementIn : SharedIn → Type w}
     {WitnessIn : SharedIn → Type w}
     {ctx₁ : SharedIn → Spec}
     {roles₁ : (i : SharedIn) → RoleDecoration (ctx₁ i)}
@@ -316,29 +318,29 @@ theorem Reduction.execute_comp
       RoleDecoration (ctx₂ i tr₁)}
     {StmtOut WitOut : (i : SharedIn) → (tr₁ : Spec.Transcript (ctx₁ i)) →
       Spec.Transcript (ctx₂ i tr₁) → Type u}
-    (reduction1 : Reduction m SharedIn ctx₁ roles₁ (fun _ => PUnit) WitnessIn StmtMid WitMid)
+    (reduction1 : Reduction m SharedIn ctx₁ roles₁ StatementIn WitnessIn StmtMid WitMid)
     (reduction2 : Reduction m
-      ((i : SharedIn) × Spec.Transcript (ctx₁ i))
-      (fun shared => ctx₂ shared.1 shared.2)
-      (fun shared => roles₂ shared.1 shared.2)
-      (fun shared => StmtMid shared.1 shared.2)
-      (fun shared => WitMid shared.1 shared.2)
-      (fun shared tr₂ => StmtOut shared.1 shared.2 tr₂)
-      (fun shared tr₂ => WitOut shared.1 shared.2 tr₂))
-    (i : SharedIn) (w : WitnessIn i) :
-    (Reduction.comp reduction1 reduction2).execute i PUnit.unit w =
+      ((i : SharedIn) × StatementIn i × Spec.Transcript (ctx₁ i))
+      (fun shared => ctx₂ shared.1 shared.2.2)
+      (fun shared => roles₂ shared.1 shared.2.2)
+      (fun shared => StmtMid shared.1 shared.2.2)
+      (fun shared => WitMid shared.1 shared.2.2)
+      (fun shared tr₂ => StmtOut shared.1 shared.2.2 tr₂)
+      (fun shared tr₂ => WitOut shared.1 shared.2.2 tr₂))
+    (i : SharedIn) (stmt : StatementIn i) (w : WitnessIn i) :
+    (Reduction.comp reduction1 reduction2).execute i stmt w =
       (do
-        let ⟨tr₁, midOut, sMid⟩ ← reduction1.execute i PUnit.unit w
-        let strat₂ ← reduction2.prover ⟨i, tr₁⟩ midOut.stmt midOut.wit
+        let ⟨tr₁, midOut, sMid⟩ ← reduction1.execute i stmt w
+        let strat₂ ← reduction2.prover ⟨i, stmt, tr₁⟩ midOut.stmt midOut.wit
         let ⟨tr₂, out, sOut⟩ ←
           Spec.Strategy.runWithRoles (ctx₂ i tr₁) (roles₂ i tr₁) strat₂
-            (reduction2.verifier ⟨i, tr₁⟩ sMid)
+            (reduction2.verifier ⟨i, stmt, tr₁⟩ sMid)
         pure ⟨Spec.Transcript.append (ctx₁ i) (ctx₂ i) tr₁ tr₂,
           ⟨Spec.Transcript.packAppend (ctx₁ i) (ctx₂ i) (StmtOut i) tr₁ tr₂ out.stmt,
             Spec.Transcript.packAppend (ctx₁ i) (ctx₂ i) (WitOut i) tr₁ tr₂ out.wit⟩,
           Spec.Transcript.packAppend (ctx₁ i) (ctx₂ i) (StmtOut i) tr₁ tr₂ sOut⟩) := by
   simp only [execute, comp, bind_assoc, pure_bind]
-  refine congrArg (fun k => reduction1.prover i PUnit.unit w >>= k) ?_
+  refine congrArg (fun k => reduction1.prover i stmt w >>= k) ?_
   funext strat₁
   let mapOut :
       (tr : Spec.Transcript ((ctx₁ i).append (ctx₂ i))) →
@@ -363,78 +365,78 @@ theorem Reduction.execute_comp
   have hmap :
       (do
         let strat ← Spec.Strategy.compWithRoles strat₁
-          (fun tr₁ midOut => reduction2.prover ⟨i, tr₁⟩ midOut.stmt midOut.wit)
+          (fun tr₁ midOut => reduction2.prover ⟨i, stmt, tr₁⟩ midOut.stmt midOut.wit)
         Spec.Strategy.runWithRoles ((ctx₁ i).append (ctx₂ i)) ((roles₁ i).append (roles₂ i))
           (Spec.Strategy.mapOutputWithRoles mapOut strat)
-          (Spec.Counterpart.append (reduction1.verifier i PUnit.unit)
-            (fun tr₁ sMid => reduction2.verifier ⟨i, tr₁⟩ sMid))) =
+          (Spec.Counterpart.append (reduction1.verifier i stmt)
+            (fun tr₁ sMid => reduction2.verifier ⟨i, stmt, tr₁⟩ sMid))) =
         mapTriple <$>
           (do
             let strat ← Spec.Strategy.compWithRoles strat₁
-              (fun tr₁ midOut => reduction2.prover ⟨i, tr₁⟩ midOut.stmt midOut.wit)
+              (fun tr₁ midOut => reduction2.prover ⟨i, stmt, tr₁⟩ midOut.stmt midOut.wit)
             Spec.Strategy.runWithRoles ((ctx₁ i).append (ctx₂ i)) ((roles₁ i).append (roles₂ i))
               strat
-              (Spec.Counterpart.append (reduction1.verifier i PUnit.unit)
-                (fun tr₁ sMid => reduction2.verifier ⟨i, tr₁⟩ sMid))) := by
+                (Spec.Counterpart.append (reduction1.verifier i stmt)
+                  (fun tr₁ sMid => reduction2.verifier ⟨i, stmt, tr₁⟩ sMid))) := by
     have hraw :
         (do
           let strat ← Spec.Strategy.compWithRoles strat₁
-            (fun tr₁ midOut => reduction2.prover ⟨i, tr₁⟩ midOut.stmt midOut.wit)
+            (fun tr₁ midOut => reduction2.prover ⟨i, stmt, tr₁⟩ midOut.stmt midOut.wit)
           Spec.Strategy.runWithRoles ((ctx₁ i).append (ctx₂ i)) ((roles₁ i).append (roles₂ i))
             (Spec.Strategy.mapOutputWithRoles mapOut strat)
-            (Spec.Counterpart.append (reduction1.verifier i PUnit.unit)
-              (fun tr₁ sMid => reduction2.verifier ⟨i, tr₁⟩ sMid))) =
+            (Spec.Counterpart.append (reduction1.verifier i stmt)
+              (fun tr₁ sMid => reduction2.verifier ⟨i, stmt, tr₁⟩ sMid))) =
           (do
             let strat ← Spec.Strategy.compWithRoles strat₁
-              (fun tr₁ midOut => reduction2.prover ⟨i, tr₁⟩ midOut.stmt midOut.wit)
+              (fun tr₁ midOut => reduction2.prover ⟨i, stmt, tr₁⟩ midOut.stmt midOut.wit)
             mapTriple <$>
               Spec.Strategy.runWithRoles ((ctx₁ i).append (ctx₂ i)) ((roles₁ i).append (roles₂ i))
                 strat
-                (Spec.Counterpart.append (reduction1.verifier i PUnit.unit)
-                  (fun tr₁ sMid => reduction2.verifier ⟨i, tr₁⟩ sMid))) := by
+                (Spec.Counterpart.append (reduction1.verifier i stmt)
+                  (fun tr₁ sMid => reduction2.verifier ⟨i, stmt, tr₁⟩ sMid))) := by
       refine congrArg
         (fun k =>
           Spec.Strategy.compWithRoles strat₁
-            (fun tr₁ midOut => reduction2.prover ⟨i, tr₁⟩ midOut.stmt midOut.wit) >>= k) ?_
+            (fun tr₁ midOut => reduction2.prover ⟨i, stmt, tr₁⟩ midOut.stmt midOut.wit) >>= k) ?_
       funext strat
       simpa [mapTriple, mapOut, Spec.Counterpart.mapOutput_id] using
         (Spec.Strategy.runWithRoles_mapOutputWithRoles_mapOutput
           (fP := mapOut) (fC := fun _ x => x) strat
-          (Spec.Counterpart.append (reduction1.verifier i PUnit.unit)
-            (fun tr₁ sMid => reduction2.verifier ⟨i, tr₁⟩ sMid)))
+          (Spec.Counterpart.append (reduction1.verifier i stmt)
+            (fun tr₁ sMid => reduction2.verifier ⟨i, stmt, tr₁⟩ sMid)))
     calc
       (do
         let strat ← Spec.Strategy.compWithRoles strat₁
-          (fun tr₁ midOut => reduction2.prover ⟨i, tr₁⟩ midOut.stmt midOut.wit)
+          (fun tr₁ midOut => reduction2.prover ⟨i, stmt, tr₁⟩ midOut.stmt midOut.wit)
         Spec.Strategy.runWithRoles ((ctx₁ i).append (ctx₂ i)) ((roles₁ i).append (roles₂ i))
           (Spec.Strategy.mapOutputWithRoles mapOut strat)
-          (Spec.Counterpart.append (reduction1.verifier i PUnit.unit)
-            (fun tr₁ sMid => reduction2.verifier ⟨i, tr₁⟩ sMid))) =
+          (Spec.Counterpart.append (reduction1.verifier i stmt)
+            (fun tr₁ sMid => reduction2.verifier ⟨i, stmt, tr₁⟩ sMid))) =
           (do
             let strat ← Spec.Strategy.compWithRoles strat₁
-              (fun tr₁ midOut => reduction2.prover ⟨i, tr₁⟩ midOut.stmt midOut.wit)
+              (fun tr₁ midOut => reduction2.prover ⟨i, stmt, tr₁⟩ midOut.stmt midOut.wit)
             mapTriple <$>
               Spec.Strategy.runWithRoles ((ctx₁ i).append (ctx₂ i)) ((roles₁ i).append (roles₂ i))
                 strat
-                (Spec.Counterpart.append (reduction1.verifier i PUnit.unit)
-                  (fun tr₁ sMid => reduction2.verifier ⟨i, tr₁⟩ sMid))) := hraw
+                (Spec.Counterpart.append (reduction1.verifier i stmt)
+                  (fun tr₁ sMid => reduction2.verifier ⟨i, stmt, tr₁⟩ sMid))) := hraw
       _ = mapTriple <$>
             (do
               let strat ← Spec.Strategy.compWithRoles strat₁
-                (fun tr₁ midOut => reduction2.prover ⟨i, tr₁⟩ midOut.stmt midOut.wit)
+                (fun tr₁ midOut => reduction2.prover ⟨i, stmt, tr₁⟩ midOut.stmt midOut.wit)
               Spec.Strategy.runWithRoles ((ctx₁ i).append (ctx₂ i)) ((roles₁ i).append (roles₂ i))
                 strat
-                (Spec.Counterpart.append (reduction1.verifier i PUnit.unit)
-                  (fun tr₁ sMid => reduction2.verifier ⟨i, tr₁⟩ sMid))) := by
+                (Spec.Counterpart.append (reduction1.verifier i stmt)
+                  (fun tr₁ sMid => reduction2.verifier ⟨i, stmt, tr₁⟩ sMid))) := by
         simp
   rw [hmap]
   simpa [mapTriple, mapOut, bind_assoc] using
     congrArg (fun mx => mapTriple <$> mx)
       (Spec.Strategy.runWithRoles_compWithRoles_append
         (strat₁ := strat₁)
-        (f := fun tr₁ midOut => reduction2.prover ⟨i, tr₁⟩ midOut.stmt midOut.wit)
-        (cpt₁ := reduction1.verifier i PUnit.unit)
-        (cpt₂ := fun tr₁ sMid => reduction2.verifier ⟨i, tr₁⟩ sMid))
+        (f := fun tr₁ midOut => reduction2.prover ⟨i, stmt, tr₁⟩ midOut.stmt midOut.wit)
+        (cpt₁ := reduction1.verifier i stmt)
+        (cpt₂ := fun tr₁ sMid => reduction2.verifier ⟨i, stmt, tr₁⟩ sMid))
 
 /-- Compose per-stage prover and verifier step functions into a reduction over
 a chained protocol `Spec.stateChain Stage spec advance n`.

@@ -123,6 +123,7 @@ the composed reduction is complete up to `ε₁ + ε₂`. -/
 theorem Reduction.completeness_comp
     {m : Type u → Type u} [Monad m] [Spec.LawfulCommMonad m] [HasEvalSPMF m]
     {SharedIn : Type v}
+    {StatementIn : SharedIn → Type w}
     {WitnessIn : SharedIn → Type w}
     {ctx₁ : SharedIn → Spec}
     {roles₁ : (shared : SharedIn) → RoleDecoration (ctx₁ shared)}
@@ -132,38 +133,38 @@ theorem Reduction.completeness_comp
       RoleDecoration (ctx₂ shared tr₁)}
     {StmtOut WitOut : (shared : SharedIn) → (tr₁ : Spec.Transcript (ctx₁ shared)) →
       Spec.Transcript (ctx₂ shared tr₁) → Type u}
-    {relIn : ∀ shared, WitnessIn shared → Prop}
+    {relIn : ∀ shared, StatementIn shared → WitnessIn shared → Prop}
     {relMid : ∀ (shared : SharedIn) (tr₁ : Spec.Transcript (ctx₁ shared)),
       StmtMid shared tr₁ → WitMid shared tr₁ → Prop}
     {relOut : ∀ (shared : SharedIn) (tr₁ : Spec.Transcript (ctx₁ shared))
       (tr₂ : Spec.Transcript (ctx₂ shared tr₁)),
       StmtOut shared tr₁ tr₂ → WitOut shared tr₁ tr₂ → Prop}
-    (reduction1 : Reduction m SharedIn ctx₁ roles₁ (fun _ => PUnit)
+    (reduction1 : Reduction m SharedIn ctx₁ roles₁ StatementIn
       WitnessIn StmtMid WitMid)
     (reduction2 : Reduction m
-      ((shared : SharedIn) × Spec.Transcript (ctx₁ shared))
-      (fun shared => ctx₂ shared.1 shared.2)
-      (fun shared => roles₂ shared.1 shared.2)
-      (fun shared => StmtMid shared.1 shared.2)
-      (fun shared => WitMid shared.1 shared.2)
-      (fun shared tr₂ => StmtOut shared.1 shared.2 tr₂)
-      (fun shared tr₂ => WitOut shared.1 shared.2 tr₂))
+      ((shared : SharedIn) × StatementIn shared × Spec.Transcript (ctx₁ shared))
+      (fun shared => ctx₂ shared.1 shared.2.2)
+      (fun shared => roles₂ shared.1 shared.2.2)
+      (fun shared => StmtMid shared.1 shared.2.2)
+      (fun shared => WitMid shared.1 shared.2.2)
+      (fun shared tr₂ => StmtOut shared.1 shared.2.2 tr₂)
+      (fun shared tr₂ => WitOut shared.1 shared.2.2 tr₂))
     {ε₁ ε₂ : ℝ≥0∞}
-    (h₁ : reduction1.completeness (fun shared _ wit => relIn shared wit) relMid ε₁)
+    (h₁ : reduction1.completeness relIn relMid ε₁)
     (h₂ : reduction2.completeness
-      (fun shared sMid wMid => relMid shared.1 shared.2 sMid wMid)
-      (fun shared tr₂ sOut wOut => relOut shared.1 shared.2 tr₂ sOut wOut)
+      (fun shared sMid wMid => relMid shared.1 shared.2.2 sMid wMid)
+      (fun shared tr₂ sOut wOut => relOut shared.1 shared.2.2 tr₂ sOut wOut)
       ε₂) :
     (Reduction.comp reduction1 reduction2).completeness
-      (fun shared _ wit => relIn shared wit)
+      relIn
       (fun shared tr sOut wOut =>
         Spec.Transcript.liftAppendRel (ctx₁ shared) (ctx₂ shared) (StmtOut shared)
           (WitOut shared) (relOut shared) tr sOut wOut)
       (ε₁ + ε₂) := by
-  intro shared _stmt w hIn
+  intro shared stmt w hIn
   let mx : m ((tr₁ : Spec.Transcript (ctx₁ shared)) ×
       HonestProverOutput (StmtMid shared tr₁) (WitMid shared tr₁) × StmtMid shared tr₁) :=
-    reduction1.execute shared PUnit.unit w
+    reduction1.execute shared stmt w
   let my :
       ((tr₁ : Spec.Transcript (ctx₁ shared)) ×
         HonestProverOutput (StmtMid shared tr₁) (WitMid shared tr₁) × StmtMid shared tr₁) →
@@ -173,10 +174,10 @@ theorem Reduction.completeness_comp
             (Spec.Transcript.liftAppend (ctx₁ shared) (ctx₂ shared) (WitOut shared) tr) ×
           Spec.Transcript.liftAppend (ctx₁ shared) (ctx₂ shared) (StmtOut shared) tr) :=
     fun z₁ => do
-      let strat₂ ← reduction2.prover ⟨shared, z₁.1⟩ z₁.2.1.stmt z₁.2.1.wit
+      let strat₂ ← reduction2.prover ⟨shared, stmt, z₁.1⟩ z₁.2.1.stmt z₁.2.1.wit
       let ⟨tr₂, out, sOut⟩ ←
         Spec.Strategy.runWithRoles (ctx₂ shared z₁.1) (roles₂ shared z₁.1) strat₂
-          (reduction2.verifier ⟨shared, z₁.1⟩ z₁.2.2)
+          (reduction2.verifier ⟨shared, stmt, z₁.1⟩ z₁.2.2)
       pure ⟨Spec.Transcript.append (ctx₁ shared) (ctx₂ shared) z₁.1 tr₂,
         ⟨Spec.Transcript.packAppend (ctx₁ shared) (ctx₂ shared) (StmtOut shared) z₁.1 tr₂ out.stmt,
           Spec.Transcript.packAppend (ctx₁ shared) (ctx₂ shared) (WitOut shared) z₁.1 tr₂ out.wit⟩,
@@ -196,7 +197,7 @@ theorem Reduction.completeness_comp
         Spec.Transcript.liftAppendRel (ctx₁ shared) (ctx₂ shared) (StmtOut shared) (WitOut shared)
           (relOut shared) z.1 z.2.2 z.2.1.wit
   have h₁_success : 1 - ε₁ ≤ Pr[good₁ | mx] := by
-    simpa [mx, good₁, Reduction.completeness] using h₁ shared PUnit.unit w hIn
+    simpa [mx, good₁, Reduction.completeness] using h₁ shared stmt w hIn
   have h₂_success :
       ∀ z₁ ∈ support mx, good₁ z₁ → 1 - ε₂ ≤ Pr[goodOut | my z₁] := by
     intro z₁ _ hz₁
@@ -291,10 +292,10 @@ theorem Reduction.completeness_comp
             exact hRel)
     have hmy :
         my ⟨tr₁, ⟨sMidP, wMid⟩, sMidP⟩ =
-          packOut <$> reduction2.execute ⟨shared, tr₁⟩ sMidP wMid := by
+          packOut <$> reduction2.execute ⟨shared, stmt, tr₁⟩ sMidP wMid := by
       simp [my, packOut, Reduction.execute,
         HonestProverOutput.stmt, HonestProverOutput.wit]
-    simpa [hmy, hpack, probEvent_map] using h₂ ⟨shared, tr₁⟩ sMidP wMid hRelMid
+    simpa [hmy, hpack, probEvent_map] using h₂ ⟨shared, stmt, tr₁⟩ sMidP wMid hRelMid
   have hmul :
       (1 - ε₁) * (1 - ε₂) ≤ Pr[goodOut | mx >>= my] := by
     exact mul_le_probEvent_bind (mx := mx) (my := my) (p := good₁) (q := goodOut)
@@ -336,14 +337,15 @@ theorem Reduction.completeness_comp
       1 - (ε₁ + ε₂) ≤ Pr[goodOut | mx >>= my] :=
     le_trans hsub hmul
   have hexec :
-      (Reduction.comp reduction1 reduction2).execute shared PUnit.unit w = mx >>= my := by
-    simpa [mx, my] using Reduction.execute_comp reduction1 reduction2 shared w
+      (Reduction.comp reduction1 reduction2).execute shared stmt w = mx >>= my := by
+    simpa [mx, my] using Reduction.execute_comp reduction1 reduction2 shared stmt w
   simpa [Reduction.completeness, hexec] using hbind
 
 /-- Perfect completeness composes. -/
 theorem Reduction.perfectCompleteness_comp
     {m : Type u → Type u} [Monad m] [Spec.LawfulCommMonad m] [HasEvalSPMF m]
     {SharedIn : Type v}
+    {StatementIn : SharedIn → Type w}
     {WitnessIn : SharedIn → Type w}
     {ctx₁ : SharedIn → Spec}
     {roles₁ : (shared : SharedIn) → RoleDecoration (ctx₁ shared)}
@@ -353,28 +355,28 @@ theorem Reduction.perfectCompleteness_comp
       RoleDecoration (ctx₂ shared tr₁)}
     {StmtOut WitOut : (shared : SharedIn) → (tr₁ : Spec.Transcript (ctx₁ shared)) →
       Spec.Transcript (ctx₂ shared tr₁) → Type u}
-    {relIn : ∀ shared, WitnessIn shared → Prop}
+    {relIn : ∀ shared, StatementIn shared → WitnessIn shared → Prop}
     {relMid : ∀ (shared : SharedIn) (tr₁ : Spec.Transcript (ctx₁ shared)),
       StmtMid shared tr₁ → WitMid shared tr₁ → Prop}
     {relOut : ∀ (shared : SharedIn) (tr₁ : Spec.Transcript (ctx₁ shared))
       (tr₂ : Spec.Transcript (ctx₂ shared tr₁)),
       StmtOut shared tr₁ tr₂ → WitOut shared tr₁ tr₂ → Prop}
-    (reduction1 : Reduction m SharedIn ctx₁ roles₁ (fun _ => PUnit)
+    (reduction1 : Reduction m SharedIn ctx₁ roles₁ StatementIn
       WitnessIn StmtMid WitMid)
     (reduction2 : Reduction m
-      ((shared : SharedIn) × Spec.Transcript (ctx₁ shared))
-      (fun shared => ctx₂ shared.1 shared.2)
-      (fun shared => roles₂ shared.1 shared.2)
-      (fun shared => StmtMid shared.1 shared.2)
-      (fun shared => WitMid shared.1 shared.2)
-      (fun shared tr₂ => StmtOut shared.1 shared.2 tr₂)
-      (fun shared tr₂ => WitOut shared.1 shared.2 tr₂))
-    (h₁ : reduction1.perfectCompleteness (fun shared _ wit => relIn shared wit) relMid)
+      ((shared : SharedIn) × StatementIn shared × Spec.Transcript (ctx₁ shared))
+      (fun shared => ctx₂ shared.1 shared.2.2)
+      (fun shared => roles₂ shared.1 shared.2.2)
+      (fun shared => StmtMid shared.1 shared.2.2)
+      (fun shared => WitMid shared.1 shared.2.2)
+      (fun shared tr₂ => StmtOut shared.1 shared.2.2 tr₂)
+      (fun shared tr₂ => WitOut shared.1 shared.2.2 tr₂))
+    (h₁ : reduction1.perfectCompleteness relIn relMid)
     (h₂ : reduction2.perfectCompleteness
-      (fun shared sMid wMid => relMid shared.1 shared.2 sMid wMid)
-      (fun shared tr₂ sOut wOut => relOut shared.1 shared.2 tr₂ sOut wOut)) :
+      (fun shared sMid wMid => relMid shared.1 shared.2.2 sMid wMid)
+      (fun shared tr₂ sOut wOut => relOut shared.1 shared.2.2 tr₂ sOut wOut)) :
     (Reduction.comp reduction1 reduction2).perfectCompleteness
-      (fun shared _ wit => relIn shared wit)
+      relIn
       (fun shared tr sOut wOut =>
         Spec.Transcript.liftAppendRel (ctx₁ shared) (ctx₂ shared) (StmtOut shared)
           (WitOut shared) (relOut shared) tr sOut wOut) := by
@@ -415,6 +417,7 @@ def soundness
 theorem soundness_comp
     {m : Type u → Type u} [Monad m] [LawfulMonad m] [HasEvalSPMF m]
     {SharedIn : Type v}
+    {StatementIn : SharedIn → Type w}
     {ctx₁ : SharedIn → Spec}
     {roles₁ : (shared : SharedIn) → RoleDecoration (ctx₁ shared)}
     {StmtMid : (shared : SharedIn) → Spec.Transcript (ctx₁ shared) → Type u}
@@ -423,43 +426,37 @@ theorem soundness_comp
       RoleDecoration (ctx₂ shared tr₁)}
     {StmtOut : (shared : SharedIn) → (tr₁ : Spec.Transcript (ctx₁ shared)) →
       Spec.Transcript (ctx₂ shared tr₁) → Type u}
-    {langIn : Set SharedIn}
+    {langIn : ∀ shared, Set (StatementIn shared)}
     {langMid : ∀ (shared : SharedIn) (tr₁ : Spec.Transcript (ctx₁ shared)),
       Set (StmtMid shared tr₁)}
     {langOut : ∀ (shared : SharedIn) (tr₁ : Spec.Transcript (ctx₁ shared))
       (tr₂ : Spec.Transcript (ctx₂ shared tr₁)), Set (StmtOut shared tr₁ tr₂)}
-    (verifier1 : Verifier m SharedIn ctx₁ roles₁ (fun _ => PUnit.{1}) StmtMid)
+    (verifier1 : Verifier m SharedIn ctx₁ roles₁ StatementIn StmtMid)
     (verifier2 : Verifier m
-      ((shared : SharedIn) × Spec.Transcript (ctx₁ shared))
-      (fun shared => ctx₂ shared.1 shared.2)
-      (fun shared => roles₂ shared.1 shared.2)
-      (fun shared => StmtMid shared.1 shared.2)
-      (fun shared tr₂ => StmtOut shared.1 shared.2 tr₂))
+      ((shared : SharedIn) × StatementIn shared × Spec.Transcript (ctx₁ shared))
+      (fun shared => ctx₂ shared.1 shared.2.2)
+      (fun shared => roles₂ shared.1 shared.2.2)
+      (fun shared => StmtMid shared.1 shared.2.2)
+      (fun shared tr₂ => StmtOut shared.1 shared.2.2 tr₂))
     {ε₁ ε₂ : ℝ≥0∞}
-    (h₁ : Verifier.soundness
-      (StatementIn := fun _ => PUnit.{1})
-      verifier1
-      (fun shared => ({ _stmt : PUnit.{1} | shared ∈ langIn } : Set PUnit.{1}))
-      langMid
-      ε₁)
+    (h₁ : Verifier.soundness verifier1 langIn langMid ε₁)
     (h₂ : Verifier.soundness verifier2
-      (fun shared => langMid shared.1 shared.2)
-      (fun shared tr₂ => langOut shared.1 shared.2 tr₂)
+      (fun shared => langMid shared.1 shared.2.2)
+      (fun shared tr₂ => langOut shared.1 shared.2.2 tr₂)
       ε₂) :
     Verifier.soundness
-      (StatementIn := fun _ => PUnit.{1})
       (StatementOut := fun shared =>
         Spec.Transcript.liftAppend (ctx₁ shared) (ctx₂ shared) (StmtOut shared))
-      (fun shared _ =>
+      (fun shared stmt =>
         Spec.Counterpart.append
-          (verifier1 shared PUnit.unit)
-          (fun tr₁ sMid => verifier2 ⟨shared, tr₁⟩ sMid))
-      (fun shared => ({ _stmt : PUnit.{1} | shared ∈ langIn } : Set PUnit.{1}))
+          (verifier1 shared stmt)
+          (fun tr₁ sMid => verifier2 ⟨shared, stmt, tr₁⟩ sMid))
+      langIn
       (fun shared tr =>
         {sOut | Spec.Transcript.liftAppendPred (ctx₁ shared) (ctx₂ shared) (StmtOut shared)
           (fun tr₁ tr₂ sOut => sOut ∈ langOut shared tr₁ tr₂) tr sOut})
       (ε₁ + ε₂) := by
-  intro shared OutputP prover _stmt hs
+  intro shared OutputP prover stmt hs
   change Spec.Transcript ((ctx₁ shared).append (ctx₂ shared)) → Type u at OutputP
   change Spec.Strategy.withRoles m ((ctx₁ shared).append (ctx₂ shared))
     ((roles₁ shared).append (roles₂ shared)) OutputP at prover
@@ -475,7 +472,7 @@ theorem soundness_comp
           (fun tr₂ => OutputP (Spec.Transcript.append (ctx₁ shared) (ctx₂ shared) tr₁ tr₂)) ×
         StmtMid shared tr₁) :=
     Spec.Strategy.runWithRoles (ctx₁ shared) (roles₁ shared) prefixProver
-      (verifier1 shared PUnit.unit)
+      (verifier1 shared stmt)
   let my :
       ((tr₁ : Spec.Transcript (ctx₁ shared)) ×
         Spec.Strategy.withRoles m (ctx₂ shared tr₁) (roles₂ shared tr₁)
@@ -497,7 +494,7 @@ theorem soundness_comp
           Spec.Transcript.packAppend
             (ctx₁ shared) (ctx₂ shared) (StmtOut shared) z₁.1 z₂.1 z₂.2.2⟩
       packOut <$> Spec.Strategy.runWithRoles (ctx₂ shared z₁.1) (roles₂ shared z₁.1) z₁.2.1
-        (verifier2 ⟨shared, z₁.1⟩ z₁.2.2)
+        (verifier2 ⟨shared, stmt, z₁.1⟩ z₁.2.2)
   let bad₁ :
       ((tr₁ : Spec.Transcript (ctx₁ shared)) ×
         Spec.Strategy.withRoles m (ctx₂ shared tr₁) (roles₂ shared tr₁)
@@ -514,10 +511,8 @@ theorem soundness_comp
       let sOut := Spec.Transcript.unliftAppend (ctx₁ shared) (ctx₂ shared) (StmtOut shared) z.1 z.2.2
       sOut ∈ langOut shared splitTr.1 splitTr.2
   have h₁_bad : Pr[fun z₁ => ¬ bad₁ z₁ | mx] ≤ ε₁ := by
-    have hs' : PUnit.unit ∉ ({ _stmt : PUnit.{1} | shared ∈ langIn } : Set PUnit.{1}) := by
-      simpa using hs
     simpa [mx, bad₁, prefixProver, Verifier.soundness] using
-      h₁ shared (prover := prefixProver) PUnit.unit hs'
+      h₁ shared (prover := prefixProver) stmt hs
   have h₂_bad :
       ∀ z₁ ∈ support mx, bad₁ z₁ → Pr[fun z => ¬¬ inLangOut z | my z₁] ≤ ε₂ := by
     intro z₁ _ hz₁
@@ -551,10 +546,10 @@ theorem soundness_comp
     have hmy :
         my ⟨tr₁, strat₂, sMid⟩ =
           packOut <$> Spec.Strategy.runWithRoles (ctx₂ shared tr₁) (roles₂ shared tr₁) strat₂
-            (verifier2 ⟨shared, tr₁⟩ sMid) := by
+            (verifier2 ⟨shared, stmt, tr₁⟩ sMid) := by
       simp [my, packOut]
     simpa [Verifier.soundness, bad₁, hmy, hpack, prover₂, probEvent_map] using
-      h₂ ⟨shared, tr₁⟩ strat₂ sMid hz₁
+      h₂ ⟨shared, stmt, tr₁⟩ strat₂ sMid hz₁
   have hbind : Pr[inLangOut | mx >>= my] ≤ ε₁ + ε₂ := by
     simpa using
       (probEvent_bind_le_add (mx := mx) (my := my)
@@ -563,14 +558,14 @@ theorem soundness_comp
       Verifier m SharedIn
         (fun shared => (ctx₁ shared).append (ctx₂ shared))
         (fun shared => (roles₁ shared).append (roles₂ shared))
-        (fun _ => PUnit.{1})
+        StatementIn
         (fun shared => Spec.Transcript.liftAppend (ctx₁ shared) (ctx₂ shared) (StmtOut shared)) :=
-    fun shared _ =>
+    fun shared stmt =>
       Spec.Counterpart.append
-        (verifier1 shared PUnit.unit)
-        (fun tr₁ sMid => verifier2 ⟨shared, tr₁⟩ sMid)
+        (verifier1 shared stmt)
+        (fun tr₁ sMid => verifier2 ⟨shared, stmt, tr₁⟩ sMid)
   have hrun :
-      Verifier.run verifierAppend shared PUnit.unit prover =
+      Verifier.run verifierAppend shared stmt prover =
         mx >>= my := by
     let mappedStep :
         (tr₁ : Spec.Transcript (ctx₁ shared)) → StmtMid shared tr₁ →
@@ -582,13 +577,13 @@ theorem soundness_comp
         Spec.Counterpart.mapOutput
           (fun tr₂ sOut =>
             Spec.Transcript.packAppend (ctx₁ shared) (ctx₂ shared) (StmtOut shared) tr₁ tr₂ sOut)
-          (verifier2 ⟨shared, tr₁⟩ sMid)
+          (verifier2 ⟨shared, stmt, tr₁⟩ sMid)
     have hverifier :
-        verifierAppend shared PUnit.unit =
-        Spec.Counterpart.appendFlat (verifier1 shared PUnit.unit) mappedStep := by
+        verifierAppend shared stmt =
+        Spec.Counterpart.appendFlat (verifier1 shared stmt) mappedStep := by
       simp only [verifierAppend, mappedStep]
       exact Spec.Counterpart.append_eq_appendFlat_mapOutput
-        (verifier1 shared PUnit.unit) (fun tr₁ sMid => verifier2 ⟨shared, tr₁⟩ sMid)
+        (verifier1 shared stmt) (fun tr₁ sMid => verifier2 ⟨shared, stmt, tr₁⟩ sMid)
     let myMapped :
         ((tr₁ : Spec.Transcript (ctx₁ shared)) ×
           Spec.Strategy.withRoles m (ctx₂ shared tr₁) (roles₂ shared tr₁)
@@ -605,7 +600,7 @@ theorem soundness_comp
     have hrun' := Spec.Strategy.runWithRoles_compWithRolesFlat_appendFlat_pure
       (strat₁ := prefixProver)
       (f := fun _ strat₂ => strat₂)
-      (cpt₁ := verifier1 shared PUnit.unit)
+      (cpt₁ := verifier1 shared stmt)
       (cpt₂ := mappedStep)
     have hmap :
         myMapped = my := by
@@ -622,14 +617,14 @@ theorem soundness_comp
               (ctx₂ shared tr₁) (roles₂ shared tr₁) strat₂ (mappedStep tr₁ sMid) =
             (fun z => ⟨z.1, z.2.1, packStmt z.1 z.2.2⟩) <$>
               Spec.Strategy.runWithRoles (ctx₂ shared tr₁) (roles₂ shared tr₁) strat₂
-                (verifier2 ⟨shared, tr₁⟩ sMid) := by
+                (verifier2 ⟨shared, stmt, tr₁⟩ sMid) := by
         simpa [mappedStep, packStmt, Spec.Strategy.mapOutputWithRoles_id] using
           (Spec.Strategy.runWithRoles_mapOutputWithRoles_mapOutput
             (fP := fun _ outP => outP) (fC := packStmt) strat₂
-            (verifier2 ⟨shared, tr₁⟩ sMid))
+            (verifier2 ⟨shared, stmt, tr₁⟩ sMid))
       simp [myMapped, my, hrunMap, packStmt]
     calc
-      Verifier.run verifierAppend shared PUnit.unit prover = mx >>= myMapped := by
+      Verifier.run verifierAppend shared stmt prover = mx >>= myMapped := by
         simpa [verifierAppend, Verifier.run, hverifier, prefixProver, mx, myMapped,
           Spec.Strategy.compWithRolesFlat_splitPrefixWithRoles] using hrun'
       _ = mx >>= my := by
@@ -644,7 +639,7 @@ theorem soundness_comp
       Pr[fun z =>
           Spec.Transcript.liftAppendPred (ctx₁ shared) (ctx₂ shared) (StmtOut shared)
             (fun tr₁ tr₂ sOut => sOut ∈ langOut shared tr₁ tr₂) z.1 z.2.2
-        | Verifier.run verifierAppend shared PUnit.unit prover] ≤ ε₁ + ε₂ := by
+        | Verifier.run verifierAppend shared stmt prover] ≤ ε₁ + ε₂ := by
     simpa [hconv, hrun] using hbind
   simpa [Verifier.soundness, verifierAppend] using haccept
 

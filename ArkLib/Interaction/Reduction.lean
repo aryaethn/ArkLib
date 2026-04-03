@@ -453,7 +453,7 @@ Both output types are computed as `Transcript.stateChainFamily` of the respectiv
 state families. -/
 def Reduction.stateChainComp {m : Type u → Type u} [Monad m]
     {SharedIn : Type v}
-    {WitnessIn : SharedIn → Type w}
+    {StatementIn WitnessIn : SharedIn → Type w}
     {Stage : Nat → Type u}
     {spec : (i : Nat) → Stage i → Spec}
     {advance : (i : Nat) → (s : Stage i) → Spec.Transcript (spec i s) → Stage (i + 1)}
@@ -461,30 +461,31 @@ def Reduction.stateChainComp {m : Type u → Type u} [Monad m]
     {ProverState VerifierState : (i : Nat) → Stage i → Type u}
     (n : Nat)
     (initStage : SharedIn → Stage 0)
-    (proverInit : (i : SharedIn) → WitnessIn i → m (ProverState 0 (initStage i)))
+    (proverInit : (i : SharedIn) → StatementIn i → WitnessIn i →
+      m (ProverState 0 (initStage i)))
     (proverStep : (j : Nat) → (st : Stage j) → ProverState j st →
       m (Spec.Strategy.withRoles m (spec j st) (roles j st)
         (fun tr => ProverState (j + 1) (advance j st tr))))
-    (stmtResult : (i : SharedIn) →
+    (stmtResult : (i : SharedIn) → StatementIn i →
       (tr : Spec.Transcript (Spec.stateChain Stage spec advance n 0 (initStage i))) →
       Spec.Transcript.stateChainFamily VerifierState n 0 (initStage i) tr)
-    (verifierInit : (i : SharedIn) → VerifierState 0 (initStage i))
+    (verifierInit : (i : SharedIn) → StatementIn i → VerifierState 0 (initStage i))
     (verifierStep : (j : Nat) → (st : Stage j) → VerifierState j st →
       Spec.Counterpart m (spec j st) (roles j st)
         (fun tr => VerifierState (j + 1) (advance j st tr))) :
     Reduction m SharedIn
       (fun i => Spec.stateChain Stage spec advance n 0 (initStage i))
       (fun i => Spec.Decoration.stateChain roles n 0 (initStage i))
-      (fun _ => PUnit)
+      StatementIn
       WitnessIn
       (fun i => Spec.Transcript.stateChainFamily VerifierState n 0 (initStage i))
       (fun i => Spec.Transcript.stateChainFamily ProverState n 0 (initStage i)) where
-  prover i _ w := do
-    let a ← proverInit i w
+  prover i stmt w := do
+    let a ← proverInit i stmt w
     let strat ← Spec.Strategy.stateChainCompWithRoles proverStep n 0 (initStage i) a
-    pure <| Spec.Strategy.mapOutputWithRoles (fun tr pOut => ⟨stmtResult i tr, pOut⟩) strat
-  verifier i _ :=
-    Spec.Counterpart.stateChainComp verifierStep n 0 (initStage i) (verifierInit i)
+    pure <| Spec.Strategy.mapOutputWithRoles (fun tr pOut => ⟨stmtResult i stmt tr, pOut⟩) strat
+  verifier i stmt :=
+    Spec.Counterpart.stateChainComp verifierStep n 0 (initStage i) (verifierInit i stmt)
 
 /-! ## Chain-based (stateless) reduction composition
 

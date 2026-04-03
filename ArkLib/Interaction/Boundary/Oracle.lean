@@ -296,7 +296,55 @@ theorem routeInputQueries_eval
             | .inr q =>
                 (liftM (n := OracleComp oSpec) (accImpl q) : OracleComp oSpec _))
           oa := by
-  sorry
+  let routeOuter :
+      QueryImpl ((oSpec + [OuterOStmtIn]ₒ) + accSpec) (OracleComp oSpec) :=
+    fun
+    | Sum.inl (Sum.inl q) => liftM <| query (spec := oSpec) q
+    | Sum.inl (Sum.inr q) =>
+        (liftM (n := OracleComp oSpec) (outerInputImpl q) : OracleComp oSpec _)
+    | Sum.inr q =>
+        (liftM (n := OracleComp oSpec) (accImpl q) : OracleComp oSpec _)
+  let routeInner :
+      QueryImpl ((oSpec + [InnerOStmtIn]ₒ) + accSpec) (OracleComp oSpec) :=
+    fun
+    | Sum.inl (Sum.inl q) => liftM <| query (spec := oSpec) q
+    | Sum.inl (Sum.inr q) =>
+        (liftM (n := OracleComp oSpec) (innerInputImpl q) : OracleComp oSpec _)
+    | Sum.inr q =>
+        (liftM (n := OracleComp oSpec) (accImpl q) : OracleComp oSpec _)
+  intro α oa
+  rw [simulateQ_compose]
+  apply simulateQ_ext
+  intro q
+  rcases q with (q | q) | q
+  · dsimp [OracleStatementAccess.routeInputQueries]
+    rfl
+  · let outerRoute :
+        QueryImpl [OuterOStmtIn]ₒ (OracleComp oSpec) :=
+      fun q => (liftM (n := OracleComp oSpec) (outerInputImpl q) : OracleComp oSpec _)
+    simpa [OracleStatementAccess.routeInputQueries] using
+      (calc
+      simulateQ routeOuter
+          (OracleComp.liftComp
+            (superSpec := (oSpec + [OuterOStmtIn]ₒ) + accSpec)
+            (simulateIn q)) =
+        simulateQ outerRoute (simulateIn q) := by
+          rw [OracleComp.liftComp_def, simulateQ_compose]
+          apply simulateQ_ext
+          intro q'
+          rfl
+      _ =
+        (liftM (n := OracleComp oSpec) (simulateQ outerInputImpl (simulateIn q)) :
+          OracleComp oSpec _) := by
+            simpa [outerRoute] using
+              (simulateQ_liftId (superSpec := oSpec) outerInputImpl (simulateIn q))
+      _ =
+        (liftM (n := OracleComp oSpec) (innerInputImpl q) : OracleComp oSpec _) := by
+          simpa using congrArg
+            (fun x => (liftM (n := OracleComp oSpec) x : OracleComp oSpec _))
+            (hInput q))
+  · dsimp [OracleStatementAccess.routeInputQueries]
+    rfl
 
 /-! ### Output Query Routing -/
 
@@ -821,7 +869,338 @@ theorem runWithOracleCounterpart_pullbackCounterpart
             accImpl
             strat
             cpt := by
-  sorry
+  intro spec roles od ιₐ accSpec accImpl OutputP Output₁ Output₂ f strat cpt
+  let rec go
+      (spec : Spec) (roles : RoleDecoration spec) (od : OracleDecoration spec roles)
+      {ιₐ : Type} (accSpec : OracleSpec ιₐ) (accImpl : QueryImpl accSpec Id)
+      {OutputP Output₁ Output₂ : Spec.Transcript spec → Type}
+      (f : ∀ tr, Output₁ tr → Output₂ tr)
+      (strat :
+        Spec.Strategy.withRoles (OracleComp oSpec) spec roles OutputP)
+      (cpt :
+        Spec.Counterpart.withMonads spec roles
+          (OracleDecoration.toMonadDecoration
+            oSpec InnerOStmtIn spec roles od accSpec)
+          Output₁) :
+      OracleDecoration.runWithOracleCounterpart
+          outerInputImpl
+          spec
+          roles
+          od
+          accSpec
+          accImpl
+          strat
+          (pullbackCounterpart simulateIn spec roles od f accSpec cpt) =
+        (fun z => ⟨z.1, z.2.1, f z.1 z.2.2⟩) <$>
+          OracleDecoration.runWithOracleCounterpart
+            innerInputImpl
+            spec
+            roles
+            od
+            accSpec
+            accImpl
+            strat
+            cpt := by
+    match spec, roles, od with
+    | .done, roles, od =>
+        cases roles
+        cases od
+        simp [OracleDecoration.runWithOracleCounterpart, pullbackCounterpart]
+    | .node _ rest, ⟨.sender, rRest⟩, ⟨oi, odRest⟩ =>
+        simp only [OracleDecoration.runWithOracleCounterpart, pullbackCounterpart,
+          bind_pure_comp, map_bind, Functor.map_map]
+        refine congrArg (fun k => strat >>= k) ?_
+        funext xc
+        let addPrefix :
+            ((tr : Spec.Transcript (rest xc.1)) ×
+              (fun tr => OutputP ⟨xc.1, tr⟩) tr ×
+              (fun tr => Output₂ ⟨xc.1, tr⟩) tr) →
+            ((tr : Spec.Transcript (Spec.node _ rest)) × OutputP tr × Output₂ tr) :=
+          fun a => ⟨⟨xc.1, a.1⟩, a.2.1, a.2.2⟩
+        simpa [bind_assoc, addPrefix] using
+          congrArg (fun z => addPrefix <$> z)
+            (go (rest xc.1) (rRest xc.1) (odRest xc.1)
+              (accSpec + @OracleInterface.spec _ oi)
+              (QueryImpl.add accImpl (fun q => (oi.toOC.impl q).run xc.1))
+              (fun tr out => f ⟨xc.1, tr⟩ out)
+              xc.2
+              (cpt xc.1))
+    | .node _ rest, ⟨.receiver, rRest⟩, odFn =>
+        simp only [OracleDecoration.runWithOracleCounterpart, pullbackCounterpart,
+          bind_pure_comp, map_bind, Functor.map_map]
+        let routeOuter :
+            QueryImpl ((oSpec + [OuterOStmtIn]ₒ) + accSpec) (OracleComp oSpec) :=
+          fun
+          | .inl (.inl q) => liftM (query (spec := oSpec) q)
+          | .inl (.inr q) => liftM (outerInputImpl q)
+          | .inr q => liftM (accImpl q)
+        let routeInner :
+            QueryImpl ((oSpec + [InnerOStmtIn]ₒ) + accSpec) (OracleComp oSpec) :=
+          fun
+          | .inl (.inl q) => liftM (query (spec := oSpec) q)
+          | .inl (.inr q) => liftM (innerInputImpl q)
+          | .inr q => liftM (accImpl q)
+        let mapRest :
+            Sigma (fun x =>
+              Spec.Counterpart.withMonads (rest x) (rRest x)
+                (OracleDecoration.toMonadDecoration
+                  oSpec InnerOStmtIn (rest x) (rRest x) (odFn x) accSpec)
+                (fun tr => Output₁ ⟨x, tr⟩)) →
+            Sigma (fun x =>
+              Spec.Counterpart.withMonads (rest x) (rRest x)
+                (OracleDecoration.toMonadDecoration
+                  oSpec OuterOStmtIn (rest x) (rRest x) (odFn x) accSpec)
+                (fun tr => Output₂ ⟨x, tr⟩)) :=
+          fun a =>
+            Sigma.mk a.1 <|
+              pullbackCounterpart
+                (simulateIn := simulateIn)
+                (rest a.1)
+                (rRest a.1)
+                (odFn a.1)
+                (fun tr out => f ⟨a.1, tr⟩ out)
+                accSpec
+                a.2
+        let addPrefix :
+            (Sigma fun x =>
+              ((tr : Spec.Transcript (rest x)) ×
+                (fun tr => OutputP ⟨x, tr⟩) tr ×
+                (fun tr => Output₂ ⟨x, tr⟩) tr)) →
+            ((tr : Spec.Transcript (Spec.node _ rest)) × OutputP tr × Output₂ tr) :=
+          fun a => ⟨⟨a.1, a.2.1⟩, a.2.2.1, a.2.2.2⟩
+        let prefixMap :
+            (a : Sigma (fun x =>
+              Spec.Counterpart.withMonads (rest x) (rRest x)
+                (OracleDecoration.toMonadDecoration
+                  oSpec InnerOStmtIn (rest x) (rRest x) (odFn x) accSpec)
+                (fun tr => Output₁ ⟨x, tr⟩)) ) →
+            ((tr : Spec.Transcript (rest a.fst)) ×
+              (fun tr => OutputP ⟨a.fst, tr⟩) tr ×
+              (fun tr => Output₁ ⟨a.fst, tr⟩) tr) →
+            ((tr : Spec.Transcript (Spec.node _ rest)) × OutputP tr × Output₂ tr) :=
+          fun a z => ⟨⟨a.fst, z.1⟩, z.2.1, f ⟨a.fst, z.1⟩ z.2.2⟩
+        have hRoute :
+            simulateQ routeOuter
+                (simulateQ
+                  (OracleStatementAccess.routeInputQueries
+                    (oSpec := oSpec)
+                    simulateIn
+                    accSpec)
+                  cpt) =
+              simulateQ routeInner cpt := by
+          rw [simulateQ_compose]
+          apply simulateQ_ext
+          intro q
+          rcases q with (q | q) | q
+          · dsimp [OracleStatementAccess.routeInputQueries, routeOuter, routeInner]
+            rfl
+          · let outerRoute :
+                QueryImpl [OuterOStmtIn]ₒ (OracleComp oSpec) :=
+              fun q =>
+                (liftM (n := OracleComp oSpec) (outerInputImpl q) : OracleComp oSpec _)
+            simpa [OracleStatementAccess.routeInputQueries, routeOuter] using
+              (calc
+                simulateQ routeOuter
+                    (OracleComp.liftComp
+                      (superSpec := (oSpec + [OuterOStmtIn]ₒ) + accSpec)
+                      (simulateIn q)) =
+                  simulateQ outerRoute (simulateIn q) := by
+                    rw [OracleComp.liftComp_def, simulateQ_compose]
+                    apply simulateQ_ext
+                    intro q'
+                    rfl
+                _ =
+                  (liftM (n := OracleComp oSpec) (simulateQ outerInputImpl (simulateIn q)) :
+                    OracleComp oSpec _) := by
+                      simpa [outerRoute] using
+                        (simulateQ_liftId (superSpec := oSpec) outerInputImpl (simulateIn q))
+                _ =
+                  (liftM (n := OracleComp oSpec) (innerInputImpl q) : OracleComp oSpec _) := by
+                    simpa using congrArg
+                      (fun x => (liftM (n := OracleComp oSpec) x : OracleComp oSpec _))
+                      (hInput q))
+          · dsimp [OracleStatementAccess.routeInputQueries, routeOuter, routeInner]
+            rfl
+        let contOuter :
+            Sigma (fun x =>
+              Spec.Counterpart.withMonads (rest x) (rRest x)
+                (OracleDecoration.toMonadDecoration
+                  oSpec InnerOStmtIn (rest x) (rRest x) (odFn x) accSpec)
+                (fun tr => Output₁ ⟨x, tr⟩)) →
+            OracleComp oSpec
+              ((tr : Spec.Transcript (Spec.node _ rest)) × OutputP tr × Output₂ tr) :=
+          fun a => do
+            let next ← strat a.fst
+            (fun a_1 => addPrefix ⟨a.fst, a_1⟩) <$>
+              OracleDecoration.runWithOracleCounterpart
+                outerInputImpl
+                (rest a.fst)
+                (rRest a.fst)
+                (odFn a.fst)
+                accSpec
+                accImpl
+                next
+                (pullbackCounterpart
+                  (simulateIn := simulateIn)
+                  (rest a.fst)
+                  (rRest a.fst)
+                  (odFn a.fst)
+                  (fun tr out => f ⟨a.fst, tr⟩ out)
+                  accSpec
+                  a.snd)
+        let contInner :
+            Sigma (fun x =>
+              Spec.Counterpart.withMonads (rest x) (rRest x)
+                (OracleDecoration.toMonadDecoration
+                  oSpec InnerOStmtIn (rest x) (rRest x) (odFn x) accSpec)
+                (fun tr => Output₁ ⟨x, tr⟩)) →
+            OracleComp oSpec
+              ((tr : Spec.Transcript (Spec.node _ rest)) × OutputP tr × Output₂ tr) :=
+          fun a => do
+            let next ← strat a.fst
+            prefixMap a <$>
+              OracleDecoration.runWithOracleCounterpart
+                innerInputImpl
+                (rest a.fst)
+                (rRest a.fst)
+                (odFn a.fst)
+                accSpec
+                accImpl
+                next
+                a.snd
+        let bindCont :
+            OracleComp oSpec
+              (Sigma (fun x =>
+                Spec.Counterpart.withMonads (rest x) (rRest x)
+                  (OracleDecoration.toMonadDecoration
+                    oSpec InnerOStmtIn (rest x) (rRest x) (odFn x) accSpec)
+                  (fun tr => Output₁ ⟨x, tr⟩))) →
+            OracleComp oSpec
+              ((tr : Spec.Transcript (Spec.node _ rest)) × OutputP tr × Output₂ tr) :=
+          fun m => m >>= contOuter
+        have hSecond :
+            simulateQ routeInner cpt >>= contOuter =
+              simulateQ routeInner cpt >>= contInner := by
+          have hCont :
+              contOuter = contInner := by
+            funext a
+            refine congrArg (fun k => strat a.fst >>= k) ?_
+            funext next
+            have hGo :=
+              congrArg (fun z => (fun a_1 => addPrefix ⟨a.fst, a_1⟩) <$> z)
+                (go (rest a.fst) (rRest a.fst) (odFn a.fst)
+                  accSpec accImpl
+                  (fun tr out => f ⟨a.fst, tr⟩ out)
+                  next
+                  a.snd)
+            simpa [contOuter, contInner, addPrefix, prefixMap] using hGo
+          exact congrArg (fun k => simulateQ routeInner cpt >>= k) hCont
+        have hThird :
+            simulateQ routeInner cpt >>= contInner =
+              (fun z => ⟨z.1, z.2.1, f z.1 z.2.2⟩) <$>
+                OracleDecoration.runWithOracleCounterpart
+                  innerInputImpl
+                  (Spec.node _ rest)
+                  (Role.receiver, rRest)
+                  odFn
+                  accSpec
+                  accImpl
+                  strat
+                  cpt := by
+          simp [OracleDecoration.runWithOracleCounterpart, routeInner, contInner, prefixMap,
+            map_bind, bind_pure_comp, Functor.map_map]
+          rfl
+        have hFirst :
+            bindCont
+                (simulateQ
+                  (fun x =>
+                    match x with
+                    | Sum.inl (Sum.inl q) => liftM (query (spec := oSpec) q)
+                    | Sum.inl (Sum.inr q) => liftM (outerInputImpl q)
+                    | Sum.inr q => liftM (accImpl q))
+                  (simulateQ
+                    (OracleStatementAccess.routeInputQueries
+                      (oSpec := oSpec)
+                      simulateIn
+                      accSpec)
+                    cpt)) =
+              simulateQ routeInner cpt >>= contOuter := by
+          change
+            simulateQ
+                (fun x =>
+                  match x with
+                  | Sum.inl (Sum.inl q) => liftM (query (spec := oSpec) q)
+                  | Sum.inl (Sum.inr q) => liftM (outerInputImpl q)
+                  | Sum.inr q => liftM (accImpl q))
+                (simulateQ
+                  (OracleStatementAccess.routeInputQueries
+                    (oSpec := oSpec)
+                    simulateIn
+                    accSpec)
+                  cpt) >>= contOuter =
+              simulateQ
+                (fun x =>
+                  match x with
+                  | Sum.inl (Sum.inl q) => liftM (query (spec := oSpec) q)
+                  | Sum.inl (Sum.inr q) => liftM (innerInputImpl q)
+                  | Sum.inr q => liftM (accImpl q))
+                cpt >>= contOuter
+          exact congrArg (fun m => m >>= contOuter) hRoute
+        have hFinalRaw :
+            bindCont
+                (simulateQ
+                  (fun x =>
+                    match x with
+                    | Sum.inl (Sum.inl q) => liftM (query (spec := oSpec) q)
+                    | Sum.inl (Sum.inr q) => liftM (outerInputImpl q)
+                    | Sum.inr q => liftM (accImpl q))
+                  (simulateQ
+                    (OracleStatementAccess.routeInputQueries
+                      (oSpec := oSpec)
+                      simulateIn
+                      accSpec)
+                    cpt)) =
+              (fun z => ⟨z.1, z.2.1, f z.1 z.2.2⟩) <$>
+                OracleDecoration.runWithOracleCounterpart
+                  innerInputImpl
+                  (Spec.node _ rest)
+                  (Role.receiver, rRest)
+                  odFn
+                  accSpec
+                  accImpl
+                  strat
+                  cpt := by
+          calc
+            bindCont
+                (simulateQ
+                  (fun x =>
+                    match x with
+                    | Sum.inl (Sum.inl q) => liftM (query (spec := oSpec) q)
+                    | Sum.inl (Sum.inr q) => liftM (outerInputImpl q)
+                    | Sum.inr q => liftM (accImpl q))
+                  (simulateQ
+                    (OracleStatementAccess.routeInputQueries
+                      (oSpec := oSpec)
+                      simulateIn
+                      accSpec)
+                    cpt)) =
+                simulateQ routeInner cpt >>= contOuter := hFirst
+            _ = simulateQ routeInner cpt >>= contInner := by
+              exact hSecond
+            _ = (fun z => ⟨z.1, z.2.1, f z.1 z.2.2⟩) <$>
+                  OracleDecoration.runWithOracleCounterpart
+                    innerInputImpl
+                    (Spec.node _ rest)
+                    (Role.receiver, rRest)
+                    odFn
+                    accSpec
+                    accImpl
+                    strat
+                    cpt := hThird
+        simpa [simulateQ_map, routeOuter, routeInner, contOuter, contInner, addPrefix,
+          bind_assoc, OracleDecoration.runWithOracleCounterpart] using
+          hFinalRaw
+  exact go spec roles od accSpec accImpl f strat cpt
 
 end Boundary
 

@@ -508,7 +508,28 @@ private theorem runWithOracleCounterpart_pullbackVerifier
           accImpl
           strat
           verifier := by
-  sorry
+  simpa using
+    Boundary.runWithOracleCounterpart_pullbackCounterpart
+      (oSpec := oSpec)
+      boundary.access.simulateIn
+      (OracleInterface.simOracle0 OuterOStmtIn outerStmt.oracleStmt)
+      (OracleInterface.simOracle0
+        InnerOStmtIn
+        (boundary.reification.materializeIn
+          outerStmt.stmt
+          outerStmt.oracleStmt))
+      (Boundary.OracleStatementReification.realizes_materializeIn
+        (hRealizes := boundary.coherent)
+        outerStmt.stmt
+        outerStmt.oracleStmt)
+      (InnerSpec (toContext.stmt.proj outerStmt.stmt))
+      (InnerRoles (toContext.stmt.proj outerStmt.stmt))
+      (InnerOD (toContext.stmt.proj outerStmt.stmt))
+      accSpec
+      accImpl
+      (fun tr stmtOut => toContext.stmt.lift outerStmt.stmt tr stmtOut)
+      strat
+      verifier
 
 /-! ### Reduction-Side Simulation -/
 

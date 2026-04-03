@@ -313,21 +313,5 @@ def Strategy.stateChainComp {m : Type u → Type u} [Monad m]
       (fun tr => Spec.stateChain Stage spec advance n (i + 1) (advance i s tr))
       strat (fun tr mid => stateChainComp step n (i + 1) (advance i s tr) mid)
 
-/-- Uniform `Strategy.stateChainComp` with a fixed output type `α` at every stage. -/
-def Strategy.stateChainCompUniform {m : Type u → Type u} [Monad m]
-    {Stage : Nat → Type u} {spec : (i : Nat) → Stage i → Spec}
-    {advance : (i : Nat) → (s : Stage i) → Transcript (spec i s) → Stage (i + 1)}
-    {α : Type u}
-    (step : (i : Nat) → (s : Stage i) → α →
-      m (Strategy m (spec i s) (fun _ => α))) :
-    (n : Nat) → (i : Nat) → (s : Stage i) → α →
-    m (Strategy m (Spec.stateChain Stage spec advance n i s) (fun _ => α))
-  | 0, _, _, a => pure a
-  | n + 1, i, s, a => do
-    let strat ← step i s a
-    Strategy.compFlat (spec i s)
-      (fun tr => Spec.stateChain Stage spec advance n (i + 1) (advance i s tr))
-      strat (fun tr mid => stateChainCompUniform step n (i + 1) (advance i s tr) mid)
-
 end Spec
 end Interaction

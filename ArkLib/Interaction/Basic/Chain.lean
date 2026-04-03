@@ -158,17 +158,6 @@ def strategyComp {m : Type u → Type u} [Monad m]
       Strategy.comp spec (fun tr => toSpec n (cont tr))
         strat (fun tr mid => strategyComp step n (cont tr) mid)
 
-/-- Uniform specialization of `strategyComp` with a fixed output type `α`. -/
-def strategyCompUniform {m : Type u → Type u} [Monad m] {α : Type u}
-    (step : (spec : Spec) → α → m (Strategy m spec (fun _ => α))) :
-    (n : Nat) → (c : Chain n) → α →
-    m (Strategy m (toSpec n c) (fun _ => α))
-  | 0, _, a => pure a
-  | n + 1, ⟨spec, cont⟩, a => do
-      let strat ← step spec a
-      Strategy.compFlat spec (fun tr => toSpec n (cont tr))
-        strat (fun tr mid => strategyCompUniform step n (cont tr) mid)
-
 end Chain
 
 /-! ## Toy example: growing message types -/

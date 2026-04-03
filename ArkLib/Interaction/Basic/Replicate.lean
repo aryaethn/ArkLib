@@ -173,12 +173,5 @@ def Strategy.iterate {m : Type u → Type u} [Monad m]
     Strategy.compFlat spec (fun _ => spec.replicate n) strat
       (fun _ mid => iterate n (fun i => step i.succ) mid)
 
-/-- Uniform `iterate`: the same step function at every round index. -/
-def Strategy.iterateUniform {m : Type u → Type u} [Monad m]
-    {spec : Spec} {α : Type u}
-    (n : Nat) (step : α → m (Strategy m spec (fun _ => α))) (a : α) :
-    m (Strategy m (spec.replicate n) (fun _ => α)) :=
-  Strategy.iterate n (fun _ => step) a
-
 end Spec
 end Interaction

@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Quang Dao
 -/
 import ToMathlib.PFunctor.Chart.Basic
+import ToMathlib.PFunctor.Equiv.Basic
 import ToMathlib.PFunctor.Lens.Basic
 
 /-!
@@ -27,6 +28,8 @@ The design here is intentionally minimal and purely structural.
 * `Interface.Packet Σ` is one concrete boundary message on interface `Σ`.
 * `Interface.Hom Σ Τ` is just `PFunctor.Chart Σ Τ`, reused under an
   interaction-oriented name for *actual traffic*.
+* `Interface.Equiv Σ Τ` is the corresponding chart-level interface
+  isomorphism.
 * `Interface.QueryHom Σ Τ` is just `PFunctor.Lens Σ Τ`, reused under an
   interface-oriented name for *query transport*.
 * `PortBoundary` is a directed pair of input and output interfaces.
@@ -41,6 +44,16 @@ The most important distinction in this file is:
 
 So `Hom` pushes traffic forward, while `QueryHom` retargets an interaction and
 pulls the eventual response back.
+
+This file also introduces the first equivalence layer:
+
+* `Interface.Equiv` for interface isomorphisms, and
+* `PortBoundary.Equiv` for the corresponding variance-aware isomorphisms of
+  directed open boundaries.
+
+These structures are the starting point for expressing tensor unit,
+associativity, and symmetry at the boundary level without hard-coding more
+primitive operations into `OpenTheory`.
 
 This layer intentionally uses `abbrev` over the existing `PFunctor` / chart /
 lens machinery rather than introducing fresh representations. The goal is to
@@ -130,6 +143,22 @@ maps, they should use `QueryHom` instead.
 -/
 abbrev Hom (I : Interface.{uA, uB}) (J : Interface.{vA, vB}) :=
   PFunctor.Chart I J
+
+/--
+`Equiv I J` is the structural notion of interface isomorphism.
+
+Unlike a plain `Hom`, which only translates packets forward, an
+`Interface.Equiv` records an actual equivalence of ports together with an
+equivalence of messages over each translated port.
+
+This is intentionally based on the existing `PFunctor.Equiv` representation
+rather than on chart isomorphisms. For the boundary layer, the stronger
+structural equivalence is more convenient: the standard coproduct and tensor
+coherence facts already live at this level, and packet/query translations can
+be recovered from it when needed.
+-/
+abbrev Equiv (I : Interface.{uA, uB}) (J : Interface.{vA, vB}) :=
+  PFunctor.Equiv I J
 
 /--
 `QueryHom I J` is the boundary-facing name for `PFunctor.Lens I J`.
@@ -466,6 +495,91 @@ theorem sum_comp
 
 end QueryHom
 
+namespace Equiv
+
+/--
+The forward packet translation carried by an interface equivalence.
+-/
+abbrev toHom
+    {I : Interface.{uA, uB}}
+    {J : Interface.{vA, vB}}
+    (e : Equiv I J) : Hom I J :=
+  e.toChart
+
+/--
+The inverse packet translation carried by an interface equivalence.
+-/
+abbrev invHom
+    {I : Interface.{uA, uB}}
+    {J : Interface.{vA, vB}}
+    (e : Equiv I J) : Hom J I :=
+  e.symm.toChart
+
+/-- The identity interface equivalence. -/
+abbrev refl (I : Interface.{uA, uB}) : Equiv I I :=
+  PFunctor.Equiv.refl I
+
+/-- Reverse an interface equivalence. -/
+abbrev symm
+    {I : Interface.{uA, uB}}
+    {J : Interface.{vA, vB}}
+    (e : Equiv I J) : Equiv J I :=
+  PFunctor.Equiv.symm e
+
+/--
+Compose two interface equivalences.
+
+`trans e₁ e₂` first changes the interface along `e₁`, then along `e₂`.
+-/
+abbrev trans
+    {I : Interface.{uA, uB}}
+    {J : Interface.{vA, vB}}
+    {K : Interface.{wA, wB}}
+    (e₁ : Equiv I J) (e₂ : Equiv J K) : Equiv I K :=
+  PFunctor.Equiv.trans e₁ e₂
+
+/--
+Interface equivalence is preserved under disjoint sum.
+-/
+def sumCongr
+    {I₁ : Interface.{uA, uB}} {I₂ : Interface.{vA, uB}}
+    {J₁ : Interface.{wA, uB}} {J₂ : Interface.{wB, uB}}
+    (e₁ : Equiv I₁ J₁) (e₂ : Equiv I₂ J₂) :
+    Equiv (Interface.sum I₁ I₂) (Interface.sum J₁ J₂) where
+  equivA := _root_.Equiv.sumCongr e₁.equivA e₂.equivA
+  equivB
+    | .inl a => e₁.equivB a
+    | .inr a => e₂.equivB a
+
+/-- The empty interface is a left unit for disjoint sum. -/
+def emptySum
+    (I : Interface.{uA, uB}) :
+    Equiv (Interface.sum Interface.empty I) I :=
+  PFunctor.Equiv.zeroSum I
+
+/-- The empty interface is a right unit for disjoint sum. -/
+def sumEmpty
+    (I : Interface.{uA, uB}) :
+    Equiv (Interface.sum I Interface.empty) I :=
+  PFunctor.Equiv.sumZero I
+
+/-- Disjoint sum of interfaces is commutative up to equivalence. -/
+def sumComm
+    (I : Interface.{uA, uB}) (J : Interface.{vA, uB}) :
+    Equiv (Interface.sum I J) (Interface.sum J I) :=
+  PFunctor.Equiv.sumComm I J
+
+/-- Disjoint sum of interfaces is associative up to equivalence. -/
+def sumAssoc
+    (I : Interface.{uA, uB})
+    (J : Interface.{vA, uB})
+    (K : Interface.{wA, uB}) :
+    Equiv (Interface.sum (Interface.sum I J) K)
+      (Interface.sum I (Interface.sum J K)) :=
+  PFunctor.Equiv.sumAssoc I J K
+
+end Equiv
+
 end Interface
 
 /--
@@ -527,6 +641,23 @@ structure Hom (Δ₁ Δ₂ : PortBoundary) where
   onOut : Interface.Hom Δ₁.Out Δ₂.Out
 
 namespace Hom
+
+/--
+Two boundary adaptations are equal when their input and output interface maps
+are equal.
+-/
+@[ext]
+theorem ext
+    {Δ₁ Δ₂ : PortBoundary}
+    (f g : Hom Δ₁ Δ₂)
+    (hIn : f.onIn = g.onIn)
+    (hOut : f.onOut = g.onOut) :
+    f = g := by
+  cases f
+  cases g
+  cases hIn
+  cases hOut
+  rfl
 
 /--
 Combine two boundary adaptations side by side.
@@ -640,6 +771,125 @@ theorem swap_swap
   rfl
 
 end Hom
+
+/--
+`PortBoundary.Equiv Δ₁ Δ₂` is the variance-aware notion of boundary
+isomorphism.
+
+It is described directly in terms of interface equivalences:
+
+* `onIn` is an equivalence from `Δ₂.In` to `Δ₁.In`, reflecting the
+  contravariant role of inputs;
+* `onOut` is an equivalence from `Δ₁.Out` to `Δ₂.Out`, reflecting the
+  covariant role of outputs.
+
+This is the right structure for expressing coherence laws of open composition:
+the exposed boundary may change shape, but only up to a canonical directed
+isomorphism.
+-/
+structure Equiv (Δ₁ Δ₂ : PortBoundary) where
+  onIn : Interface.Equiv Δ₂.In Δ₁.In
+  onOut : Interface.Equiv Δ₁.Out Δ₂.Out
+
+namespace Equiv
+
+/--
+The forward boundary adaptation carried by a boundary equivalence.
+-/
+abbrev toHom
+    {Δ₁ Δ₂ : PortBoundary}
+    (e : Equiv Δ₁ Δ₂) : Hom Δ₁ Δ₂ where
+  onIn := e.onIn.toHom
+  onOut := e.onOut.toHom
+
+/--
+The inverse boundary adaptation carried by a boundary equivalence.
+-/
+abbrev invHom
+    {Δ₁ Δ₂ : PortBoundary}
+    (e : Equiv Δ₁ Δ₂) : Hom Δ₂ Δ₁ where
+  onIn := e.onIn.invHom
+  onOut := e.onOut.invHom
+
+/-- The identity boundary equivalence. -/
+abbrev refl (Δ : PortBoundary) : Equiv Δ Δ where
+  onIn := Interface.Equiv.refl Δ.In
+  onOut := Interface.Equiv.refl Δ.Out
+
+/-- Reverse a boundary equivalence. -/
+abbrev symm
+    {Δ₁ Δ₂ : PortBoundary}
+    (e : Equiv Δ₁ Δ₂) : Equiv Δ₂ Δ₁ where
+  onIn := e.onIn.symm
+  onOut := e.onOut.symm
+
+/--
+Compose two boundary equivalences.
+
+`trans e₁ e₂` first changes the exposed boundary along `e₁`, then along `e₂`.
+-/
+abbrev trans
+    {Δ₁ Δ₂ Δ₃ : PortBoundary}
+    (e₁ : Equiv Δ₁ Δ₂) (e₂ : Equiv Δ₂ Δ₃) : Equiv Δ₁ Δ₃ where
+  onIn := Interface.Equiv.trans e₂.onIn e₁.onIn
+  onOut := Interface.Equiv.trans e₁.onOut e₂.onOut
+
+/--
+Boundary equivalence is preserved under tensor.
+-/
+def tensorCongr
+    {Δ₁ Δ₁' Δ₂ Δ₂' : PortBoundary}
+    (e₁ : Equiv Δ₁ Δ₁') (e₂ : Equiv Δ₂ Δ₂') :
+    Equiv (PortBoundary.tensor Δ₁ Δ₂) (PortBoundary.tensor Δ₁' Δ₂') where
+  onIn := Interface.Equiv.sumCongr e₁.onIn e₂.onIn
+  onOut := Interface.Equiv.sumCongr e₁.onOut e₂.onOut
+
+/--
+Swapping the direction of boundaries preserves equivalence.
+-/
+abbrev swapCongr
+    {Δ₁ Δ₂ : PortBoundary}
+    (e : Equiv Δ₁ Δ₂) :
+    Equiv (PortBoundary.swap Δ₁) (PortBoundary.swap Δ₂) where
+  onIn := e.onOut.symm
+  onOut := e.onIn.symm
+
+/-- The empty boundary is a left tensor unit. -/
+def tensorEmptyLeft
+    (Δ : PortBoundary) :
+    Equiv (PortBoundary.tensor PortBoundary.empty Δ) Δ where
+  onIn := (Interface.Equiv.emptySum Δ.In).symm
+  onOut := Interface.Equiv.emptySum Δ.Out
+
+/-- The empty boundary is a right tensor unit. -/
+def tensorEmptyRight
+    (Δ : PortBoundary) :
+    Equiv (PortBoundary.tensor Δ PortBoundary.empty) Δ where
+  onIn := (Interface.Equiv.sumEmpty Δ.In).symm
+  onOut := Interface.Equiv.sumEmpty Δ.Out
+
+/-- Tensor of boundaries is symmetric up to equivalence. -/
+def tensorComm
+    (Δ₁ Δ₂ : PortBoundary) :
+    Equiv (PortBoundary.tensor Δ₁ Δ₂) (PortBoundary.tensor Δ₂ Δ₁) where
+  onIn := Interface.Equiv.sumComm Δ₂.In Δ₁.In
+  onOut := Interface.Equiv.sumComm Δ₁.Out Δ₂.Out
+
+/-- Tensor of boundaries is associative up to equivalence. -/
+def tensorAssoc
+    (Δ₁ Δ₂ Δ₃ : PortBoundary) :
+    Equiv (PortBoundary.tensor (PortBoundary.tensor Δ₁ Δ₂) Δ₃)
+      (PortBoundary.tensor Δ₁ (PortBoundary.tensor Δ₂ Δ₃)) where
+  onIn := (Interface.Equiv.sumAssoc Δ₁.In Δ₂.In Δ₃.In).symm
+  onOut := Interface.Equiv.sumAssoc Δ₁.Out Δ₂.Out Δ₃.Out
+
+/-- Swapping twice yields the original boundary, up to equivalence. -/
+abbrev swapSwap
+    (Δ : PortBoundary) :
+    Equiv (PortBoundary.swap (PortBoundary.swap Δ)) Δ :=
+  refl Δ
+
+end Equiv
 
 @[simp]
 theorem swap_swap (Δ : PortBoundary) : Δ.swap.swap = Δ := by

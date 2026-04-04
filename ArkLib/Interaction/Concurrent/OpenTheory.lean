@@ -19,7 +19,12 @@ support:
 
 * `map` for structural interface adaptation,
 * `par` for side-by-side composition, and
-* `plug` for closing an open system against a matching external context.
+* `wire` for internalizing one shared boundary between two open systems.
+
+It also keeps `plug` as the top-level closure operation against a matching
+external context. Conceptually, `wire` is the more local composition
+primitive, while `plug` is the fully closing special case that remains most
+convenient for contextual comparison.
 
 This is the operations-first "Option C2" shape from the current UC design
 notes. Later layers may realize `OpenTheory` by:
@@ -49,6 +54,8 @@ primitive composition operations:
   internal system;
 * `par` places two open systems side by side and exposes the tensor of their
   boundaries;
+* `wire` connects one shared boundary between two open systems and leaves the
+  remaining outer boundaries exposed; and
 * `plug` closes an open system against a matching context on the swapped
   boundary, yielding a closed system.
 
@@ -60,6 +67,7 @@ The first law layer is kept intentionally modest. This file bundles:
 
 * functoriality of `map`,
 * naturality of `par` with respect to boundary tensors, and
+* naturality of `wire` with respect to its still-exposed outer boundaries, and
 * naturality of `plug` with respect to swapped boundary adaptation.
 
 More ambitious coherence laws, such as associativity/unit/symmetry of open
@@ -104,6 +112,23 @@ structure OpenTheory where
     {Δ₁ Δ₂ : PortBoundary.{uA, uB, uA, uB}} →
     Obj Δ₁ →
     Obj Δ₂ →
+    Obj (PortBoundary.tensor Δ₁ Δ₂)
+
+  /--
+  Connect one shared boundary between two open systems.
+
+  If the left system exposes boundary `Δ₁ ⊗ Γ` and the right system exposes
+  boundary `swap Γ ⊗ Δ₂`, then `wire` connects the shared middle boundary `Γ`
+  internally and leaves only the outer boundaries `Δ₁` and `Δ₂` exposed.
+
+  This is the first local composition primitive beyond plain parallel
+  juxtaposition. It is the right operation for assembling open systems
+  incrementally without forcing immediate total closure.
+  -/
+  wire :
+    {Δ₁ Γ Δ₂ : PortBoundary.{uA, uB, uA, uB}} →
+    Obj (PortBoundary.tensor Δ₁ Γ) →
+    Obj (PortBoundary.tensor (PortBoundary.swap Γ) Δ₂) →
     Obj (PortBoundary.tensor Δ₁ Δ₂)
 
   /--
@@ -175,6 +200,41 @@ class IsLawfulPar (T : _root_.Interaction.Concurrent.OpenTheory.{u, uA, uB}) :
           T.par (T.map f₁ W₁) (T.map f₂ W₂)
 
 /--
+`IsLawfulWire T` states that partial wiring in `T` is natural with respect to
+boundary adaptation.
+
+This is the first law for local composition: adapting the still-exposed
+left/right outer boundaries can be pushed inside a `wire`.
+
+Transporting the shared middle boundary itself is a subtler question because
+`PortBoundary.Hom.swap` is contravariant. The corresponding law should be
+stated later using boundary equivalences or a more symmetric vocabulary.
+-/
+class IsLawfulWire (T : _root_.Interaction.Concurrent.OpenTheory.{u, uA, uB}) :
+    Prop extends IsLawfulMap T where
+  /--
+  Partial wiring is natural in its still-exposed outer boundaries.
+
+  The shared middle boundary is held fixed in this first law layer. That keeps
+  the statement well aligned with the variance of `PortBoundary.Hom` while
+  still capturing the most important structural behavior of `wire`.
+  -/
+  map_wire :
+    ∀ {Δ₁ Δ₁' Γ Δ₂ Δ₂' : PortBoundary.{uA, uB, uA, uB}}
+      (f₁ : PortBoundary.Hom Δ₁ Δ₁')
+      (f₂ : PortBoundary.Hom Δ₂ Δ₂')
+      (W₁ : T.Obj (PortBoundary.tensor Δ₁ Γ))
+      (W₂ : T.Obj (PortBoundary.tensor (PortBoundary.swap Γ) Δ₂)),
+        T.map (PortBoundary.Hom.tensor f₁ f₂) (T.wire W₁ W₂) =
+          T.wire
+            (T.map (PortBoundary.Hom.tensor f₁ (PortBoundary.Hom.id Γ)) W₁)
+            (T.map
+              (PortBoundary.Hom.tensor
+                (PortBoundary.Hom.id (PortBoundary.swap Γ))
+                f₂)
+              W₂)
+
+/--
 `IsLawfulPlug T` states that plugging in `T` is natural with respect to
 boundary adaptation.
 
@@ -202,13 +262,14 @@ At this stage it only records:
 
 * functoriality of `map`,
 * naturality of `par`, and
+* naturality of `wire`, and
 * naturality of `plug`.
 
 Unit, associativity, and symmetry laws for open composition should be added
 later, once the library settles on the right notion of boundary equivalence.
 -/
 class IsLawful (T : _root_.Interaction.Concurrent.OpenTheory.{u, uA, uB}) :
-    Prop extends IsLawfulPar T, IsLawfulPlug T
+    Prop extends IsLawfulPar T, IsLawfulWire T, IsLawfulPlug T
 
 /--
 `Closed T` is the type of closed systems in the open-composition theory `T`.
@@ -247,6 +308,23 @@ abbrev close
     T.Closed :=
   T.plug
 
+/--
+Transport an open system along a boundary equivalence.
+
+This is the equivalence-level companion to `map`: instead of an arbitrary
+one-way boundary adaptation, it uses a canonical directed boundary
+isomorphism. In practice this is the convenient way to reassociate, swap, or
+drop empty boundary fragments once those facts have been expressed as
+`PortBoundary.Equiv`s.
+-/
+abbrev mapEquiv
+    (T : _root_.Interaction.Concurrent.OpenTheory.{u, uA, uB})
+    {Δ₁ Δ₂ : PortBoundary.{uA, uB, uA, uB}} :
+    PortBoundary.Equiv Δ₁ Δ₂ →
+    T.Obj Δ₁ →
+    T.Obj Δ₂ :=
+  fun e => T.map e.toHom
+
 section Laws
 
 variable {T : _root_.Interaction.Concurrent.OpenTheory.{u, uA, uB}}
@@ -275,8 +353,31 @@ theorem map_comp
   IsLawfulMap.map_comp g f W
 
 /--
-Parallel composition is natural with respect to boundary adaptation.
+Mapping along the identity boundary equivalence does nothing.
 -/
+theorem mapEquiv_refl
+    [IsLawfulMap T]
+    {Δ : PortBoundary.{uA, uB, uA, uB}}
+    (W : T.Obj Δ) :
+    T.mapEquiv (PortBoundary.Equiv.refl Δ) W = W := by
+  simpa [OpenTheory.mapEquiv] using map_id (T := T) (Δ := Δ) W
+
+/--
+Mapping along a composite boundary equivalence is the same as mapping in two
+successive equivalence-guided steps.
+-/
+theorem mapEquiv_trans
+    [IsLawfulMap T]
+    {Δ₁ Δ₂ Δ₃ : PortBoundary.{uA, uB, uA, uB}}
+    (e₁ : PortBoundary.Equiv Δ₁ Δ₂)
+    (e₂ : PortBoundary.Equiv Δ₂ Δ₃)
+    (W : T.Obj Δ₁) :
+    T.mapEquiv (PortBoundary.Equiv.trans e₁ e₂) W =
+      T.mapEquiv e₂ (T.mapEquiv e₁ W) := by
+  simpa [OpenTheory.mapEquiv, PortBoundary.Equiv.trans] using
+    map_comp (T := T) e₂.toHom e₁.toHom W
+
+/-- Parallel composition is natural with respect to boundary adaptation. -/
 theorem map_par
     [IsLawfulPar T]
     {Δ₁ Δ₁' Δ₂ Δ₂' : PortBoundary.{uA, uB, uA, uB}}
@@ -287,6 +388,26 @@ theorem map_par
     T.map (PortBoundary.Hom.tensor f₁ f₂) (T.par W₁ W₂) =
       T.par (T.map f₁ W₁) (T.map f₂ W₂) :=
   IsLawfulPar.map_par f₁ f₂ W₁ W₂
+
+/--
+Partial wiring is natural with respect to boundary adaptation.
+-/
+theorem map_wire
+    [IsLawfulWire T]
+    {Δ₁ Δ₁' Γ Δ₂ Δ₂' : PortBoundary.{uA, uB, uA, uB}}
+    (f₁ : PortBoundary.Hom Δ₁ Δ₁')
+    (f₂ : PortBoundary.Hom Δ₂ Δ₂')
+    (W₁ : T.Obj (PortBoundary.tensor Δ₁ Γ))
+    (W₂ : T.Obj (PortBoundary.tensor (PortBoundary.swap Γ) Δ₂)) :
+    T.map (PortBoundary.Hom.tensor f₁ f₂) (T.wire W₁ W₂) =
+      T.wire
+        (T.map (PortBoundary.Hom.tensor f₁ (PortBoundary.Hom.id Γ)) W₁)
+        (T.map
+          (PortBoundary.Hom.tensor
+            (PortBoundary.Hom.id (PortBoundary.swap Γ))
+            f₂)
+          W₂) :=
+  IsLawfulWire.map_wire f₁ f₂ W₁ W₂
 
 /--
 Plugging is natural with respect to boundary adaptation.

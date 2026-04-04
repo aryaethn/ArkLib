@@ -474,6 +474,23 @@ def loopSim :
 noncomputable def loopMappedRun : Process.Run loopSystem.toProcess :=
   loopSim.mapRun (pSpec := PUnit.unit) trueRun trivial
 
+/-- The identity simulation on `loopSystem`, preserving Bob's local
+observations. -/
+def loopObsSimBob :
+    Refinement.ForwardSimulation loopSystem loopSystem
+      (Observation.Process.TranscriptRel.byObservation Party.bob) where
+  stateRel _ _ := True
+  init p hp := ⟨p, hp, trivial⟩
+  assumptions _ _ := trivial
+  step _
+    | ⟨b, tail⟩ => ⟨⟨b, tail⟩, rfl, trivial⟩
+  safe _ _ := trivial
+
+/-- The specification-side run obtained by matching `trueRun` through
+`loopObsSimBob`. -/
+noncomputable def loopObsMappedRunBob : Process.Run loopSystem.toProcess :=
+  loopObsSimBob.mapRun (pSpec := PUnit.unit) trueRun trivial
+
 example : loopMappedRun.state 4 = PUnit.unit := rfl
 
 example :
@@ -489,6 +506,31 @@ example :
     Process.System.Satisfies loopSystem (fun _ => True) (Process.System.Safe loopSystem) := by
   intro run _ _ _ n
   trivial
+
+example :
+    Process.System.Satisfies loopSystem (fun _ => True) (Process.System.Safe loopSystem) := by
+  apply loopSim.safe_of_satisfies (fairImpl := fun _ => True) (fairSpec := fun _ => True)
+  · intro _ _ _
+    trivial
+  · intro run _ _ _ n
+    trivial
+
+example :
+    trueRun.ticketsUpTo loopTicketed.ticket 4 =
+      loopMappedRun.ticketsUpTo loopTicketed.ticket 4 := by
+  exact loopSim.ticketsUpTo_mapRun (pSpec := PUnit.unit) trueRun trivial 4
+
+example :
+    Observation.Process.Run.observationsUpTo Party.bob trueRun 3 =
+      Observation.Process.Run.observationsUpTo Party.bob loopObsMappedRunBob 3 := by
+  exact loopObsSimBob.observationsUpTo_mapRun Party.bob
+    (pSpec := PUnit.unit) trueRun trivial 3
+
+example :
+    Observation.Process.Run.Rel
+      (Observation.Process.TranscriptRel.byTicket loopTicketed.ticket loopTicketed.ticket)
+      trueRun loopMappedRun := by
+  exact loopSim.runRel_mapRun (pSpec := PUnit.unit) trueRun trivial
 
 end PhaseOneExamples
 

@@ -192,10 +192,24 @@ def currentController? {Party : Type u} {process : Process Party}
     (run : Run process) (n : Nat) : Option Party :=
   (process.step (run.state n)).currentController? (run.transcript n)
 
+/-- The current controlling parties exposed along the first `n` executed steps
+of the run `run`. -/
+def currentControllersUpTo {Party : Type u} {process : Process Party}
+    (run : Run process) : Nat → List (Option Party)
+  | 0 => []
+  | n + 1 => run.currentController? 0 :: run.tail.currentControllersUpTo n
+
 /-- The full controller path recorded by step `n` of a run. -/
 def controllerPath {Party : Type u} {process : Process Party}
     (run : Run process) (n : Nat) : List Party :=
   (process.step (run.state n)).controllerPath (run.transcript n)
+
+/-- The full controller paths exposed along the first `n` executed steps of the
+run `run`. -/
+def controllerPathsUpTo {Party : Type u} {process : Process Party}
+    (run : Run process) : Nat → List (List Party)
+  | 0 => []
+  | n + 1 => run.controllerPath 0 :: run.tail.controllerPathsUpTo n
 
 /-- The stable event label attached to step `n` of a run. -/
 def event {Party : Type u} {process : Process Party}
@@ -203,11 +217,27 @@ def event {Party : Type u} {process : Process Party}
     (run : Run process) (n : Nat) : Event :=
   eventMap (run.state n) (run.transcript n)
 
+/-- The stable event labels attached to the first `n` executed steps of the run
+`run`. -/
+def eventsUpTo {Party : Type u} {process : Process Party}
+    {Event : Type w} (eventMap : process.EventMap Event)
+    (run : Run process) : Nat → List Event
+  | 0 => []
+  | n + 1 => run.event eventMap 0 :: run.tail.eventsUpTo eventMap n
+
 /-- The stable ticket attached to step `n` of a run. -/
 def ticket {Party : Type u} {process : Process Party}
     {Ticket : Type w} (ticketMap : process.Tickets Ticket)
     (run : Run process) (n : Nat) : Ticket :=
   ticketMap (run.state n) (run.transcript n)
+
+/-- The stable tickets attached to the first `n` executed steps of the run
+`run`. -/
+def ticketsUpTo {Party : Type u} {process : Process Party}
+    {Ticket : Type w} (ticketMap : process.Tickets Ticket)
+    (run : Run process) : Nat → List Ticket
+  | 0 => []
+  | n + 1 => run.ticket ticketMap 0 :: run.tail.ticketsUpTo ticketMap n
 
 @[simp, grind =]
 theorem take_zero {Party : Type u} {process : Process Party}
@@ -219,6 +249,54 @@ theorem take_succ {Party : Type u} {process : Process Party}
     (run : Run process) (n : Nat) :
     run.take (n + 1) =
       Prefix.step run.head (cast (by rw [run.tail_initial]) (run.tail.take n)) := rfl
+
+@[simp, grind =]
+theorem currentControllersUpTo_zero {Party : Type u} {process : Process Party}
+    (run : Run process) :
+    run.currentControllersUpTo 0 = [] := rfl
+
+@[simp, grind =]
+theorem controllerPathsUpTo_zero {Party : Type u} {process : Process Party}
+    (run : Run process) :
+    run.controllerPathsUpTo 0 = [] := rfl
+
+@[simp, grind =]
+theorem eventsUpTo_zero {Party : Type u} {process : Process Party}
+    {Event : Type w} (eventMap : process.EventMap Event)
+    (run : Run process) :
+    run.eventsUpTo eventMap 0 = [] := rfl
+
+@[simp, grind =]
+theorem ticketsUpTo_zero {Party : Type u} {process : Process Party}
+    {Ticket : Type w} (ticketMap : process.Tickets Ticket)
+    (run : Run process) :
+    run.ticketsUpTo ticketMap 0 = [] := rfl
+
+@[simp, grind =]
+theorem currentControllersUpTo_succ {Party : Type u} {process : Process Party}
+    (run : Run process) (n : Nat) :
+    run.currentControllersUpTo (n + 1) =
+      run.currentController? 0 :: run.tail.currentControllersUpTo n := rfl
+
+@[simp, grind =]
+theorem controllerPathsUpTo_succ {Party : Type u} {process : Process Party}
+    (run : Run process) (n : Nat) :
+    run.controllerPathsUpTo (n + 1) =
+      run.controllerPath 0 :: run.tail.controllerPathsUpTo n := rfl
+
+@[simp, grind =]
+theorem eventsUpTo_succ {Party : Type u} {process : Process Party}
+    {Event : Type w} (eventMap : process.EventMap Event)
+    (run : Run process) (n : Nat) :
+    run.eventsUpTo eventMap (n + 1) =
+      run.event eventMap 0 :: run.tail.eventsUpTo eventMap n := rfl
+
+@[simp, grind =]
+theorem ticketsUpTo_succ {Party : Type u} {process : Process Party}
+    {Ticket : Type w} (ticketMap : process.Tickets Ticket)
+    (run : Run process) (n : Nat) :
+    run.ticketsUpTo ticketMap (n + 1) =
+      run.ticket ticketMap 0 :: run.tail.ticketsUpTo ticketMap n := rfl
 
 end Run
 

@@ -1,4 +1,6 @@
+import ArkLib.Interaction.Oracle.Execution
 import ArkLib.Interaction.OracleSecurity
+import CompPoly.Data.Classes.DCast
 
 /-!
 # Optional Reification for Interaction-Native Oracle Protocols
@@ -128,7 +130,31 @@ def answerSplitLiftAppendQuery
     ([liftAppendOracleFamily (ctx₁ shared) (ctx₂ shared)
       (ιₛₒ shared) (OStatementOut shared)
       (Spec.Transcript.append (ctx₁ shared) (ctx₂ shared) tr₁ tr₂)]ₒ).Range qOut := by
-  sorry
+  rcases qOut with ⟨i, q⟩
+  let iSplit :=
+    Spec.Transcript.unpackAppend
+      (ctx₁ shared) (ctx₂ shared) (ιₛₒ shared) tr₁ tr₂ i
+  have hi :
+      Spec.Transcript.packAppend
+        (ctx₁ shared) (ctx₂ shared) (ιₛₒ shared) tr₁ tr₂ iSplit = i := by
+    dsimp [iSplit]
+    exact
+      (Spec.Transcript.packAppend_unpackAppend
+        (ctx₁ shared) (ctx₂ shared) (ιₛₒ shared) tr₁ tr₂ i)
+  have hQueryTy :
+      liftAppendOracleFamily
+          (ctx₁ shared) (ctx₂ shared) (ιₛₒ shared) (OStatementOut shared)
+          (Spec.Transcript.append (ctx₁ shared) (ctx₂ shared) tr₁ tr₂) i =
+        OStatementOut shared tr₁ tr₂ iSplit := by
+    simpa [iSplit] using
+      _root_.Interaction.OracleDecoration.liftAppendOracleFamily_append_eq
+        (ctx₁ shared) (ctx₂ shared) (ιₛₒ shared) (OStatementOut shared) tr₁ tr₂ i
+  let oracleOutFused :
+      liftAppendOracleFamily
+        (ctx₁ shared) (ctx₂ shared) (ιₛₒ shared) (OStatementOut shared)
+        (Spec.Transcript.append (ctx₁ shared) (ctx₂ shared) tr₁ tr₂) i :=
+    cast hQueryTy.symm (oStatementOut iSplit)
+  exact OracleInterface.answer oracleOutFused q
 
 /-- Query-level concrete simulation theorem for binary sequential oracle
 composition. This is the reified bridge at the public `comp.simulate`
@@ -221,30 +247,15 @@ theorem simulateQ_compConcrete
           shared tr₁ tr₂ oStatementOut qOut) := by
   dsimp
   intro qOut
-  let reduction1Fixed := promoteStatementToShared reduction1 shared
-  let reduction2Fixed :
-      (stmt : StatementIn shared) → (tr₁ : Spec.Transcript (ctx₁ shared)) →
-        OracleReduction oSpec
-          PUnit
-          (fun _ => ctx₂ shared tr₁)
-          (fun _ => roles₂ shared tr₁)
-          (fun _ => oracleDeco₂ shared tr₁)
-          (fun _ => StatementMid shared tr₁)
-          (fun _ => OStatementMid shared tr₁)
-          (fun _ => WitnessMid shared tr₁)
-          (fun _ tr₂ => StatementOut shared tr₁ tr₂)
-          (fun _ tr₂ => OStatementOut shared tr₁ tr₂)
-          (fun _ tr₂ => WitnessOut shared tr₁ tr₂) :=
-    fun _ tr₁ => freezeSharedToPUnit reduction2 ⟨shared, tr₁⟩
   have hMid' :
       ∀ i (q : OracleInterface.Query (OStatementMid shared tr₁ i)),
         simulateQ
           (OracleDecoration.oracleContextImpl
             (ctx₁ shared) (roles₁ shared) (oracleDeco₁ shared) oStatementIn tr₁)
-          (reduction1Fixed.simulate stmt tr₁ ⟨i, q⟩) =
+          (reduction1.simulate shared tr₁ ⟨i, q⟩) =
         pure (OracleInterface.answer (oStatementMid i) q) := by
-    simpa [reduction1Fixed, promoteStatementToShared, SimulatesConcrete,
-      OracleDecoration.OutputRealizes, OracleDecoration.oracleContextImpl] using hMid
+    simpa [SimulatesConcrete, OracleDecoration.OutputRealizes,
+      OracleDecoration.oracleContextImpl] using hMid
   have hOut' :
       ∀ i (q : OracleInterface.Query (OStatementOut shared tr₁ tr₂ i)),
         simulateQ
@@ -252,32 +263,193 @@ theorem simulateQ_compConcrete
             (OracleInterface.simOracle0 (OStatementMid shared tr₁) oStatementMid)
             (OracleDecoration.answerQuery
               (ctx₂ shared tr₁) (roles₂ shared tr₁) (oracleDeco₂ shared tr₁) tr₂))
-          ((reduction2Fixed stmt tr₁).simulate PUnit.unit tr₂ ⟨i, q⟩) =
+          ((freezeSharedToPUnit reduction2 ⟨shared, tr₁⟩).simulate PUnit.unit tr₂ ⟨i, q⟩) =
         pure (OracleInterface.answer (oStatementOut i) q) := by
-    simpa [reduction2Fixed, freezeSharedToPUnit, SimulatesConcrete,
-      OracleDecoration.OutputRealizes, OracleDecoration.oracleContextImpl] using hOut
-  let qSplit : ([OStatementOut shared tr₁ tr₂]ₒ).Domain :=
+    simpa [SimulatesConcrete, OracleDecoration.OutputRealizes,
+      OracleDecoration.oracleContextImpl] using hOut
+  let appendTr := Spec.Transcript.append (ctx₁ shared) (ctx₂ shared) tr₁ tr₂
+  let splitAppend := Spec.Transcript.split (ctx₁ shared) (ctx₂ shared) appendTr
+  have hSplit : splitAppend = ⟨tr₁, tr₂⟩ := by
+    dsimp [splitAppend, appendTr]
+    exact Spec.Transcript.split_append (ctx₁ shared) (ctx₂ shared) tr₁ tr₂
+  let midImpl : QueryImpl [OStatementMid shared splitAppend.1]ₒ Id :=
     cast
-      (congrArg (fun p => ([OStatementOut shared p.1 p.2]ₒ).Domain)
-        (Spec.Transcript.split_append (ctx₁ shared) (ctx₂ shared) tr₁ tr₂))
-      (splitLiftAppendOracleQuery
-        (ctx₁ shared) (ctx₂ shared) (ιₛₒ shared) (OStatementOut shared)
-        (Spec.Transcript.append (ctx₁ shared) (ctx₂ shared) tr₁ tr₂) qOut)
-  have hFlat :=
-    simulate_compFlat
-      (reduction1 := reduction1Fixed)
-      (reduction2 := reduction2Fixed)
-      stmt tr₁ tr₂ oStatementIn
+      (by
+        simpa [splitAppend] using
+          (congrArg (fun p => QueryImpl [OStatementMid shared p.1]ₒ Id) hSplit.symm))
       (OracleInterface.simOracle0 (OStatementMid shared tr₁) oStatementMid)
+  let outImpl : QueryImpl [OStatementOut shared splitAppend.1 splitAppend.2]ₒ Id :=
+    cast
+      (by
+        simpa [splitAppend] using
+          (congrArg (fun p => QueryImpl [OStatementOut shared p.1 p.2]ₒ Id) hSplit.symm))
       (OracleInterface.simOracle0 (OStatementOut shared tr₁ tr₂) oStatementOut)
-      hMid' hOut'
-      qSplit.1 qSplit.2
-  dsimp [OracleReduction.comp] at hFlat ⊢
-  -- Remaining gap: the public `comp.simulate` wrapper casts the routed nested
-  -- simulator from the split view back to the fused append oracle family.
-  -- `hFlat` proves the routed nested simulator itself; finishing this theorem
-  -- amounts to transporting that equality across the final cast wrapper.
-  sorry
+  have hMidAppendAux :
+      ∀ {splitAppend : (tr : Spec.Transcript (ctx₁ shared)) × Spec.Transcript (ctx₂ shared tr)}
+        (midImpl : QueryImpl [OStatementMid shared splitAppend.1]ₒ Id)
+        (hSplit : splitAppend = ⟨tr₁, tr₂⟩)
+        (hMidImpl : midImpl =
+          cast
+            (by
+              simpa using
+                (congrArg (fun p => QueryImpl [OStatementMid shared p.1]ₒ Id) hSplit.symm))
+            (OracleInterface.simOracle0 (OStatementMid shared tr₁) oStatementMid)),
+        ∀ i (q : OracleInterface.Query (OStatementMid shared splitAppend.1 i)),
+          simulateQ
+            (OracleDecoration.oracleContextImpl
+              (ctx₁ shared) (roles₁ shared) (oracleDeco₁ shared) oStatementIn splitAppend.1)
+            (reduction1.simulate shared splitAppend.1 ⟨i, q⟩) = pure (midImpl ⟨i, q⟩) := by
+    intro splitAppend midImpl hSplit hMidImpl
+    cases hSplit
+    cases hMidImpl
+    intro i q
+    simpa [appendTr] using hMid' i q
+  have hMidAppend :
+      ∀ i (q : OracleInterface.Query (OStatementMid shared splitAppend.1 i)),
+        simulateQ
+          (OracleDecoration.oracleContextImpl
+            (ctx₁ shared) (roles₁ shared) (oracleDeco₁ shared) oStatementIn splitAppend.1)
+          (reduction1.simulate shared splitAppend.1 ⟨i, q⟩) = pure (midImpl ⟨i, q⟩) :=
+    hMidAppendAux midImpl hSplit rfl
+  have hOutAppendAux :
+      ∀ {splitAppend : (tr : Spec.Transcript (ctx₁ shared)) × Spec.Transcript (ctx₂ shared tr)}
+        (midImpl : QueryImpl [OStatementMid shared splitAppend.1]ₒ Id)
+        (outImpl : QueryImpl [OStatementOut shared splitAppend.1 splitAppend.2]ₒ Id)
+        (hSplit : splitAppend = ⟨tr₁, tr₂⟩)
+        (hMidImpl : midImpl =
+          cast
+            (by
+              simpa using
+                (congrArg (fun p => QueryImpl [OStatementMid shared p.1]ₒ Id) hSplit.symm))
+            (OracleInterface.simOracle0 (OStatementMid shared tr₁) oStatementMid))
+        (hOutImpl : outImpl =
+          cast
+            (by
+              simpa using
+                (congrArg (fun p => QueryImpl [OStatementOut shared p.1 p.2]ₒ Id) hSplit.symm))
+            (OracleInterface.simOracle0 (OStatementOut shared tr₁ tr₂) oStatementOut)),
+        ∀ i (q : OracleInterface.Query (OStatementOut shared splitAppend.1 splitAppend.2 i)),
+          simulateQ
+            (QueryImpl.add midImpl
+              (OracleDecoration.answerQuery
+                (ctx₂ shared splitAppend.1) (roles₂ shared splitAppend.1)
+                (oracleDeco₂ shared splitAppend.1) splitAppend.2))
+            ((freezeSharedToPUnit reduction2 ⟨shared, splitAppend.1⟩).simulate
+              PUnit.unit splitAppend.2 ⟨i, q⟩) =
+            pure (outImpl ⟨i, q⟩) := by
+    intro splitAppend midImpl outImpl hSplit hMidImpl hOutImpl
+    cases hSplit
+    cases hMidImpl
+    cases hOutImpl
+    intro i q
+    simpa [appendTr] using hOut' i q
+  have hOutAppend :
+      ∀ i (q : OracleInterface.Query (OStatementOut shared splitAppend.1 splitAppend.2 i)),
+        simulateQ
+          (QueryImpl.add midImpl
+            (OracleDecoration.answerQuery
+              (ctx₂ shared splitAppend.1) (roles₂ shared splitAppend.1)
+              (oracleDeco₂ shared splitAppend.1) splitAppend.2))
+          ((freezeSharedToPUnit reduction2 ⟨shared, splitAppend.1⟩).simulate
+            PUnit.unit splitAppend.2 ⟨i, q⟩) =
+          pure (outImpl ⟨i, q⟩) :=
+    hOutAppendAux midImpl outImpl hSplit rfl rfl
+  have hCompQ :
+      simulateQ
+        (OracleDecoration.oracleContextImpl
+          ((ctx₁ shared).append (ctx₂ shared))
+          (Spec.Decoration.append (roles₁ shared) (roles₂ shared))
+          (Role.Refine.append (oracleDeco₁ shared) (fun tr => oracleDeco₂ shared tr))
+          oStatementIn appendTr)
+        ((OracleReduction.comp reduction1 reduction2).simulate shared appendTr qOut) =
+      _root_.Interaction.OracleDecoration.answerSplitLiftAppendQuery
+        (ctx₁ shared) (ctx₂ shared) (ιₛₒ shared) (OStatementOut shared)
+        appendTr qOut
+        (outImpl
+          (splitLiftAppendOracleQuery
+            (ctx₁ shared) (ctx₂ shared) (ιₛₒ shared) (OStatementOut shared) appendTr qOut)) := by
+    simpa [appendTr, splitAppend, midImpl, outImpl] using
+      (OracleReduction.simulate_comp
+        (reduction1 := reduction1)
+        (reduction2 := reduction2)
+        shared stmt oStatementIn appendTr
+        midImpl outImpl
+        hMidAppend
+        hOutAppend
+        qOut)
+  have hAnswer :
+      _root_.Interaction.OracleDecoration.answerSplitLiftAppendQuery
+          (ctx₁ shared) (ctx₂ shared) (ιₛₒ shared) (OStatementOut shared)
+          appendTr qOut
+          (outImpl
+            (splitLiftAppendOracleQuery
+              (ctx₁ shared) (ctx₂ shared) (ιₛₒ shared) (OStatementOut shared) appendTr qOut)) =
+        answerSplitLiftAppendQuery
+          (ctx₁ := ctx₁) (ctx₂ := ctx₂)
+          (ιₛₒ := ιₛₒ) (OStatementOut := OStatementOut)
+          shared tr₁ tr₂ oStatementOut qOut := by
+    let qSplit : ([OStatementOut shared tr₁ tr₂]ₒ).Domain :=
+      cast
+        (congrArg (fun p => ([OStatementOut shared p.1 p.2]ₒ).Domain)
+          (Spec.Transcript.split_append (ctx₁ shared) (ctx₂ shared) tr₁ tr₂))
+        (splitLiftAppendOracleQuery
+          (ctx₁ shared) (ctx₂ shared) (ιₛₒ shared) (OStatementOut shared) appendTr qOut)
+    have hOutEval :
+        outImpl
+            (splitLiftAppendOracleQuery
+              (ctx₁ shared) (ctx₂ shared) (ιₛₒ shared) (OStatementOut shared)
+              appendTr qOut) =
+          cast
+            (_root_.Interaction.OracleDecoration.splitLiftAppendOracleRange_eq
+              (ctx₁ shared) (ctx₂ shared) (ιₛₒ shared) (OStatementOut shared)
+              tr₁ tr₂ qOut).symm
+            ((OracleInterface.simOracle0 (OStatementOut shared tr₁ tr₂) oStatementOut) qSplit) :=
+      by
+        let qRaw :=
+          splitLiftAppendOracleQuery
+            (ctx₁ shared) (ctx₂ shared) (ιₛₒ shared) (OStatementOut shared)
+            appendTr qOut
+        have hCast :=
+          congrFun
+            (dcast_eq_root_cast
+              (β := fun p => QueryImpl [OStatementOut shared p.1 p.2]ₒ Id)
+              (b := OracleInterface.simOracle0 (OStatementOut shared tr₁ tr₂) oStatementOut)
+              hSplit.symm)
+            qRaw
+        simpa [qRaw, outImpl, qSplit, hSplit] using hCast.symm
+    have hAppend :
+        _root_.Interaction.OracleDecoration.answerSplitLiftAppendQuery
+            (ctx₁ shared) (ctx₂ shared) (ιₛₒ shared) (OStatementOut shared)
+            appendTr qOut
+            (cast
+              (_root_.Interaction.OracleDecoration.splitLiftAppendOracleRange_eq
+                (ctx₁ shared) (ctx₂ shared) (ιₛₒ shared) (OStatementOut shared)
+                tr₁ tr₂ qOut).symm
+              ((OracleInterface.simOracle0 (OStatementOut shared tr₁ tr₂) oStatementOut) qSplit)) =
+          _root_.Interaction.OracleDecoration.answerSplitLiftAppendQueryAppend
+            (ctx₁ shared) (ctx₂ shared) (ιₛₒ shared) (OStatementOut shared)
+            tr₁ tr₂ qOut
+            ((OracleInterface.simOracle0 (OStatementOut shared tr₁ tr₂) oStatementOut) qSplit) := by
+      simpa [appendTr, qSplit] using
+        (_root_.Interaction.OracleDecoration.answerSplitLiftAppendQueryAppend_eq
+          (ctx₁ shared) (ctx₂ shared) (ιₛₒ shared) (OStatementOut shared)
+          tr₁ tr₂ qOut
+          ((OracleInterface.simOracle0 (OStatementOut shared tr₁ tr₂) oStatementOut) qSplit))
+    have hConcrete :
+        _root_.Interaction.OracleDecoration.answerSplitLiftAppendQueryAppend
+            (ctx₁ shared) (ctx₂ shared) (ιₛₒ shared) (OStatementOut shared)
+            tr₁ tr₂ qOut
+            ((OracleInterface.simOracle0 (OStatementOut shared tr₁ tr₂) oStatementOut) qSplit) =
+          answerSplitLiftAppendQuery
+            (ctx₁ := ctx₁) (ctx₂ := ctx₂)
+            (ιₛₒ := ιₛₒ) (OStatementOut := OStatementOut)
+            shared tr₁ tr₂ oStatementOut qOut := by
+      simpa [answerSplitLiftAppendQuery, appendTr, qSplit] using
+        (_root_.Interaction.OracleDecoration.answerSplitLiftAppendQueryAppend_simOracle0
+          (ctx₁ shared) (ctx₂ shared) (ιₛₒ shared) (OStatementOut shared)
+          tr₁ tr₂ oStatementOut qOut)
+    simpa [hOutEval] using hAppend.trans hConcrete
+  simpa [hAnswer] using hCompQ
 
 /-- Package a plain output statement together with reified output-oracle data. -/
 def output

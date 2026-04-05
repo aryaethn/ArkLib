@@ -326,9 +326,10 @@ variable {od₁ : OracleDecoration spec₁ roles₁}
 variable {od₂ : (tr₁ : Spec.Transcript spec₁) → OracleDecoration (spec₂ tr₁) (roles₂ tr₁)}
 variable (tr₁ : Spec.Transcript spec₁) (tr₂ : Spec.Transcript (spec₂ tr₁))
 
-/-- Lift first-phase transcript-message queries into the appended transcript's
-query context. -/
-def liftAppendLeftQueries :
+/-- Route a first-phase transcript-message query into the appended transcript's
+oracle specification. The only transport needed here is the response-type
+equality witnessed by `QueryHandle.appendLeft_range`. -/
+def liftAppendLeftQuery :
     QueryImpl (OracleDecoration.toOracleSpec spec₁ roles₁ od₁ tr₁)
       (OracleComp
         (OracleDecoration.toOracleSpec (spec₁.append spec₂)
@@ -346,9 +347,10 @@ def liftAppendLeftQueries :
         (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
         (OracleDecoration.QueryHandle.appendLeft spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)
 
-/-- Lift second-phase transcript-message queries into the appended transcript's
-query context. -/
-def liftAppendRightQueries :
+/-- Route a second-phase transcript-message query into the appended transcript's
+oracle specification. The only transport needed here is the response-type
+equality witnessed by `QueryHandle.appendRight_range`. -/
+def liftAppendRightQuery :
     QueryImpl (OracleDecoration.toOracleSpec (spec₂ tr₁) (roles₂ tr₁) (od₂ tr₁) tr₂)
       (OracleComp
         (OracleDecoration.toOracleSpec (spec₁.append spec₂)
@@ -366,6 +368,30 @@ def liftAppendRightQueries :
         (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
         (OracleDecoration.QueryHandle.appendRight spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)
 
+/-- Lift first-phase transcript-message queries into the appended transcript's
+query context. -/
+def liftAppendLeftQueries :
+    QueryImpl (OracleDecoration.toOracleSpec spec₁ roles₁ od₁ tr₁)
+      (OracleComp
+        (OracleDecoration.toOracleSpec (spec₁.append spec₂)
+          (Spec.Decoration.append roles₁ roles₂)
+          (Role.Refine.append od₁ od₂) (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))) :=
+  liftAppendLeftQuery (spec₁ := spec₁) (spec₂ := spec₂)
+    (roles₁ := roles₁) (roles₂ := roles₂)
+    (od₁ := od₁) (od₂ := od₂) tr₁ tr₂
+
+/-- Lift second-phase transcript-message queries into the appended transcript's
+query context. -/
+def liftAppendRightQueries :
+    QueryImpl (OracleDecoration.toOracleSpec (spec₂ tr₁) (roles₂ tr₁) (od₂ tr₁) tr₂)
+      (OracleComp
+        (OracleDecoration.toOracleSpec (spec₁.append spec₂)
+          (Spec.Decoration.append roles₁ roles₂)
+          (Role.Refine.append od₁ od₂) (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))) :=
+  liftAppendRightQuery (spec₁ := spec₁) (spec₂ := spec₂)
+    (roles₁ := roles₁) (roles₂ := roles₂)
+    (od₁ := od₁) (od₂ := od₂) tr₁ tr₂
+
 variable {ιₛ : Type} {OStmt : ιₛ → Type}
 variable [∀ i, OracleInterface (OStmt i)]
 
@@ -376,23 +402,17 @@ def liftAppendLeftContext :
       (OracleComp
         ([OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
           (Spec.Decoration.append roles₁ roles₂)
-          (Role.Refine.append od₁ od₂) (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)))
+          (Role.Refine.append od₁ od₂) (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))) :=
+  fun
   | .inl q =>
       liftM <| query (spec := [OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
         (Spec.Decoration.append roles₁ roles₂) (Role.Refine.append od₁ od₂)
         (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)) (.inl q)
   | .inr q =>
-      cast (congrArg
-        (OracleComp <| [OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
-          (Spec.Decoration.append roles₁ roles₂) (Role.Refine.append od₁ od₂)
-          (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
-        (OracleDecoration.QueryHandle.appendLeft_range
-          spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)) <|
-        liftM <| query (spec := [OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
-          (Spec.Decoration.append roles₁ roles₂) (Role.Refine.append od₁ od₂)
-          (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
-          (.inr <| OracleDecoration.QueryHandle.appendLeft
-            spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)
+      liftM <| liftAppendLeftQuery
+        (spec₁ := spec₁) (spec₂ := spec₂)
+        (roles₁ := roles₁) (roles₂ := roles₂)
+        (od₁ := od₁) (od₂ := od₂) tr₁ tr₂ q
 
 /-- Lift the second-phase oracle context `[OStmt]ₒ + msgSpec₂` into the
 appended oracle context `[OStmt]ₒ + msgSpecAppend`. -/
@@ -401,23 +421,17 @@ def liftAppendRightContext :
       (OracleComp
         ([OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
           (Spec.Decoration.append roles₁ roles₂)
-          (Role.Refine.append od₁ od₂) (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)))
+          (Role.Refine.append od₁ od₂) (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))) :=
+  fun
   | .inl q =>
       liftM <| query (spec := [OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
         (Spec.Decoration.append roles₁ roles₂) (Role.Refine.append od₁ od₂)
         (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)) (.inl q)
   | .inr q =>
-      cast (congrArg
-        (OracleComp <| [OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
-          (Spec.Decoration.append roles₁ roles₂) (Role.Refine.append od₁ od₂)
-          (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
-        (OracleDecoration.QueryHandle.appendRight_range
-          spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)) <|
-        liftM <| query (spec := [OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
-          (Spec.Decoration.append roles₁ roles₂) (Role.Refine.append od₁ od₂)
-          (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
-          (.inr <| OracleDecoration.QueryHandle.appendRight
-            spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)
+      liftM <| liftAppendRightQuery
+        (spec₁ := spec₁) (spec₂ := spec₂)
+        (roles₁ := roles₁) (roles₂ := roles₂)
+        (od₁ := od₁) (od₂ := od₂) tr₁ tr₂ q
 
 theorem simulateQ_ext
     {ι : Type u} {spec : OracleSpec.{u, v} ι} {r : Type v → Type}
@@ -457,6 +471,63 @@ theorem simulateQ_cast_query
   cases h
   simp [simulateQ_query]
 
+theorem simulateQ_cast
+    {ι : Type u} {spec : OracleSpec.{u, v} ι} {r : Type v → Type}
+    [Monad r] [LawfulMonad r]
+    {α β : Type v} (h : α = β) (impl : QueryImpl spec r) (oa : OracleComp spec α) :
+    simulateQ impl (cast (congrArg (OracleComp spec) h) oa) =
+      cast (congrArg r h) (simulateQ impl oa) := by
+  cases h
+  rfl
+
+theorem simulateQ_cast_spec
+    {ι : Type u}
+    {spec₁ spec₂ : OracleSpec.{u, v} ι}
+    {r : Type v → Type}
+    [Monad r] [LawfulMonad r]
+    {α : Type v}
+    (h : spec₁ = spec₂)
+    (impl : QueryImpl spec₂ r)
+    (oa : OracleComp spec₁ α) :
+    simulateQ impl (cast (by cases h; rfl) oa) =
+      simulateQ (cast (by cases h; rfl) impl) oa := by
+  cases h
+  rfl
+
+theorem simulateQ_cast_dep
+    {α : Sort u}
+    {Idx : α → Type v}
+    {SpecFam : (a : α) → OracleSpec (Idx a)}
+    {r : Type w → Type w}
+    [Monad r] [LawfulMonad r]
+    {a a' : α}
+    {β : Type w}
+    (h : a = a')
+    (impl : QueryImpl (SpecFam a') r)
+    (oa : OracleComp (SpecFam a) β) :
+    simulateQ impl (cast (by cases h; rfl) oa) =
+      simulateQ (cast (by cases h; rfl) impl) oa := by
+  cases h
+  rfl
+
+theorem liftM_cast_query_add_right
+    {ι₁ : Type u} {ι₂ : Type w} {spec₁ : OracleSpec.{u, v} ι₁}
+    {spec₂ : OracleSpec.{w, v} ι₂}
+    {t : spec₂.Domain} {α : Type v} (h : spec₂.Range t = α) :
+    (liftM (cast (congrArg (OracleComp spec₂) h) (liftM (query t)) : OracleComp spec₂ α) :
+      OracleComp (spec₁ + spec₂) α) =
+    cast (congrArg (OracleComp (spec₁ + spec₂)) h)
+      ((liftM (query (spec := spec₁ + spec₂) (Sum.inr t)) :
+        OracleComp (spec₁ + spec₂) ((spec₁ + spec₂).Range (Sum.inr t)))) := by
+  cases h
+  change
+    (liftM
+      ((liftM (query (spec := spec₂) t) :
+        OracleQuery (spec₁ + spec₂) (spec₂.Range t))) :
+        OracleComp (spec₁ + spec₂) (spec₂.Range t)) =
+    liftM (query (spec := spec₁ + spec₂) (Sum.inr t))
+  simp
+
 theorem simulateQ_liftAppendLeftContext_eq
     (oStmt : OracleStatement OStmt) :
     ∀ q,
@@ -475,6 +546,36 @@ theorem simulateQ_liftAppendLeftContext_eq
       simp [OracleDecoration.oracleContextImpl, QueryImpl.add, liftAppendLeftContext,
         simulateQ_query]
   | inr q =>
+      have hLifted :
+          liftAppendLeftContext (spec₁ := spec₁) (spec₂ := spec₂)
+            (roles₁ := roles₁) (roles₂ := roles₂)
+            (od₁ := od₁) (od₂ := od₂) (OStmt := OStmt) tr₁ tr₂ (.inr q) =
+          cast
+            (congrArg
+              (OracleComp <| [OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
+                (Spec.Decoration.append roles₁ roles₂)
+                (Role.Refine.append od₁ od₂)
+                (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
+              (OracleDecoration.QueryHandle.appendLeft_range
+                spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q))
+            (liftM (query
+              (spec := [OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
+                (Spec.Decoration.append roles₁ roles₂)
+                (Role.Refine.append od₁ od₂)
+                (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
+              (Sum.inr <| OracleDecoration.QueryHandle.appendLeft
+                spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q))) := by
+        simpa [liftAppendLeftContext, liftAppendLeftQuery] using
+          (liftM_cast_query_add_right
+            (spec₁ := [OStmt]ₒ)
+            (spec₂ := OracleDecoration.toOracleSpec (spec₁.append spec₂)
+              (Spec.Decoration.append roles₁ roles₂)
+              (Role.Refine.append od₁ od₂)
+              (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
+            (t := OracleDecoration.QueryHandle.appendLeft
+              spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)
+            (h := OracleDecoration.QueryHandle.appendLeft_range
+              spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q))
       calc
         simulateQ
             (OracleDecoration.oracleContextImpl (spec₁.append spec₂)
@@ -494,8 +595,8 @@ theorem simulateQ_liftAppendLeftContext_eq
               (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)
               (OracleDecoration.QueryHandle.appendLeft
                 spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)) := by
-                  simpa [OracleDecoration.oracleContextImpl, QueryImpl.add,
-                    liftAppendLeftContext] using
+                  rw [hLifted]
+                  simpa [OracleDecoration.oracleContextImpl, QueryImpl.add] using
                     (simulateQ_cast_query
                       (spec := [OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
                         (Spec.Decoration.append roles₁ roles₂) (Role.Refine.append od₁ od₂)
@@ -551,6 +652,36 @@ theorem simulateQ_liftAppendRightContext_eq
       simp [OracleDecoration.oracleContextImpl, QueryImpl.add, liftAppendRightContext,
         simulateQ_query]
   | inr q =>
+      have hLifted :
+          liftAppendRightContext (spec₁ := spec₁) (spec₂ := spec₂)
+            (roles₁ := roles₁) (roles₂ := roles₂)
+            (od₁ := od₁) (od₂ := od₂) (OStmt := OStmt) tr₁ tr₂ (.inr q) =
+          cast
+            (congrArg
+              (OracleComp <| [OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
+                (Spec.Decoration.append roles₁ roles₂)
+                (Role.Refine.append od₁ od₂)
+                (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
+              (OracleDecoration.QueryHandle.appendRight_range
+                spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q))
+            (liftM (query
+              (spec := [OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
+                (Spec.Decoration.append roles₁ roles₂)
+                (Role.Refine.append od₁ od₂)
+                (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
+              (Sum.inr <| OracleDecoration.QueryHandle.appendRight
+                spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q))) := by
+        simpa [liftAppendRightContext, liftAppendRightQuery] using
+          (liftM_cast_query_add_right
+            (spec₁ := [OStmt]ₒ)
+            (spec₂ := OracleDecoration.toOracleSpec (spec₁.append spec₂)
+              (Spec.Decoration.append roles₁ roles₂)
+              (Role.Refine.append od₁ od₂)
+              (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
+            (t := OracleDecoration.QueryHandle.appendRight
+              spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)
+            (h := OracleDecoration.QueryHandle.appendRight_range
+              spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q))
       calc
         simulateQ
             (OracleDecoration.oracleContextImpl (spec₁.append spec₂)
@@ -570,8 +701,8 @@ theorem simulateQ_liftAppendRightContext_eq
               (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)
               (OracleDecoration.QueryHandle.appendRight
                 spec₁ spec₂ roles₁ roles₂ od₁ od₂ tr₁ tr₂ q)) := by
-                  simpa [OracleDecoration.oracleContextImpl, QueryImpl.add,
-                    liftAppendRightContext] using
+                  rw [hLifted]
+                  simpa [OracleDecoration.oracleContextImpl, QueryImpl.add] using
                     (simulateQ_cast_query
                       (spec := [OStmt]ₒ + OracleDecoration.toOracleSpec (spec₁.append spec₂)
                         (Spec.Decoration.append roles₁ roles₂) (Role.Refine.append od₁ od₂)

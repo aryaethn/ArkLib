@@ -11,7 +11,7 @@ namespace Interaction
 
 namespace OracleDecoration
 
-private theorem simulateQ_map
+theorem simulateQ_map
     {ι : Type _} {spec : OracleSpec ι}
     {r : Type _ → Type _}
     [Monad r] [LawfulMonad r]
@@ -80,6 +80,399 @@ def answerSplitLiftAppendQuery
         (splitLiftAppendOracleQuery spec₁ spec₂ ιₛ OStmt tr qOut) →
     ([liftAppendOracleFamily spec₁ spec₂ ιₛ OStmt tr]ₒ).Range qOut
   | a => a
+
+/-- At an appended transcript `append tr₁ tr₂`, the fused lifted oracle family
+reduces to the split oracle family after unpacking the lifted index. -/
+theorem liftAppendOracleFamily_append_eq
+    (spec₁ : Spec) (spec₂ : Spec.Transcript spec₁ → Spec)
+    (ιₛ : (tr₁ : Spec.Transcript spec₁) → Spec.Transcript (spec₂ tr₁) → Type)
+    (OStmt :
+      (tr₁ : Spec.Transcript spec₁) → (tr₂ : Spec.Transcript (spec₂ tr₁)) → ιₛ tr₁ tr₂ → Type)
+    [∀ tr₁ tr₂ i, OracleInterface (OStmt tr₁ tr₂ i)]
+    (tr₁ : Spec.Transcript spec₁)
+    (tr₂ : Spec.Transcript (spec₂ tr₁))
+    (i :
+      liftAppendOracleIdx spec₁ spec₂ ιₛ
+        (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)) :
+    liftAppendOracleFamily
+        spec₁ spec₂ ιₛ OStmt
+        (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂) i =
+      OStmt tr₁ tr₂
+        (Spec.Transcript.unpackAppend spec₁ spec₂ ιₛ tr₁ tr₂ i) := by
+  let iSplit := Spec.Transcript.unpackAppend spec₁ spec₂ ιₛ tr₁ tr₂ i
+  have hi :
+      Spec.Transcript.packAppend spec₁ spec₂ ιₛ tr₁ tr₂ iSplit = i := by
+    dsimp [iSplit]
+    exact Spec.Transcript.packAppend_unpackAppend spec₁ spec₂ ιₛ tr₁ tr₂ i
+  calc
+    liftAppendOracleFamily
+        spec₁ spec₂ ιₛ OStmt
+        (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂) i =
+      liftAppendOracleFamily
+        spec₁ spec₂ ιₛ OStmt
+        (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)
+        (Spec.Transcript.packAppend spec₁ spec₂ ιₛ tr₁ tr₂ iSplit) := by
+      rw [← hi]
+    _ = OStmt tr₁ tr₂ iSplit := by
+      calc
+        OStmt
+            (Spec.Transcript.split spec₁ spec₂
+                (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)).fst
+            (Spec.Transcript.split spec₁ spec₂
+                (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)).snd
+            (Spec.Transcript.unliftAppend spec₁ spec₂ ιₛ
+              (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)
+              (Spec.Transcript.packAppend spec₁ spec₂ ιₛ tr₁ tr₂ iSplit)) =
+          OStmt tr₁ tr₂
+            (Spec.Transcript.unliftAppend
+              spec₁ spec₂ (fun _ _ => ιₛ tr₁ tr₂)
+              (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)
+              (Spec.Transcript.packAppend
+                spec₁ spec₂ (fun _ _ => ιₛ tr₁ tr₂) tr₁ tr₂ iSplit)) := by
+          simpa [liftAppendOracleFamily] using
+            (Spec.Transcript.rel_unliftAppend_append
+              spec₁ spec₂
+              ιₛ
+              (fun _ _ => ιₛ tr₁ tr₂)
+              (fun tr₁' tr₂' i j => OStmt tr₁' tr₂' i = OStmt tr₁ tr₂ j)
+              tr₁ tr₂ iSplit iSplit)
+        _ = OStmt tr₁ tr₂ iSplit := by
+          have hConst :
+              Spec.Transcript.unliftAppend
+                  spec₁ spec₂ (fun _ _ => ιₛ tr₁ tr₂)
+                  (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)
+                  (Spec.Transcript.packAppend
+                    spec₁ spec₂ (fun _ _ => ιₛ tr₁ tr₂) tr₁ tr₂ iSplit) =
+                iSplit := by
+            let rec h :
+                ∀ {s₁ : Spec} {s₂ : Spec.Transcript s₁ → Spec}
+                  (A : Type _)
+                  (tr₁ : Spec.Transcript s₁) (tr₂ : Spec.Transcript (s₂ tr₁))
+                  (x : A),
+                  Spec.Transcript.unliftAppend s₁ s₂ (fun _ _ => A)
+                    (Spec.Transcript.append s₁ s₂ tr₁ tr₂)
+                    (Spec.Transcript.packAppend s₁ s₂ (fun _ _ => A) tr₁ tr₂ x) = x
+                | .done, _, _, ⟨⟩, _, _ => rfl
+                | .node _ rest, s₂, A, ⟨xm, tail₁⟩, tr₂, x => by
+                    simpa [Spec.Transcript.unliftAppend, Spec.Transcript.packAppend,
+                      Spec.Transcript.append] using
+                      h (s₁ := rest xm) (s₂ := fun p => s₂ ⟨xm, p⟩) A tail₁ tr₂ x
+            exact h (A := ιₛ tr₁ tr₂) tr₁ tr₂ iSplit
+          exact congrArg (fun j => OStmt tr₁ tr₂ j) hConst
+
+/-- Specialization of `answerSplitLiftAppendQuery` to a fused transcript
+already known to be `append tr₁ tr₂`, phrased in terms of the corresponding
+casted split query `qSplit`. -/
+def answerSplitLiftAppendQueryAppend
+    (spec₁ : Spec) :
+    (spec₂ : Spec.Transcript spec₁ → Spec) →
+    (ιₛ : (tr₁ : Spec.Transcript spec₁) → Spec.Transcript (spec₂ tr₁) → Type) →
+    (OStmt :
+      (tr₁ : Spec.Transcript spec₁) → (tr₂ : Spec.Transcript (spec₂ tr₁)) → ιₛ tr₁ tr₂ → Type) →
+    [∀ tr₁ tr₂ i, OracleInterface (OStmt tr₁ tr₂ i)] →
+    (tr₁ : Spec.Transcript spec₁) →
+    (tr₂ : Spec.Transcript (spec₂ tr₁)) →
+    (qOut : ([liftAppendOracleFamily spec₁ spec₂ ιₛ OStmt
+      (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)]ₒ).Domain) →
+    let qSplit : ([OStmt tr₁ tr₂]ₒ).Domain :=
+      cast
+        (congrArg (fun p => ([OStmt p.1 p.2]ₒ).Domain)
+          (Spec.Transcript.split_append spec₁ spec₂ tr₁ tr₂))
+        (splitLiftAppendOracleQuery
+          spec₁ spec₂ ιₛ OStmt
+          (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂) qOut)
+    ([OStmt tr₁ tr₂]ₒ).Range qSplit →
+      ([liftAppendOracleFamily spec₁ spec₂ ιₛ OStmt
+        (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)]ₒ).Range qOut :=
+  match spec₁ with
+  | .done => fun spec₂ ιₛ OStmt _ tr₁ tr₂ qOut => by
+      cases tr₁
+      dsimp
+      intro a
+      simpa using a
+  | .node X rest => fun spec₂ ιₛ OStmt _ tr₁ tr₂ qOut => by
+      cases tr₁ with
+      | mk x tail₁ =>
+          dsimp
+          simpa using
+            (answerSplitLiftAppendQueryAppend
+              (rest x)
+              (fun p => spec₂ ⟨x, p⟩)
+              (fun tr₁ tr₂ => ιₛ ⟨x, tr₁⟩ tr₂)
+              (fun tr₁ tr₂ i => OStmt ⟨x, tr₁⟩ tr₂ i)
+              tail₁ tr₂ qOut)
+
+/-- At a fused append transcript already known to be `append tr₁ tr₂`, the raw
+split-query response type used by `answerSplitLiftAppendQuery` agrees with the
+casted split-query response type used by `answerSplitLiftAppendQueryAppend`. -/
+theorem splitLiftAppendOracleRange_eq
+    (spec₁ : Spec) :
+    (spec₂ : Spec.Transcript spec₁ → Spec) →
+    (ιₛ : (tr₁ : Spec.Transcript spec₁) → Spec.Transcript (spec₂ tr₁) → Type) →
+    (OStmt :
+      (tr₁ : Spec.Transcript spec₁) → (tr₂ : Spec.Transcript (spec₂ tr₁)) → ιₛ tr₁ tr₂ → Type) →
+    [∀ tr₁ tr₂ i, OracleInterface (OStmt tr₁ tr₂ i)] →
+    (tr₁ : Spec.Transcript spec₁) →
+    (tr₂ : Spec.Transcript (spec₂ tr₁)) →
+    (qOut : ([liftAppendOracleFamily spec₁ spec₂ ιₛ OStmt
+      (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)]ₒ).Domain) →
+    let qSplit : ([OStmt tr₁ tr₂]ₒ).Domain :=
+      cast
+        (congrArg (fun p => ([OStmt p.1 p.2]ₒ).Domain)
+          (Spec.Transcript.split_append spec₁ spec₂ tr₁ tr₂))
+        (splitLiftAppendOracleQuery
+          spec₁ spec₂ ιₛ OStmt
+          (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂) qOut)
+    ([OStmt (Spec.Transcript.split spec₁ spec₂
+        (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)).1
+      (Spec.Transcript.split spec₁ spec₂
+        (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)).2]ₒ).Range
+        (splitLiftAppendOracleQuery
+          spec₁ spec₂ ιₛ OStmt
+          (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂) qOut) =
+      ([OStmt tr₁ tr₂]ₒ).Range qSplit
+    := by
+  intro spec₂ ιₛ OStmt _ tr₁ tr₂ qOut
+  induction spec₁ with
+  | done =>
+      cases tr₁
+      rfl
+  | node X rest ih =>
+      cases tr₁ with
+      | mk x tail₁ =>
+          dsimp [splitLiftAppendOracleQuery]
+          simpa using
+            (ih
+              (spec₂ := fun p => spec₂ ⟨x, p⟩)
+              (ιₛ := fun tr₁ tr₂ => ιₛ ⟨x, tr₁⟩ tr₂)
+              (OStmt := fun tr₁ tr₂ i => OStmt ⟨x, tr₁⟩ tr₂ i)
+              (tr₁ := tail₁) (tr₂ := tr₂) (qOut := qOut))
+
+/-- Repackaging a casted split-query answer through `answerSplitLiftAppendQuery`
+agrees with the append-specialized helper `answerSplitLiftAppendQueryAppend`. -/
+theorem answerSplitLiftAppendQueryAppend_eq
+    (spec₁ : Spec) :
+    (spec₂ : Spec.Transcript spec₁ → Spec) →
+    (ιₛ : (tr₁ : Spec.Transcript spec₁) → Spec.Transcript (spec₂ tr₁) → Type) →
+    (OStmt :
+      (tr₁ : Spec.Transcript spec₁) → (tr₂ : Spec.Transcript (spec₂ tr₁)) → ιₛ tr₁ tr₂ → Type) →
+    [∀ tr₁ tr₂ i, OracleInterface (OStmt tr₁ tr₂ i)] →
+    (tr₁ : Spec.Transcript spec₁) →
+    (tr₂ : Spec.Transcript (spec₂ tr₁)) →
+    (qOut : ([liftAppendOracleFamily spec₁ spec₂ ιₛ OStmt
+      (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)]ₒ).Domain) →
+    let qSplit : ([OStmt tr₁ tr₂]ₒ).Domain :=
+      cast
+        (congrArg (fun p => ([OStmt p.1 p.2]ₒ).Domain)
+          (Spec.Transcript.split_append spec₁ spec₂ tr₁ tr₂))
+        (splitLiftAppendOracleQuery
+          spec₁ spec₂ ιₛ OStmt
+          (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂) qOut)
+    (ans : ([OStmt tr₁ tr₂]ₒ).Range qSplit) →
+    answerSplitLiftAppendQuery spec₁ spec₂ ιₛ OStmt
+      (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂) qOut
+      (cast
+        (splitLiftAppendOracleRange_eq spec₁ spec₂ ιₛ OStmt tr₁ tr₂ qOut).symm
+        ans) =
+      answerSplitLiftAppendQueryAppend spec₁ spec₂ ιₛ OStmt tr₁ tr₂ qOut ans
+    := by
+  intro spec₂ ιₛ OStmt _ tr₁ tr₂ qOut ans
+  induction spec₁ with
+  | done =>
+      cases tr₁
+      dsimp [splitLiftAppendOracleRange_eq]
+      intro a
+      rfl
+  | node X rest ih =>
+      cases tr₁ with
+      | mk x tail₁ =>
+          dsimp [answerSplitLiftAppendQuery, answerSplitLiftAppendQueryAppend,
+            splitLiftAppendOracleRange_eq]
+          intro a
+          simpa using
+            (ih
+              (spec₂ := fun p => spec₂ ⟨x, p⟩)
+              (ιₛ := fun tr₁ tr₂ => ιₛ ⟨x, tr₁⟩ tr₂)
+              (OStmt := fun tr₁ tr₂ i => OStmt ⟨x, tr₁⟩ tr₂ i)
+              (tr₁ := tail₁) (tr₂ := tr₂) (qOut := qOut) (ans := a))
+
+/-- At a fused append transcript already known to be `append tr₁ tr₂`, feeding
+the casted split query to a concrete split oracle statement and then
+repackaging the answer through `answerSplitLiftAppendQueryAppend` agrees with
+directly answering the fused query against the corresponding fused oracle
+statement. -/
+theorem answerSplitLiftAppendQueryAppend_simOracle0
+    (spec₁ : Spec) :
+    (spec₂ : Spec.Transcript spec₁ → Spec) →
+    (ιₛ : (tr₁ : Spec.Transcript spec₁) → Spec.Transcript (spec₂ tr₁) → Type) →
+    (OStmt :
+      (tr₁ : Spec.Transcript spec₁) → (tr₂ : Spec.Transcript (spec₂ tr₁)) → ιₛ tr₁ tr₂ → Type) →
+    [∀ tr₁ tr₂ i, OracleInterface (OStmt tr₁ tr₂ i)] →
+    (tr₁ : Spec.Transcript spec₁) →
+    (tr₂ : Spec.Transcript (spec₂ tr₁)) →
+    (oStatement : OracleStatement (OStmt tr₁ tr₂)) →
+    (qOut : ([liftAppendOracleFamily spec₁ spec₂ ιₛ OStmt
+      (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)]ₒ).Domain) →
+    let qSplit : ([OStmt tr₁ tr₂]ₒ).Domain :=
+      cast
+        (congrArg (fun p => ([OStmt p.1 p.2]ₒ).Domain)
+          (Spec.Transcript.split_append spec₁ spec₂ tr₁ tr₂))
+        (splitLiftAppendOracleQuery
+          spec₁ spec₂ ιₛ OStmt
+          (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂) qOut)
+    answerSplitLiftAppendQueryAppend spec₁ spec₂ ιₛ OStmt tr₁ tr₂ qOut
+      ((OracleInterface.simOracle0 (OStmt tr₁ tr₂) oStatement) qSplit) =
+      let i := qOut.1
+      let q := qOut.2
+      let iSplit := Spec.Transcript.unpackAppend spec₁ spec₂ ιₛ tr₁ tr₂ i
+      let hQueryTy :
+          liftAppendOracleFamily spec₁ spec₂ ιₛ OStmt
+            (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂) i =
+            OStmt tr₁ tr₂ iSplit :=
+        liftAppendOracleFamily_append_eq spec₁ spec₂ ιₛ OStmt tr₁ tr₂ i
+      OracleInterface.answer (cast hQueryTy.symm (oStatement iSplit)) q :=
+  match spec₁ with
+  | .done => fun spec₂ ιₛ OStmt _ tr₁ tr₂ oStatement qOut => by
+      cases tr₁
+      cases qOut with
+      | mk i q =>
+          rfl
+  | .node X rest => fun spec₂ ιₛ OStmt _ tr₁ tr₂ oStatement qOut => by
+      cases tr₁ with
+      | mk x tail₁ =>
+          simpa [Spec.Transcript.unpackAppend, liftAppendOracleFamily_append_eq]
+            using
+              (answerSplitLiftAppendQueryAppend_simOracle0
+                (rest x)
+                (fun p => spec₂ ⟨x, p⟩)
+                (fun tr₁ tr₂ => ιₛ ⟨x, tr₁⟩ tr₂)
+                (fun tr₁ tr₂ j => OStmt ⟨x, tr₁⟩ tr₂ j)
+                tail₁ tr₂ oStatement qOut)
+
+/-- Repackage a routed split-world append-oracle computation as the public
+fused append-oracle computation. This centralizes the only propositional
+transport needed at the append boundary: internally we work with the split
+transcript recovered by `Transcript.split`, while the public API is indexed by
+the fused transcript `tr`. -/
+def collapseAppendOracleComp
+    (spec₁ : Spec) (spec₂ : Spec.Transcript spec₁ → Spec)
+    (Idx :
+      Spec.Transcript (spec₁.append spec₂) → Type _)
+    (baseSpec : (tr : Spec.Transcript (spec₁.append spec₂)) → OracleSpec (Idx tr))
+    (ιₛ : (tr₁ : Spec.Transcript spec₁) → Spec.Transcript (spec₂ tr₁) → Type)
+    (OStmt :
+      (tr₁ : Spec.Transcript spec₁) → (tr₂ : Spec.Transcript (spec₂ tr₁)) → ιₛ tr₁ tr₂ → Type)
+    [∀ tr₁ tr₂ i, OracleInterface (OStmt tr₁ tr₂ i)]
+    (tr : Spec.Transcript (spec₁.append spec₂))
+    (qOut : ([liftAppendOracleFamily spec₁ spec₂ ιₛ OStmt tr]ₒ).Domain)
+    (oa :
+      let split := Spec.Transcript.split spec₁ spec₂ tr
+      OracleComp
+        (baseSpec (Spec.Transcript.append spec₁ spec₂ split.1 split.2))
+        (([OStmt split.1 split.2]ₒ).Range
+          (splitLiftAppendOracleQuery spec₁ spec₂ ιₛ OStmt tr qOut))) :
+    OracleComp
+      (baseSpec tr)
+      (([liftAppendOracleFamily spec₁ spec₂ ιₛ OStmt tr]ₒ).Range qOut) := by
+  let split := Spec.Transcript.split spec₁ spec₂ tr
+  let tr₁ := split.1
+  let tr₂ := split.2
+  let qSplit :=
+    splitLiftAppendOracleQuery spec₁ spec₂ ιₛ OStmt tr qOut
+  let fusedAnswer :=
+    answerSplitLiftAppendQuery spec₁ spec₂ ιₛ OStmt tr qOut
+  have htr : Spec.Transcript.append spec₁ spec₂ tr₁ tr₂ = tr := by
+    simpa [tr₁, tr₂, split] using
+      (Spec.Transcript.append_split spec₁ spec₂ tr)
+  have hSpec :
+      OracleComp
+        (baseSpec (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂))
+        (([liftAppendOracleFamily spec₁ spec₂ ιₛ OStmt tr]ₒ).Range qOut) =
+      OracleComp (baseSpec tr)
+        (([liftAppendOracleFamily spec₁ spec₂ ιₛ OStmt tr]ₒ).Range qOut) := by
+    simpa using
+      congrArg
+        (fun tr' =>
+          OracleComp (baseSpec tr')
+            (([liftAppendOracleFamily spec₁ spec₂ ιₛ OStmt tr]ₒ).Range qOut))
+        htr
+  exact cast hSpec (fusedAnswer <$> oa)
+
+/-- Simulating `collapseAppendOracleComp` evaluates the routed split-world
+computation and then repackages its answer via `answerSplitLiftAppendQuery`. -/
+theorem simulateQ_collapseAppendOracleComp
+    (spec₁ : Spec) (spec₂ : Spec.Transcript spec₁ → Spec)
+    (Idx :
+      Spec.Transcript (spec₁.append spec₂) → Type _)
+    (baseSpec : (tr : Spec.Transcript (spec₁.append spec₂)) → OracleSpec (Idx tr))
+    (ιₛ : (tr₁ : Spec.Transcript spec₁) → Spec.Transcript (spec₂ tr₁) → Type)
+    (OStmt :
+      (tr₁ : Spec.Transcript spec₁) → (tr₂ : Spec.Transcript (spec₂ tr₁)) → ιₛ tr₁ tr₂ → Type)
+    [∀ tr₁ tr₂ i, OracleInterface (OStmt tr₁ tr₂ i)]
+    (tr : Spec.Transcript (spec₁.append spec₂))
+    (qOut : ([liftAppendOracleFamily spec₁ spec₂ ιₛ OStmt tr]ₒ).Domain)
+    (impl : QueryImpl (baseSpec tr) Id)
+    (oa :
+      let split := Spec.Transcript.split spec₁ spec₂ tr
+      OracleComp
+        (baseSpec (Spec.Transcript.append spec₁ spec₂ split.1 split.2))
+        (([OStmt split.1 split.2]ₒ).Range
+          (splitLiftAppendOracleQuery spec₁ spec₂ ιₛ OStmt tr qOut))) :
+    simulateQ impl
+      (collapseAppendOracleComp spec₁ spec₂ Idx baseSpec ιₛ OStmt tr qOut oa) =
+      answerSplitLiftAppendQuery spec₁ spec₂ ιₛ OStmt tr qOut
+        (simulateQ
+          (cast
+            (by
+              let split := Spec.Transcript.split spec₁ spec₂ tr
+              let tr₁ := split.1
+              let tr₂ := split.2
+              have htr : Spec.Transcript.append spec₁ spec₂ tr₁ tr₂ = tr := by
+                simpa [tr₁, tr₂, split] using
+                  (Spec.Transcript.append_split spec₁ spec₂ tr)
+              simpa using (congrArg (fun tr' => QueryImpl (baseSpec tr') Id) htr).symm)
+            impl)
+          oa) := by
+  unfold collapseAppendOracleComp
+  let split := Spec.Transcript.split spec₁ spec₂ tr
+  let tr₁ := split.1
+  let tr₂ := split.2
+  have htr : Spec.Transcript.append spec₁ spec₂ tr₁ tr₂ = tr := by
+    simpa [tr₁, tr₂, split] using
+      (Spec.Transcript.append_split spec₁ spec₂ tr)
+  let impl' :
+      QueryImpl (baseSpec (Spec.Transcript.append spec₁ spec₂ tr₁ tr₂)) Id :=
+    cast
+      (by
+        simpa using (congrArg (fun tr' => QueryImpl (baseSpec tr') Id) htr).symm)
+      impl
+  calc
+    simulateQ impl
+        (cast
+          (by
+            simpa using
+              congrArg
+                (fun tr' =>
+                  OracleComp (baseSpec tr')
+                    (([liftAppendOracleFamily spec₁ spec₂ ιₛ OStmt tr]ₒ).Range qOut))
+                htr)
+          (answerSplitLiftAppendQuery spec₁ spec₂ ιₛ OStmt tr qOut <$> oa)) =
+      simulateQ impl' (answerSplitLiftAppendQuery spec₁ spec₂ ιₛ OStmt tr qOut <$> oa) := by
+        simpa [impl'] using
+          (simulateQ_cast_dep
+            (Idx := Idx) (SpecFam := baseSpec) htr
+            impl
+            (answerSplitLiftAppendQuery spec₁ spec₂ ιₛ OStmt tr qOut <$> oa))
+    _ =
+      answerSplitLiftAppendQuery spec₁ spec₂ ιₛ OStmt tr qOut
+        <$> simulateQ impl' oa := by
+        exact
+          (simulateQ_map impl'
+            (answerSplitLiftAppendQuery spec₁ spec₂ ιₛ OStmt tr qOut) oa)
+    _ =
+      answerSplitLiftAppendQuery spec₁ spec₂ ιₛ OStmt tr qOut
+        (simulateQ impl' oa) := by
+        rfl
 
 /-- Accumulated oracle spec after traversing `spec` along transcript `tr`,
 starting from `accSpec`. At sender nodes, adds the node's oracle interface spec.

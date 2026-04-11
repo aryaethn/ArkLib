@@ -235,8 +235,9 @@ section FoldStep
 
 /-- The Logic Instance for the i-th round of Binary Folding.
 **Computability note:** the prover-side fields are routed through the explicit fold kernels.
-The structure is now computable again; proof obligations are still deferred where needed. -/
-def foldStepLogic (i : Fin ℓ) :
+Currently marked `noncomputable` because `getFoldProverFinalOutput` is noncomputable;
+proof obligations are still deferred where needed. -/
+noncomputable def foldStepLogic (i : Fin ℓ) :
     ReductionLogicStep
       -- In/Out Types
       (Statement (L := L) Context i.castSucc)
@@ -278,9 +279,11 @@ def foldStepLogic (i : Fin ℓ) :
       (foldProverComputeMsg (L := L) 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) (𝓑 := 𝓑) i w)
       (chal ⟨1, rfl⟩)
   -- 4. Prover Output
-  proverOut := by
-    intro _ _ _ _
-    sorry
+  proverOut := fun s w o t =>
+    let h_i : (pSpecFold (L := L)).«Type» 0 := t ⟨0, by omega⟩
+    let r_i' : (pSpecFold (L := L)).«Type» 1 := t ⟨1, by omega⟩
+    getFoldProverFinalOutput 𝔽q β (ϑ := ϑ) (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i
+      (s, o, w, h_i, r_i')
 
 variable {R : Type} [CommSemiring R] [DecidableEq R] [SampleableType R]
   {n : ℕ} {deg : ℕ} {m : ℕ} {D : Fin m ↪ R}
@@ -380,9 +383,15 @@ def commitStepLogic (i : Fin ℓ) (hCR : isCommitmentRound ℓ ϑ i) :
   -- Oracle embedding: new oracle index maps to the message
   embed := commitStepLogic_embed 𝔽q β (ϑ := ϑ) (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i hCR
   hEq := (commitStepHEq 𝔽q β (ϑ := ϑ) (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i hCR)
-  -- Prover fields sorry'd for computability (actual logic uses snoc_oracle)
-  honestProverTranscript := sorry
-  proverOut := sorry
+  -- No challenges in 1-message protocol, so transcript is just the message
+  honestProverTranscript := fun _stmt wit _oStmt _challenges =>
+    fun ⟨0, _⟩ => wit.f
+  -- Prover output: statement unchanged, oracle extended with new function
+  proverOut := fun stmt wit oStmtIn _transcript =>
+    let oStmtOut :=
+      snoc_oracle 𝔽q β (ϑ := ϑ) (h_ℓ_add_R_rate := h_ℓ_add_R_rate)
+        (destIdx := ⟨i.val + 1, by omega⟩) (h_destIdx := by rfl) oStmtIn (newOracleFn := wit.f)
+    ((stmt, oStmtOut), wit)
 
 /-- Actual (noncomputable) honest prover transcript for the commit step. -/
 noncomputable def commitStepLogic_honestProverTranscript (i : Fin ℓ) :

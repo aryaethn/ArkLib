@@ -75,16 +75,17 @@ private def canonicalizeQueryChallenges
     Fin γ_repetitions → AdditiveNTT.Comp.sDomain (𝔽q := 𝔽q) (β := β) (ℓ := ℓ) (R_rate := 𝓡) (h_ℓ_add_R_rate := h_ℓ_add_R_rate) 0 :=
   fun rep => challenges rep
 
-/-- Deterministic search-based decoding from computable `S⁽⁰⁾` points to loose global indices. -/
+/-- Deterministic search-based decoding from computable `S⁽⁰⁾` points to loose global indices.
+Fails closed when no index decodes to the queried point. -/
 private def queryPointToIndex
     (v : AdditiveNTT.Comp.sDomain (𝔽q := 𝔽q) (β := β) (ℓ := ℓ) (R_rate := 𝓡)
       (h_ℓ_add_R_rate := h_ℓ_add_R_rate) 0) :
-    Fin (2 ^ (ℓ + 𝓡)) :=
+    Option (Fin (2 ^ (ℓ + 𝓡))) :=
   match (List.finRange (2 ^ (ℓ + 𝓡))).find? (fun vIdx =>
       decide ((AdditiveNTT.Comp.indexToSDomainZero (𝔽q := 𝔽q) (β := β) (ℓ := ℓ)
         (R_rate := 𝓡) (h_ℓ_add_R_rate := h_ℓ_add_R_rate) vIdx).1 = v.1)) with
   | some vIdx => vIdx
-  | none => 0
+  | none => none
 
 /-! ### Executable query checks over computable query challenges -/
 
@@ -236,8 +237,9 @@ def queryPhaseLogicStep :
       challenges ⟨0, by rfl⟩
     for rep in List.finRange γ_repetitions do
       let v := fold_challenges rep
-      let vIdx := queryPointToIndex (𝔽q := 𝔽q) (β := β) (ℓ := ℓ) (𝓡 := 𝓡)
+      let some vIdx := queryPointToIndex (𝔽q := 𝔽q) (β := β) (ℓ := ℓ) (𝓡 := 𝓡)
         (h_ℓ_add_R_rate := h_ℓ_add_R_rate) v
+        | failure
       let _ ← checkSingleRepetitionFromIndex (𝔽q := 𝔽q) (β := β)
         (γ_repetitions := γ_repetitions) (ϑ := ϑ) (h_ℓ_add_R_rate := h_ℓ_add_R_rate)
         vIdx stmtIn stmtIn.final_constant

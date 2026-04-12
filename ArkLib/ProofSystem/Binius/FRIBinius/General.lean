@@ -166,7 +166,7 @@ private def batchingCoreVerifierExec
       (𝓑 := 𝓑)
       (aOStmtIn := Binius.RingSwitching.BBFSmallFieldIOPCS.bbfAbstractOStmtIn (𝔽q := K)
         (β := βfun) (h_ℓ_add_R_rate := h_ℓ_add_R_rate) (ϑ := ϑ)))
-    (V₂ := coreInteractionOracleVerifierExec (κ := κ) (L := L) (K := K) (βfun := βfun)
+    (V₂ := coreInteractionOracleVerifier (κ := κ) (L := L) (K := K) (βfun := βfun)
       (ℓ := ℓ) (ℓ' := ℓ') (𝓡 := 𝓡) (ϑ := ϑ) (h_ℓ_add_R_rate := h_ℓ_add_R_rate)
       (h_l := h_l) (𝓑 := 𝓑) mp)
 

@@ -203,7 +203,7 @@ through queries), yielding cast-free `PublicTranscript` indexing.
 | `Oracle/Core.lean` | Complete | `Oracle.Prover`, `Oracle.Verifier` (with `toFun` starting at `[]ₒ`), `Oracle.Reduction`, plus legacy `OracleDecoration` API (coexists) |
 | `Oracle/Execution.lean` | Complete | `Spec.runWithOracleCounterpart`, `Reduction.executeConcrete`, `Verifier.run` for `Oracle.Spec` layer |
 | `Oracle/Composition.lean` | Complete, no sorry | `Reduction.comp`, `Counterpart.liftAcc`, `Verifier.retargetMonads` |
-| `Oracle/Security.lean` | Complete, no sorry | `OutputRealizes`, `completeness`/`soundness`/`knowledgeSoundness`, `knowledgeSoundness_implies_soundness` |
+| `Oracle/Security.lean` | 1 sorry | `OutputRealizes`, `completeness`/`soundness`/`knowledgeSoundness`, `knowledgeSoundness_implies_soundness` (sorry) |
 | `Oracle/BCS.lean` | Complete, no sorry | `CommitDeco`, `bcsSpec`, prover wrapping, `PublicQueryVerifier`, Phase 1/2 helpers, `answerCommittedQueries` |
 | `Oracle/Bridge.lean` | Spec-level only | `ofInteractionSpec`, `ofRoleDecoration`, `ofOracleDecoration`. Verifier/reduction conversion deferred. |
 
@@ -236,9 +236,13 @@ through queries), yielding cast-free `PublicTranscript` indexing.
 
 ## Immediate deferred todos
 
-- [x] Prove `knowledgeSoundness_implies_soundness` in `Oracle/Security.lean`.
-  Uses `Spec.runWithOracleCounterpart_mapOutputWithRoles` (proved in
-  `Execution.lean`) plus `probEvent_mono` / `probEvent_map`.
+- [ ] Prove `knowledgeSoundness_implies_soundness` in `Oracle/Security.lean`.
+  `Spec.runWithOracleCounterpart_mapOutputWithRoles` is proved in
+  `Execution.lean`. The remaining difficulty: the KS prover must produce
+  oracle data satisfying `OutputRealizes`, but the prover cannot observe the
+  verifier's leaf output during the interaction. See the docstring in
+  `Security.lean` for details. A prior attempt using explicit
+  `acceptOStmt`/`acceptWitness` parameters was circular (see docstring).
 - [ ] State `Reduction.completeness_comp` for `Oracle.Spec` composition
   (very verbose due to oracle statement handling).
 - [ ] Port `Sumcheck/Interaction/Oracle.lean` to native `Oracle.Spec`
@@ -297,11 +301,13 @@ through queries), yielding cast-free `PublicTranscript` indexing.
   quantify directly over first-phase transcripts without encoding the second
   reduction awkwardly inside the theorem statement.
 
-- **Knowledge soundness implies soundness** (RESOLVED): the new `Oracle.Spec`
-  version in `Oracle/Security.lean` takes explicit `acceptOStmt` and
-  `acceptWitness` parameters (matching the legacy `acceptWitness` pattern) and
-  proves soundness from knowledge soundness via `probEvent_mono` and
-  `Spec.runWithOracleCounterpart_mapOutputWithRoles`.
+- **Knowledge soundness implies soundness** (OPEN): the natural proof via
+  `mapOutputWithRoles` + `probEvent_mono` requires the KS prover to produce
+  oracle data satisfying `OutputRealizes`, but the prover cannot observe the
+  verifier's leaf output during the interaction. Prior attempts using explicit
+  `acceptOStmt`/`acceptWitness` parameters were circular (they assume the
+  caller can produce concrete oracle realizations, which is exactly the
+  "knowledge" KS should extract). See docstring in `Oracle/Security.lean`.
 
 - **Verifier-indexed RBR semantics**: `ClaimTree` / `rbrSoundness` currently
   talk about transcript predicates and `randomChallenger`, not the full

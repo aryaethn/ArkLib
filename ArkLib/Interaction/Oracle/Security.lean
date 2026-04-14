@@ -451,17 +451,35 @@ def knowledgeSoundness
               (verifier.simulate shared pt) witOut)
         | verifier.run shared stmt inputImpl prover] ≤ ε
 
-/-- Knowledge soundness implies soundness under three compatibility conditions:
+/-- Knowledge soundness implies soundness under two compatibility conditions:
 
 1. `hLang`: outside the input language, no witness satisfies the input relation.
-2. `hLangOut`: acceptance implies that the chosen `acceptOStmt` realizes the
-   output oracle behavior and `acceptWitness` satisfies the output relation.
+2. `hLangOut`: acceptance implies the existence of concrete oracle data that
+   realizes the output oracle behavior and satisfies the output relation.
 
-The proof constructs a KS-compatible adversary from the soundness adversary by
-mapping its output to include the chosen oracle data and witness. The key
-observation is that `mapOutputWithRoles` on the prover strategy does not change
-the interaction (same transcript distribution), so the verifier's accept/reject
-behavior is preserved. -/
+**Why this is hard.** The natural proof constructs a KS-compatible adversary
+from the soundness adversary by mapping its output (via `mapOutputWithRoles`)
+to include oracle data and a witness. The `mapOutputWithRoles` lemma
+(`Spec.runWithOracleCounterpart_mapOutputWithRoles`) shows this does not change
+the transcript distribution. The difficulty is the monotonicity step: the KS
+event includes `OutputRealizes(oStmtOut)`, which requires the prover to produce
+concrete oracle data that matches the verifier's output-oracle simulation.
+The prover's output mapping is a function of the transcript alone, but the
+"correct" oracle data depends on the verifier's leaf output (`stmtOut`), which
+the prover does not see during the interaction.
+
+**Prior incorrect approaches.** Both the legacy `OracleSecurity.lean` and an
+earlier version of this file tried to work around this by adding explicit
+`acceptOStmt`/`acceptWitness` parameters (deterministic functions producing
+oracle data and witnesses at every transcript). This is circular: it asks the
+caller to supply concrete oracle realizations unconditionally, which is exactly
+the "knowledge" that KS is supposed to extract from the prover.
+
+A correct proof likely requires either (a) a way to extract the verifier's
+deterministic leaf output from the transcript (a `Counterpart.leafOutput`
+function), enabling the prover mapping to use `hLangOut` via classical choice,
+or (b) a reformulation of the KS/soundness definitions that avoids the need
+for the prover to produce oracle data. -/
 theorem knowledgeSoundness_implies_soundness
     {ι : Type _} {oSpec : OracleSpec ι}
     [LawfulMonad (OracleComp oSpec)] [HasEvalSPMF (OracleComp oSpec)]
@@ -505,97 +523,23 @@ theorem knowledgeSoundness_implies_soundness
       OutputLanguage (Context := Context) (OracleDeco := OracleDeco)
         (StatementOut := StatementOut)
         (OStatementIn := OStatementIn) (OStatementOut := OStatementOut))
-    (acceptOStmt :
-      ∀ (shared : SharedIn)
-        (pt : Spec.PublicTranscript (Context shared)),
-        OracleStatement (OStatementOut shared pt))
-    (acceptWitness :
-      ∀ (shared : SharedIn)
-        (pt : Spec.PublicTranscript (Context shared)),
-        WitnessOut shared pt)
     (hLangOut :
       ∀ shared inputImpl
         (tr : Interaction.Spec.Transcript (Context shared).toInteractionSpec)
         (stmtOut : StatementOut shared ((Context shared).projectPublic tr)),
         langOut shared inputImpl ((Context shared).projectPublic tr) stmtOut
           (verifier.simulate shared ((Context shared).projectPublic tr)) →
-          OutputRealizes shared inputImpl tr
-            (verifier.simulate shared ((Context shared).projectPublic tr))
-            (acceptOStmt shared ((Context shared).projectPublic tr)) ∧
-          relOut shared inputImpl ((Context shared).projectPublic tr) stmtOut
-            (verifier.simulate shared ((Context shared).projectPublic tr))
-            (acceptWitness shared ((Context shared).projectPublic tr))) :
+          ∃ (oStmtOut : OracleStatement
+              (OStatementOut shared ((Context shared).projectPublic tr)))
+            (witOut : WitnessOut shared ((Context shared).projectPublic tr)),
+            OutputRealizes shared inputImpl tr
+              (verifier.simulate shared ((Context shared).projectPublic tr))
+              oStmtOut ∧
+            relOut shared inputImpl ((Context shared).projectPublic tr) stmtOut
+              (verifier.simulate shared ((Context shared).projectPublic tr))
+              witOut) :
     soundness verifier langIn langOut ε := by
-  rcases hKS with ⟨extractor, hKS⟩
-  intro shared stmt inputImpl OutputP prover hs
-  let proverKS :
-      Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
-        (Context shared).toInteractionSpec
-        ((Context shared).toSpecRoles (Roles shared))
-        (fun tr =>
-          OracleStatement
-            (OStatementOut shared ((Context shared).projectPublic tr)) ×
-          WitnessOut shared ((Context shared).projectPublic tr)) :=
-    Interaction.Spec.Strategy.mapOutputWithRoles
-      (fun tr _ =>
-        (acceptOStmt shared ((Context shared).projectPublic tr),
-         acceptWitness shared ((Context shared).projectPublic tr)))
-      prover
-  have hrun :
-      verifier.run shared stmt inputImpl proverKS =
-        (fun z =>
-          ⟨z.1,
-           (acceptOStmt shared ((Context shared).projectPublic z.1),
-            acceptWitness shared ((Context shared).projectPublic z.1)),
-           z.2.2⟩) <$>
-          verifier.run shared stmt inputImpl prover := by
-    simp only [Oracle.Verifier.run, proverKS,
-      Oracle.Spec.runWithOracleCounterpart_mapOutputWithRoles,
-      bind_pure_comp, Functor.map_map]
-  have hmono :
-      Pr[fun z =>
-        let pt := (Context shared).projectPublic z.1
-        langOut shared inputImpl pt z.2.2.1
-          (verifier.simulate shared pt)
-        | verifier.run shared stmt inputImpl prover] ≤
-        Pr[fun z =>
-          let pt := (Context shared).projectPublic z.1
-          OutputRealizes shared inputImpl z.1
-            (verifier.simulate shared pt)
-            (acceptOStmt shared pt) ∧
-          relOut shared inputImpl pt z.2.2.1
-            (verifier.simulate shared pt)
-            (acceptWitness shared pt) ∧
-          ¬ relIn shared stmt inputImpl
-            (extractor shared stmt inputImpl pt z.2.2.1
-              (acceptOStmt shared pt)
-              (verifier.simulate shared pt)
-              (acceptWitness shared pt))
-          | verifier.run shared stmt inputImpl prover] := by
-    apply probEvent_mono
-    intro z _ hz
-    exact ⟨(hLangOut shared inputImpl z.1 z.2.2.1 hz).1,
-      (hLangOut shared inputImpl z.1 z.2.2.1 hz).2,
-      hLang shared stmt inputImpl hs _⟩
-  have hKS' :
-      Pr[fun z =>
-        let pt := (Context shared).projectPublic z.1
-        OutputRealizes shared inputImpl z.1
-          (verifier.simulate shared pt)
-          (acceptOStmt shared pt) ∧
-        relOut shared inputImpl pt z.2.2.1
-          (verifier.simulate shared pt)
-          (acceptWitness shared pt) ∧
-        ¬ relIn shared stmt inputImpl
-          (extractor shared stmt inputImpl pt z.2.2.1
-            (acceptOStmt shared pt)
-            (verifier.simulate shared pt)
-            (acceptWitness shared pt))
-        | verifier.run shared stmt inputImpl prover] ≤ ε := by
-    have h := hKS shared stmt inputImpl proverKS
-    rw [hrun, probEvent_map] at h
-    exact h
-  exact le_trans hmono hKS'
+  sorry
 
 end Verifier
 

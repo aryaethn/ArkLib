@@ -27,8 +27,13 @@ algebra over its prime-characteristic subfield `𝔽q`, and an `𝔽q`-basis `β
 - `W_linearity`: `Wᵢ` is `𝔽q`-linear and satisfies the recursion formula `Wᵢ = (Wᵢ₋₁)^|𝔽q| -
   ((Wᵢ₋₁)(βᵢ₋₁))^(|𝔽q|-1) * Wᵢ₋₁`
 
-## TODOs
-- Computable novel polynomial basis
+## Executable Companion Surface
+
+This file already provides executable companions used by Binius, including:
+
+- `computableW`, `computableNormalizedW`, `computableXⱼ`
+- `computablePolynomialFromNovelCoeffs`
+- `computableNovelToMonomialCoeffs`
 
 ## References
 
@@ -1646,39 +1651,159 @@ def computableNovelToMonomialCoeffs (𝔽q : Type u) [Field 𝔽q] [Fintype 𝔽
 
 lemma computableW_toPoly_eq_W [BEq L] [LawfulBEq L] (i : Fin r) :
     CompPoly.CPolynomial.toPoly (computableW 𝔽q β i : CompPoly.CPolynomial L) = W 𝔽q β i := by
-  sorry
+  induction i using Fin.succRecOnSameFinType with
+  | zero =>
+      have h_zero : (0 : Fin r) = ⟨0, Nat.pos_of_ne_zero (NeZero.ne r)⟩ := by
+        exact Fin.eq_of_val_eq rfl
+      rw [h_zero]
+      have h0_toPoly :
+          (computableW 𝔽q β ⟨0, Nat.pos_of_ne_zero (NeZero.ne r)⟩ : CompPoly.CPolynomial L).toPoly
+            = (CompPoly.CPolynomial.X : CompPoly.CPolynomial L).toPoly := by
+        exact congrArg CompPoly.CPolynomial.toPoly
+          (computableW.eq_1 (𝔽q := 𝔽q) (β := β) (isLt := Nat.pos_of_ne_zero (NeZero.ne r)))
+      have h0_toPoly' := h0_toPoly
+      simp only [CompPoly.CPolynomial.X_toPoly] at h0_toPoly'
+      exact h0_toPoly'.trans (W₀_eq_X (𝔽q := 𝔽q) (β := β)).symm
+  | succ j h_j ih =>
+      set q : ℕ := Fintype.card 𝔽q
+      set A : CompPoly.CPolynomial L := computableW 𝔽q β j
+      set a : L := CompPoly.CPolynomial.eval (β j) A ^ (q - 1)
+      have h_step :
+          (computableW 𝔽q β (j + 1) : CompPoly.CPolynomial L).toPoly
+            = (A ^ q - CompPoly.CPolynomial.C a * A).toPoly := by
+        have h2 := congrArg CompPoly.CPolynomial.toPoly
+          (computableW.eq_2 (𝔽q := 𝔽q) (β := β) (n := j.val) (hn := h_j))
+        have h_succ : (j + 1 : Fin r) = ⟨j.val + 1, h_j⟩ := by
+          exact Fin.eq_of_val_eq (Fin.val_add_one' (a := j) (h_a_add_1 := h_j))
+        have h_prev : (⟨j.val, Nat.lt_trans (Nat.lt_succ_self j.val) h_j⟩ : Fin r) = j := by
+          exact Fin.eq_of_val_eq rfl
+        simp only [h_succ, h_prev, q, A, a] at h2 ⊢
+        exact h2
+      have h_rec :
+          W 𝔽q β (j + 1) = (W 𝔽q β j) ^ q -
+            C (eval (β j) (W 𝔽q β j)) ^ (q - 1) * W 𝔽q β j := by
+        have h := W_linear_comp_decomposition (𝔽q := 𝔽q) (β := β)
+          (i := j) (h_i_add_1 := h_j) (p := X)
+        simp only [q, Polynomial.comp_X] at h ⊢
+        exact h
+      have hA : A.toPoly = W 𝔽q β j := by
+        simp only [A] at ih ⊢
+        exact ih
+      have hmap :
+          (A ^ q - CompPoly.CPolynomial.C a * A).toPoly =
+            A.toPoly ^ q - Polynomial.C a * A.toPoly := by
+        calc
+          (A ^ q - CompPoly.CPolynomial.C a * A).toPoly
+              = (A ^ q).toPoly - (CompPoly.CPolynomial.C a * A).toPoly := by
+                  exact map_sub (CompPoly.CPolynomial.ringEquiv (R := L))
+                    (A ^ q) (CompPoly.CPolynomial.C a * A)
+          _ = A.toPoly ^ q - ((CompPoly.CPolynomial.C a).toPoly * A.toPoly) := by
+                  have hpow : (A ^ q).toPoly = A.toPoly ^ q := by
+                    change (CompPoly.CPolynomial.ringEquiv (R := L)) (A ^ q) =
+                      ((CompPoly.CPolynomial.ringEquiv (R := L)) A) ^ q
+                    exact map_pow (CompPoly.CPolynomial.ringEquiv (R := L)) A q
+                  have hmul : (CompPoly.CPolynomial.C a * A).toPoly =
+                      (CompPoly.CPolynomial.C a).toPoly * A.toPoly := by
+                    change (CompPoly.CPolynomial.ringEquiv (R := L))
+                        (CompPoly.CPolynomial.C a * A) =
+                      ((CompPoly.CPolynomial.ringEquiv (R := L)) (CompPoly.CPolynomial.C a)) *
+                        ((CompPoly.CPolynomial.ringEquiv (R := L)) A)
+                    exact map_mul (CompPoly.CPolynomial.ringEquiv (R := L))
+                      (CompPoly.CPolynomial.C a) A
+                  rw [hpow, hmul]
+          _ = A.toPoly ^ q - Polynomial.C a * A.toPoly := by
+                  rw [CompPoly.CPolynomial.C_toPoly]
+      have ha : a = (eval (β j) (W 𝔽q β j)) ^ (q - 1) := by
+        simp [a, A, q, CompPoly.CPolynomial.eval_toPoly, ih]
+      rw [h_rec, h_step]
+      calc
+        (A ^ q - CompPoly.CPolynomial.C a * A).toPoly
+            = A.toPoly ^ q - Polynomial.C a * A.toPoly := hmap
+        _ = (W 𝔽q β j) ^ q - Polynomial.C a * W 𝔽q β j := by
+          rw [hA]
+        _ = (W 𝔽q β j) ^ q - Polynomial.C ((eval (β j) (W 𝔽q β j)) ^ (q - 1)) * W 𝔽q β j := by
+          simp [ha]
+        _ = (W 𝔽q β j) ^ q - C (eval (β j) (W 𝔽q β j)) ^ (q - 1) * W 𝔽q β j := by
+          rw [C_pow]
 
 lemma computableNormalizedW_toPoly_eq_normalizedW [BEq L] [LawfulBEq L] (i : Fin r) :
     CompPoly.CPolynomial.toPoly (computableNormalizedW 𝔽q β i : CompPoly.CPolynomial L) =
       normalizedW 𝔽q β i := by
-  sorry
+  unfold computableNormalizedW normalizedW
+  have h_eval :
+      CompPoly.CPolynomial.eval (β i) (computableW 𝔽q β i) = eval (β i) (W 𝔽q β i) := by
+    rw [CompPoly.CPolynomial.eval_toPoly, computableW_toPoly_eq_W]
+  calc
+    (CompPoly.CPolynomial.C (1 / CompPoly.CPolynomial.eval (β i) (computableW 𝔽q β i))
+        * computableW 𝔽q β i).toPoly
+        = (CompPoly.CPolynomial.C (1 / CompPoly.CPolynomial.eval (β i) (computableW 𝔽q β i))).toPoly
+            * (computableW 𝔽q β i).toPoly := by
+          rw [CompPoly.CPolynomial.toPoly_mul]
+    _ = Polynomial.C (1 / CompPoly.CPolynomial.eval (β i) (computableW 𝔽q β i))
+          * (computableW 𝔽q β i).toPoly := by
+          rw [CompPoly.CPolynomial.C_toPoly]
+    _ = Polynomial.C (1 / eval (β i) (W 𝔽q β i)) * W 𝔽q β i := by
+          rw [h_eval, computableW_toPoly_eq_W]
+    _ = normalizedW 𝔽q β i := by
+          rfl
 
 lemma computableXⱼ_toPoly_eq_Xⱼ [BEq L] [LawfulBEq L]
     (ℓ : ℕ) (h_ℓ : ℓ ≤ r) (j : Fin (2 ^ ℓ)) :
     CompPoly.CPolynomial.toPoly (computableXⱼ 𝔽q β ℓ h_ℓ j : CompPoly.CPolynomial L) =
       Xⱼ 𝔽q β ℓ h_ℓ j := by
-  sorry
+  unfold computableXⱼ Xⱼ
+  change (CompPoly.CPolynomial.ringEquiv (R := L))
+      (∏ x, computableNormalizedW 𝔽q β (Fin.castLE h_ℓ x) ^ Nat.getBit x j)
+      = ∏ i, normalizedW 𝔽q β (Fin.castLE h_ℓ i) ^ Nat.getBit i j
+  rw [map_prod]
+  refine Finset.prod_congr rfl ?_
+  intro i hi
+  rw [map_pow]
+  exact congrArg (fun p : Polynomial L => p ^ Nat.getBit i j)
+    (computableNormalizedW_toPoly_eq_normalizedW
+      (𝔽q := 𝔽q) (β := β) (i := Fin.castLE h_ℓ i))
 
 lemma computablePolynomialFromNovelCoeffs_toPoly_eq [BEq L] [LawfulBEq L]
     (ℓ : ℕ) (h_ℓ : ℓ ≤ r) (a : Fin (2 ^ ℓ) → L) :
     CompPoly.CPolynomial.toPoly
         (computablePolynomialFromNovelCoeffs 𝔽q β ℓ h_ℓ a : CompPoly.CPolynomial L) =
       polynomialFromNovelCoeffs 𝔽q β ℓ h_ℓ a := by
-  sorry
+  unfold computablePolynomialFromNovelCoeffs polynomialFromNovelCoeffs
+  change (CompPoly.CPolynomial.ringEquiv (R := L))
+      (∑ j, CompPoly.CPolynomial.C (a j) * computableXⱼ 𝔽q β ℓ h_ℓ j)
+      = ∑ j, C (a j) * Xⱼ 𝔽q β ℓ h_ℓ j
+  rw [map_sum]
+  refine Finset.sum_congr rfl ?_
+  intro j hj
+  rw [map_mul]
+  change (CompPoly.CPolynomial.C (a j)).toPoly * (computableXⱼ 𝔽q β ℓ h_ℓ j).toPoly =
+      C (a j) * Xⱼ 𝔽q β ℓ h_ℓ j
+  rw [CompPoly.CPolynomial.C_toPoly]
+  rw [computableXⱼ_toPoly_eq_Xⱼ (𝔽q := 𝔽q) (β := β) (ℓ := ℓ) (h_ℓ := h_ℓ) (j := j)]
 
 lemma computablePolynomialFromNovelCoeffs_eval_eq [BEq L] [LawfulBEq L]
     (x : L) (ℓ : ℕ) (h_ℓ : ℓ ≤ r) (a : Fin (2 ^ ℓ) → L) :
     CompPoly.CPolynomial.eval x
         (computablePolynomialFromNovelCoeffs 𝔽q β ℓ h_ℓ a : CompPoly.CPolynomial L) =
       (polynomialFromNovelCoeffsF₂ 𝔽q β ℓ h_ℓ a : Polynomial L).eval x := by
-  sorry
+  rw [CompPoly.CPolynomial.eval_toPoly]
+  rw [polynomialFromNovelCoeffsF₂]
+  exact congrArg (fun p : Polynomial L => p.eval x)
+    (computablePolynomialFromNovelCoeffs_toPoly_eq (𝔽q := 𝔽q) (β := β) (ℓ := ℓ)
+      (h_ℓ := h_ℓ) (a := a))
 
 lemma computableNovelToMonomialCoeffs_eq_novelToMonomialCoeffs [BEq L] [LawfulBEq L]
     (ℓ : ℕ) (h_ℓ : ℓ ≤ r) (novel_coeffs : Fin (2 ^ ℓ) → L) :
     computableNovelToMonomialCoeffs 𝔽q β ℓ h_ℓ novel_coeffs =
       novelToMonomialCoeffs 𝔽q β ℓ h_ℓ novel_coeffs := by
   funext i
-  sorry
+  unfold computableNovelToMonomialCoeffs novelToMonomialCoeffs
+  rw [CompPoly.CPolynomial.coeff_toPoly]
+  rw [computablePolynomialFromNovelCoeffs_toPoly_eq
+    (𝔽q := 𝔽q) (β := β) (ℓ := ℓ) (h_ℓ := h_ℓ) (a := novel_coeffs)]
+  unfold polynomialFromNovelCoeffs
+  simp [Matrix.vecMul, changeOfBasisMatrix, toCoeffsVec, basisVectors,
+    Polynomial.coeff_C_mul, dotProduct]
 
 omit h_Fq_char_prime in
 /-- The conversion functions are inverses of each other. (Monomial -> Novel -> Monomial) -/

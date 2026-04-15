@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Chung Thai Nguyen, Quang Dao
 -/
 import ArkLib.ProofSystem.Binius.BinaryBasefold.ReductionLogic
-import ArkLib.Data.FieldTheory.AdditiveNTT.Impl
+import ArkLib.Data.FieldTheory.AdditiveNTT.Domain
 import ArkLib.ToVCVio.Oracle
 import ArkLib.ToVCVio.Simulation
 import ArkLib.OracleReduction.Completeness

@@ -440,7 +440,7 @@ lemma prop_4_21_case_2_fiberwise_far (i : Fin ℓ) (steps : ℕ) [NeZero steps]
       (α := α)
       (k := 2^(ℓ - destIdx.val))
       (hk := by
-        rw [AdditiveNTT.Comp.sDomain_card 𝔽q β h_ℓ_add_R_rate (i := destIdx) (h_i := Sdomain_bound (by
+        rw [AdditiveNTT.Comp.compSDomain_card 𝔽q β h_ℓ_add_R_rate (i := destIdx) (h_i := Sdomain_bound (by
           exact h_destIdx_le)), hF₂.out]
         have h_exp : ℓ - destIdx.val ≤ ℓ + 𝓡 - destIdx.val := by
           omega

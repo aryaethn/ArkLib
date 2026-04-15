@@ -1756,7 +1756,7 @@ theorem prop_4_23_singleRepetition_proximityCheck_bound
     let n : ℕ := Fintype.card Sdest
     have h_card_Sdest :
         n = 2 ^ (ℓ + 𝓡 - destIdx.val) := by
-      have h := (AdditiveNTT.Comp.sDomain_card 𝔽q β h_ℓ_add_R_rate (i := destIdx)
+      have h := (AdditiveNTT.Comp.compSDomain_card 𝔽q β h_ℓ_add_R_rate (i := destIdx)
           (h_i := Sdomain_bound (by omega)))
       simp only [n, hF₂.out] at h ⊢
       exact h

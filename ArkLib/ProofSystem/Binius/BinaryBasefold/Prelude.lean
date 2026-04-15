@@ -6,7 +6,7 @@ Authors: Chung Thai Nguyen, Quang Dao
 
 import ArkLib.Data.CodingTheory.Prelims
 import ArkLib.Data.FieldTheory.AdditiveNTT.AdditiveNTT
-import ArkLib.Data.FieldTheory.AdditiveNTT.Impl
+import ArkLib.Data.FieldTheory.AdditiveNTT.Domain
 import ArkLib.Data.Fin.BigOperators
 import ArkLib.Data.MvPolynomial.ComputableDegreeLE
 import ArkLib.Data.MvPolynomial.Multilinear
@@ -756,10 +756,10 @@ noncomputable def qMap_total_fiber
     exact fun _ => y
   else by
     -- fun (k : 𝔽q) =>
-    let basis_y := AdditiveNTT.Comp.sDomain_basis (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate (i := destIdx)
+    let basis_y := AdditiveNTT.Comp.compSDomainBasisViaCanonical (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate (i := destIdx)
       (h_i := Sdomain_bound (by omega))
     let y_coeffs : Fin (ℓ + 𝓡 - destIdx) →₀ 𝔽q := basis_y.repr y
-    let basis_x := AdditiveNTT.Comp.sDomain_basis (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate i (h_i := by omega)
+    let basis_x := AdditiveNTT.Comp.compSDomainBasisViaCanonical (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate i (h_i := by omega)
     exact fun elementIdx => by
       let x_coeffs : Fin (ℓ + 𝓡 - i) → 𝔽q := fun j =>
         if hj_lt_steps : j.val < steps then
@@ -835,11 +835,11 @@ lemma qMap_total_fiber_repr_coeff (i : Fin r) {destIdx : Fin r} (steps : ℕ)
     (k : Fin (2 ^ steps)) :
     let x := qMap_total_fiber 𝔽q β (i := i) (steps := steps) (h_destIdx := h_destIdx)
       (h_destIdx_le := h_destIdx_le) (y := y) k
-    let basis_y := AdditiveNTT.Comp.sDomain_basis (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate (i := destIdx)
+    let basis_y := AdditiveNTT.Comp.compSDomainBasisViaCanonical (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate (i := destIdx)
       (h_i := Sdomain_bound (by omega))
     let y_coeffs := basis_y.repr y
     ∀ j, -- j refers to bit index of the fiber point x
-      ((AdditiveNTT.Comp.sDomain_basis (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate (i := i) (h_i := Sdomain_bound (by omega))).repr x) j
+      ((AdditiveNTT.Comp.compSDomainBasisViaCanonical (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate (i := i) (h_i := Sdomain_bound (by omega))).repr x) j
       = fiber_coeff (i := i) (steps := steps) (destIdx := destIdx) (h_destIdx := h_destIdx)
         (basisIdx := j) (elementIdx := k) (y_coeffs := y_coeffs) := by
   unfold fiber_coeff
@@ -857,7 +857,7 @@ lemma qMap_total_fiber_repr_coeff (i : Fin r) {destIdx : Fin r} (steps : ℕ)
 noncomputable def pointToIterateQuotientIndex (i : Fin r) {destIdx : Fin r} (steps : ℕ)
     (h_destIdx : destIdx.val = i.val + steps) (h_destIdx_le : destIdx ≤ ℓ)
     (x : AdditiveNTT.Comp.sDomain (𝔽q := 𝔽q) (β := β) (ℓ := ℓ) (R_rate := 𝓡) (h_ℓ_add_R_rate := h_ℓ_add_R_rate) (i := i)) : Fin (2 ^ steps) := by
-  let basis_x := AdditiveNTT.Comp.sDomain_basis (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate (i := i)
+  let basis_x := AdditiveNTT.Comp.compSDomainBasisViaCanonical (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate (i := i)
     (h_i := Sdomain_bound (by omega))
   let x_coeffs := basis_x.repr x
   let k_bits : Fin steps → Nat := fun j =>
@@ -874,7 +874,7 @@ and k = 1 to an element with first coefficient 1. -/
 lemma qMap_total_fiber_one_level_eq (i : Fin r) {destIdx : Fin r}
     (h_destIdx : destIdx = i.val + 1) (h_destIdx_le : destIdx ≤ ℓ)
     (y : AdditiveNTT.Comp.sDomain (𝔽q := 𝔽q) (β := β) (ℓ := ℓ) (R_rate := 𝓡) (h_ℓ_add_R_rate := h_ℓ_add_R_rate) (i := destIdx)) (k : Fin 2) :
-    let basis_x := AdditiveNTT.Comp.sDomain_basis (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate i (h_i := by omega)
+    let basis_x := AdditiveNTT.Comp.compSDomainBasisViaCanonical (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate i (h_i := by omega)
     let x : AdditiveNTT.Comp.sDomain (𝔽q := 𝔽q) (β := β) (ℓ := ℓ) (R_rate := 𝓡) (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i := qMap_total_fiber 𝔽q β (i := i)
       (steps := 1) (h_destIdx := h_destIdx) (h_destIdx_le := h_destIdx_le) (y := y) k
     let y_lifted : AdditiveNTT.Comp.sDomain (𝔽q := 𝔽q) (β := β) (ℓ := ℓ) (R_rate := 𝓡) (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i := by
@@ -883,7 +883,7 @@ lemma qMap_total_fiber_one_level_eq (i : Fin r) {destIdx : Fin r}
         (h_j := by apply Nat.lt_add_of_pos_right_of_le; omega) (h_le := by omega)
         (AdditiveNTT.Comp.toCanonicalSDomain (𝔽q := 𝔽q) (β := β) (ℓ := ℓ) (R_rate := 𝓡)
           (h_ℓ_add_R_rate := h_ℓ_add_R_rate) (i := destIdx) y)
-      exact ⟨y_can.1, AdditiveNTT.Comp.mem_sDomainComp_of_mem_sDomain
+      exact ⟨y_can.1, AdditiveNTT.Comp.mem_compSDomain_of_mem_canonicalSDomain
         (𝔽q := 𝔽q) (β := β) (ℓ := ℓ) (R_rate := 𝓡) (h_ℓ_add_R_rate := h_ℓ_add_R_rate)
         (x := y_can.1) y_can.2⟩
     let free_coeff_term : AdditiveNTT.Comp.sDomain (𝔽q := 𝔽q) (β := β) (ℓ := ℓ) (R_rate := 𝓡) (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i :=
@@ -908,7 +908,7 @@ theorem generates_quotient_point_if_is_fiber_of_y
         (ℓ := ℓ) (R_rate := 𝓡) (h_ℓ_add_R_rate := h_ℓ_add_R_rate) (i := i) x
       let y_can := AdditiveNTT.iteratedQuotientMap 𝔽q β h_ℓ_add_R_rate i
         (k := steps) (h_destIdx := h_destIdx) (h_destIdx_le := h_destIdx_le) x_can
-      exact ⟨y_can.1, AdditiveNTT.Comp.mem_sDomainComp_of_mem_sDomain
+      exact ⟨y_can.1, AdditiveNTT.Comp.mem_compSDomain_of_mem_canonicalSDomain
         (𝔽q := 𝔽q) (β := β) (ℓ := ℓ) (R_rate := 𝓡) (h_ℓ_add_R_rate := h_ℓ_add_R_rate)
         (x := y_can.1) y_can.2⟩
     y = iteratedQuotientMapComp := by
@@ -928,7 +928,7 @@ theorem is_fiber_iff_generates_quotient_point (i : Fin r) {destIdx : Fin r} (ste
         (ℓ := ℓ) (R_rate := 𝓡) (h_ℓ_add_R_rate := h_ℓ_add_R_rate) (i := i) x
       let y_can := AdditiveNTT.iteratedQuotientMap 𝔽q β h_ℓ_add_R_rate i
         (k := steps) (h_destIdx := h_destIdx) (h_destIdx_le := h_destIdx_le) x_can
-      exact ⟨y_can.1, AdditiveNTT.Comp.mem_sDomainComp_of_mem_sDomain
+      exact ⟨y_can.1, AdditiveNTT.Comp.mem_compSDomain_of_mem_canonicalSDomain
         (𝔽q := 𝔽q) (β := β) (ℓ := ℓ) (R_rate := 𝓡) (h_ℓ_add_R_rate := h_ℓ_add_R_rate)
         (x := y_can.1) y_can.2⟩
     y = iteratedQuotientMapComp ↔
@@ -971,16 +971,16 @@ lemma qMap_total_fiber_basis_sum_repr (i : Fin r) {destIdx : Fin r} (steps : ℕ
     (k : Fin (2 ^ steps)) :
     let x : AdditiveNTT.Comp.sDomain (𝔽q := 𝔽q) (β := β) (ℓ := ℓ) (R_rate := 𝓡) (h_ℓ_add_R_rate := h_ℓ_add_R_rate) (i := i) := qMap_total_fiber 𝔽q β
       (i := i) (steps := steps) h_destIdx h_destIdx_le (y := y) (k)
-    let basis_x := AdditiveNTT.Comp.sDomain_basis (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate i (h_i := Sdomain_bound (by omega))
-    let basis_y := AdditiveNTT.Comp.sDomain_basis (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate destIdx (h_i := Sdomain_bound (by omega))
+    let basis_x := AdditiveNTT.Comp.compSDomainBasisViaCanonical (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate i (h_i := Sdomain_bound (by omega))
+    let basis_y := AdditiveNTT.Comp.compSDomainBasisViaCanonical (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate destIdx (h_i := Sdomain_bound (by omega))
     let y_coeffs := basis_y.repr y
     x = ∑ j : Fin (ℓ + 𝓡 - i), (
       fiber_coeff 𝔽q (i := i) (steps := steps) h_destIdx (basisIdx := j)
         (elementIdx := k) (y_coeffs := y_coeffs)
     ) • (basis_x j)
      := by
-    set basis_x := AdditiveNTT.Comp.sDomain_basis (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate i (Sdomain_bound (by omega))
-    set basis_y := AdditiveNTT.Comp.sDomain_basis (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate destIdx
+    set basis_x := AdditiveNTT.Comp.compSDomainBasisViaCanonical (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate i (Sdomain_bound (by omega))
+    set basis_y := AdditiveNTT.Comp.compSDomainBasisViaCanonical (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate destIdx
       (h_i := Sdomain_bound (by omega))
     set y_coeffs := basis_y.repr y
     -- Let `x` be the element from the fiber for brevity.
@@ -1009,7 +1009,7 @@ theorem qMap_total_fiber_injective (i : Fin r) {destIdx : Fin r} (steps : ℕ)
     Function.Injective (qMap_total_fiber 𝔽q β (i := i) (steps := steps)
       h_destIdx h_destIdx_le (y := y)) := by
   intro k₁ k₂ h_eq
-  let basis_x := AdditiveNTT.Comp.sDomain_basis (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate i (Sdomain_bound (by omega))
+  let basis_x := AdditiveNTT.Comp.compSDomainBasisViaCanonical (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate i (Sdomain_bound (by omega))
   set fiberMap := qMap_total_fiber 𝔽q β (i := i) (steps := steps)
     h_destIdx h_destIdx_le (y := y)
   have h_coeffs_eq : basis_x.repr (fiberMap k₁) = basis_x.repr (fiberMap k₂) := by
@@ -1137,7 +1137,7 @@ lemma fiberEvaluations_eq_merge_fiberEvaluations_of_one_step_fiber
     (i := i) (steps := steps) h_midIdx (h_destIdx_le := by omega)
     (y := zᵢ) fiber_zᵢ_idx
   have h_left_point_eq_right_point : left_point = right_point := by
-    let basis := AdditiveNTT.Comp.sDomain_basis (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate i (Sdomain_bound (by omega))
+    let basis := AdditiveNTT.Comp.compSDomainBasisViaCanonical (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate i (Sdomain_bound (by omega))
     apply basis.repr.injective
     ext (coeffIdx : Fin (ℓ + 𝓡 - i))
     rw [qMap_total_fiber_repr_coeff 𝔽q β i (steps := steps + 1) (destIdx := destIdx)
@@ -1149,7 +1149,7 @@ lemma fiberEvaluations_eq_merge_fiberEvaluations_of_one_step_fiber
     --   ⊢ (if hj : ↑j < steps + 1 then if (↑j).getBit ↑fiber_y_idx = 0 then 0 else 1
     -- else ((S^(i+steps+1)).repr y) ⟨↑j - (steps + 1), ⋯⟩) =
     -- if hj : ↑j < steps then if (↑j).getBit ↑fiber_zᵢ_idx = 0 then 0 else 1
-    -- else ((AdditiveNTT.Comp.sDomain_basis (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate ⟨↑i + steps, ⋯⟩ ⋯).repr zᵢ) ⟨↑j - steps, ⋯⟩
+    -- else ((AdditiveNTT.Comp.compSDomainBasisViaCanonical (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate ⟨↑i + steps, ⋯⟩ ⋯).repr zᵢ) ⟨↑j - steps, ⋯⟩
     have h_repr_z₀ := qMap_total_fiber_repr_coeff 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate)
       (i := midIdx) (steps := 1) (h_destIdx := by omega) (h_destIdx_le := by omega)
       (y := y) (k := 0)
@@ -1498,7 +1498,7 @@ lemma iterated_fold_zero_steps (i : Fin r) {destIdx : Fin r}
     (r_challenges : Fin 0 → L) :
     iterated_fold 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) (i := i) (steps := 0)
       (h_destIdx := by omega) (h_destIdx_le := h_destIdx_le) (f := f)
-      (r_challenges := r_challenges) = fun y ↦ f (cast (by rw [AdditiveNTT.Comp.sDomain_eq_of_eq]; omega) y) := by
+      (r_challenges := r_challenges) = fun y ↦ f (cast (by rw [AdditiveNTT.Comp.compSDomain_eq_of_eq]; omega) y) := by
   have h_eq : destIdx = i := by omega
   subst h_eq;
   dsimp only [iterated_fold]
@@ -2345,7 +2345,7 @@ theorem fold_advances_evaluation_poly
     simp only [h_getBit_0_of_1, one_ne_zero, ↓reduceIte, h_getBit_0_of_0, zero_add]
     rw! (castMode := .all) [←h_index]
     rw [cast_eq]
-    simp only [AdditiveNTT.Comp.get_sDomain_basis, Fin.coe_ofNat_eq_mod, zero_mod, add_zero, cast_eq]
+    simp only [AdditiveNTT.Comp.get_compSDomainBasisViaCanonical, Fin.coe_ofNat_eq_mod, zero_mod, add_zero, cast_eq]
     rw [normalizedWᵢ_eval_βᵢ_eq_1 𝔽q β]
     -- ring
     conv_lhs => rw [←add_sub]

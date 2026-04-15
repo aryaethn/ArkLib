@@ -311,7 +311,7 @@ lemma UDRClose_iff_within_UDR_radius (i : Fin r) (h_i : i ≤ ℓ)
       uniqueDecodingRadius (ι := (AdditiveNTT.Comp.sDomain (𝔽q := 𝔽q) (β := β) (ℓ := ℓ) (R_rate := 𝓡) (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i))
         (F := L) (C := BBF_Code 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i) := by
   unfold UDRClose
-  let card_Sᵢ := AdditiveNTT.Comp.sDomain_card (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate (i := i) (h_i := Sdomain_bound (by omega))
+  let card_Sᵢ := AdditiveNTT.Comp.compSDomain_card (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate (i := i) (h_i := Sdomain_bound (by omega))
   conv_rhs =>
     unfold BBF_Code;
     rw [ReedSolomonCode.uniqueDecodingRadius_RS_eq' (h := by
@@ -453,7 +453,7 @@ def extractUDRCodeword
   -- Run Berlekamp-Welch decoder to get P(X) in monomial basis
   have domain_neZero : NeZero domain_size := by
     simp only [domain_size];
-    rw [AdditiveNTT.Comp.sDomain_card (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate (i := i) (h_i := Sdomain_bound h_i)]
+    rw [AdditiveNTT.Comp.compSDomain_card (𝔽q := 𝔽q) (β := β) h_ℓ_add_R_rate (i := i) (h_i := Sdomain_bound h_i)]
     exact {
       out := by
         rw [hF₂.out]
@@ -544,7 +544,7 @@ def extractUDRCodeword
       apply BerlekampWelch.decoder_eq_some
       · -- ⊢ `2 * e < d_i = n - k + 1`
         have h_le: 2 * e ≤ domain_size - k := by
-          have hS_card_eq_domain_size := AdditiveNTT.Comp.sDomain_card (𝔽q := 𝔽q) (β := β) (h_ℓ_add_R_rate := h_ℓ_add_R_rate)
+          have hS_card_eq_domain_size := AdditiveNTT.Comp.compSDomain_card (𝔽q := 𝔽q) (β := β) (h_ℓ_add_R_rate := h_ℓ_add_R_rate)
             (i := i) (h_i := Sdomain_bound (by omega))
           simp only [domain_size, k]; simp_rw [hS_card_eq_domain_size, hF₂.out]
           unfold UDRClose at h_within_radius
@@ -561,7 +561,7 @@ def extractUDRCodeword
         omega
       · -- ⊢ `k ≤ domain_size`. This holds by the problem setup.
         simp only [k, domain_size]
-        rw [AdditiveNTT.Comp.sDomain_card (𝔽q := 𝔽q) (β := β) (h_ℓ_add_R_rate := h_ℓ_add_R_rate)
+        rw [AdditiveNTT.Comp.compSDomain_card (𝔽q := 𝔽q) (β := β) (h_ℓ_add_R_rate := h_ℓ_add_R_rate)
           (h_i := Sdomain_bound (by omega)), hF₂.out]
         apply Nat.pow_le_pow_right (by omega) -- ⊢ ℓ - ↑i ≤ ℓ + 𝓡 - ↑⟨↑i, ⋯⟩
         simp only [tsub_le_iff_right]

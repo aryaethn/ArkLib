@@ -1367,7 +1367,7 @@ The side conditions `h_nonLastDest_le_ℓ` and `h_lastDest_le_ℓ` ensure each d
 `b·ϑ + ϑ` in groups A and B lies below `ℓ` (matching ϑ-block boundaries when `ϑ ∣ ℓ`), and the
 last-block boundary reaches `ℓ`.
 
-Under `AdditiveNTT.Comp.sDomain_card` and `hF₂`, with `|𝔽q| = 2`, one has `|S^k| = 2^{ℓ+𝓡 - k}`. The same regrouping
+Under `AdditiveNTT.Comp.compSDomain_card` and `hF₂`, with `|𝔽q| = 2`, one has `|S^k| = 2^{ℓ+𝓡 - k}`. The same regrouping
 as in `sumcheckFoldKnowledgeError_le` reads informally as:
 
 ```
@@ -1378,7 +1378,7 @@ as in `sumcheckFoldKnowledgeError_le` reads informally as:
 ```
 
 Proof summary:
-- rewrite `Fintype.card (sDomain …)` with `AdditiveNTT.Comp.sDomain_card`, then replace `Fintype.card 𝔽q` using `hF₂`;
+- rewrite `Fintype.card (sDomain …)` with `AdditiveNTT.Comp.compSDomain_card`, then replace `Fintype.card 𝔽q` using `hF₂`;
 - split each summand with `Finset.sum_add_distrib`, separating the `2/|L|` part from powers `2^{ℓ+𝓡-k}/|L|`;
 - the `2/|L|` contribution totals `2·ℓ/|L|` (there are exactly `ℓ` challenges across groups A–C);
 - bad-event numerators assemble to `foldBadEventCardSum` (`foldBadEventCardSum_eq_displaySums`), bounded by
@@ -1437,10 +1437,10 @@ lemma sumcheckFoldKnowledgeError_displayMass_le
             = (Fintype.card 𝔽q) ^ (ℓ + 𝓡 - (x.val * ϑ + ϑ)) :=
           by
             have hcard :=
-              AdditiveNTT.Comp.sDomain_card
+              AdditiveNTT.Comp.compSDomain_card
                 (𝔽q := 𝔽q) (β := β) (ℓ := ℓ) (R_rate := 𝓡)
                 (h_ℓ_add_R_rate := h_ℓ_add_R_rate) ⟨x.val * ϑ + ϑ, hk⟩ hkRate
-            simpa [sDomain, AdditiveNTT.Comp.sDomainComp_eq_sDomain] using hcard
+            simpa [sDomain, AdditiveNTT.Comp.compSDomain_eq_canonicalSDomain] using hcard
         _ = 2 ^ (ℓ + 𝓡 - (x.val * ϑ + ϑ)) := by rw [H_card]
     exact_mod_cast hNat
   have hcard_last :
@@ -1462,10 +1462,10 @@ lemma sumcheckFoldKnowledgeError_displayMass_le
             = (Fintype.card 𝔽q) ^ (ℓ + 𝓡 - ((ℓ / ϑ - 1) * ϑ + ϑ)) :=
           by
             have hcard :=
-              AdditiveNTT.Comp.sDomain_card
+              AdditiveNTT.Comp.compSDomain_card
                 (𝔽q := 𝔽q) (β := β) (ℓ := ℓ) (R_rate := 𝓡)
                 (h_ℓ_add_R_rate := h_ℓ_add_R_rate) ⟨(ℓ / ϑ - 1) * ϑ + ϑ, hk⟩ hkRate
-            simpa [sDomain, AdditiveNTT.Comp.sDomainComp_eq_sDomain] using hcard
+            simpa [sDomain, AdditiveNTT.Comp.compSDomain_eq_canonicalSDomain] using hcard
         _ = 2 ^ (ℓ + 𝓡 - ((ℓ / ϑ - 1) * ϑ + ϑ)) := by rw [H_card]
     exact_mod_cast hNat
   simp_rw [hcard_nonLast, hcard_last]

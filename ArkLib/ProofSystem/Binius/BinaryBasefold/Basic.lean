@@ -1260,7 +1260,7 @@ lemma extractMLP_some_of_isCompliant_at_zero
     ∃ tpoly : MultilinearPoly L ℓ,
       extractMLP 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) 0
         (fun x => f_i (cast (by
-            have h_eq := AdditiveNTT.Comp.sDomain_eq_of_eq (𝔽q := 𝔽q) (β := β) (h_ℓ_add_R_rate := h_ℓ_add_R_rate)
+            have h_eq := AdditiveNTT.Comp.compSDomain_eq_of_eq (𝔽q := 𝔽q) (β := β) (h_ℓ_add_R_rate := h_ℓ_add_R_rate)
               (i := (0 : Fin r)) (j := zero_Idx) (h := by
                 apply Fin.eq_of_val_eq
                 simpa only [Fin.coe_ofNat_eq_mod, zero_mod] using h_zero_Idx.symm)

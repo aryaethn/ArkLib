@@ -76,7 +76,7 @@ def extractSuffixFromChallenge (v : AdditiveNTT.Comp.sDomain (𝔽q := 𝔽q) (�
         (𝔽q := 𝔽q) (β := β) (ℓ := ℓ) (R_rate := 𝓡)
         (h_ℓ_add_R_rate := h_ℓ_add_R_rate) (i := 0) v)
   ⟨suffixCanonical.1,
-    AdditiveNTT.Comp.mem_sDomainComp_of_mem_sDomain
+    AdditiveNTT.Comp.mem_compSDomain_of_mem_canonicalSDomain
       (𝔽q := 𝔽q) (β := β) (ℓ := ℓ) (R_rate := 𝓡)
       (h_ℓ_add_R_rate := h_ℓ_add_R_rate) suffixCanonical.2⟩
 
@@ -177,7 +177,7 @@ def challengeSuffixToFin (k : Fin (ℓ / ϑ))
   let i := k.val * ϑ
   have h_i_add_ϑ_le_ℓ : i + ϑ ≤ ℓ := k_succ_mul_ϑ_le_ℓ_₂ (k := k)
   let destIdx : Fin r := ⟨i + ϑ, by omega⟩
-  AdditiveNTT.Comp.sDomainToFin (𝔽q := 𝔽q) (β := β) (ℓ := ℓ) (R_rate := 𝓡)
+  AdditiveNTT.Comp.compSDomainToFinViaCanonical (𝔽q := 𝔽q) (β := β) (ℓ := ℓ) (R_rate := 𝓡)
     (h_ℓ_add_R_rate := h_ℓ_add_R_rate) (i := ⟨k.val * ϑ + ϑ, by omega⟩) (h_i := by
       simp only [k_succ_mul_ϑ_le_ℓ_₂, Nat.lt_add_of_pos_right_of_le]) suffix
 

@@ -5,7 +5,7 @@ Authors: Chung Thai Nguyen, Quang Dao
 -/
 import ArkLib.ProofSystem.Binius.BinaryBasefold.Relations
 import ArkLib.ToVCVio.Oracle
-import ArkLib.Data.FieldTheory.AdditiveNTT.Impl
+import ArkLib.Data.FieldTheory.AdditiveNTT.Domain
 
 namespace Binius.BinaryBasefold
 

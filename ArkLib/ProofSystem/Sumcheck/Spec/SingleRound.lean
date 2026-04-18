@@ -433,7 +433,7 @@ def oracleVerifier : OracleVerifier oSpec (StmtIn R) (OStmtIn R deg) (StmtOut R)
     -- Needs to convert `evals` to `R⦃≤ deg⦄[X]`, and then evaluate at `chal`
     pure (sorry, chal default)
   embed := .inl
-  hEq := fun i => by simp [pSpec]
+  hEq := fun i => by simp [pSpec]; rfl
 
 def oracleReduction : OracleReduction oSpec (StmtIn R) (OStmtIn R deg) Unit
                                             (StmtOut R) (OStmtOut R deg) Unit (pSpec R deg) where

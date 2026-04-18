@@ -89,7 +89,7 @@ def oracleVerifier : OracleVerifier oSpec
 
   embed := Function.Embedding.inl
 
-  hEq := by simp
+  hEq := by intro i; exact rfl
 
 /--
 Combine the trivial prover and this verifier to form the `RandomQuery` oracle reduction:
@@ -108,6 +108,7 @@ instance : VerifierOnly (pSpec OStatement) where
 
 variable {σ : Type} {init : ProbComp σ} {impl : QueryImpl oSpec (StateT σ ProbComp)}
 
+set_option maxHeartbeats 400000 in
 /-- The `RandomQuery` oracle reduction is perfectly complete. -/
 @[simp]
 theorem oracleReduction_completeness :
@@ -155,7 +156,6 @@ theorem oracleReduction_completeness :
   -- Remaining: two simulateQ calls. First wraps monadLift (liftComp query),
   -- second wraps verifier do-block with liftM/match.
   -- Reduce liftComp (query t) → cont <$> liftM (query input), then simulateQ_query
-  simp only [OracleComp.liftComp_query, id_map, Functor.map_id]
   -- Push simulateQ through the monadLift (OracleQuery → OracleComp) layer
   erw [simulateQ_query]
   -- After simulateQ_query: q.cont <$> (impl + challengeImpl) q.input
@@ -186,8 +186,9 @@ theorem oracleReduction_completeness :
   -- Goal 1: none ∉ support (OptionT.mk (pure (some ...)))
   -- OptionT.mk = id, support_pure closes
   · rw [show OptionT.mk = id from rfl]; simp [support_pure]
+    intro; erw [simulateQ_pure]; simp [support_pure, pure_bind]
   -- Goal 2: support membership implies relOut — reduce simulateQ layers to pure, then singleton
-  · intro a b x hx x_1 hx1 x_2
+  · intro a b x hx x_1 hx1 x_2 x_3
     erw [simulateQ_bind]
     simp only [liftComp_eq_liftM, pure_bind, simulateQ_pure, OptionT.lift,
       OptionT.run_mk, map_pure]
@@ -195,7 +196,7 @@ theorem oracleReduction_completeness :
     simp only [pure_bind, simulateQ_pure, support_pure, StateT.run, StateT.run',
       Set.mem_singleton_iff, Prod.mk.injEq]
     rintro ⟨⟨rfl, rfl⟩, rfl⟩
-    exact ⟨by simp [hEq], rfl, rfl⟩
+    refine ⟨?_, rfl, ?_⟩ <;> congr 1
 
 -- def langIn : Set (Unit × (∀ _ : Fin 2, OStatement)) := setOf fun ⟨(), oracles⟩ =>
 --   oracles 0 = oracles 1
@@ -245,7 +246,7 @@ def knowledgeStateFunction :
     sorry
     -- simp_all [oracleVerifier, OracleVerifier.toVerifier, Verifier.run]
 
-variable [Fintype (Query OStatement)] [∀ q, DecidableEq (O.Response q)]
+variable [Fintype (Query OStatement)] [∀ q, DecidableEq (O.toOC.spec q)]
 
 instance : Fintype ((pSpec OStatement).Challenge ⟨0, by simp⟩) := by
   dsimp [pSpec, ProtocolSpec.Challenge]; infer_instance

@@ -191,6 +191,7 @@ import ArkLib.ProofSystem.Fri.Interaction.Legacy.FoldRound
 import ArkLib.ProofSystem.Fri.Interaction.Legacy.General
 import ArkLib.ProofSystem.Fri.Interaction.Legacy.Protocol
 import ArkLib.ProofSystem.Fri.Interaction.Legacy.QueryRound
+import ArkLib.ProofSystem.Fri.Interaction.QueryRound
 import ArkLib.ProofSystem.Fri.RoundConsistency
 import ArkLib.ProofSystem.Fri.Spec.General
 import ArkLib.ProofSystem.Fri.Spec.SingleRound

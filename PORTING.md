@@ -324,6 +324,11 @@ protocol migrations.
   cover the non-final fold-round, terminal fold-round, and query-round specs,
   decorations, transcript projections, checkers, and direct reductions.
   Remaining FRI work: fold phase composition and full protocol composition.
+  This is blocked on a native `Oracle.Spec` state-chain abstraction: the current
+  native `Interaction/Oracle/Chain.lean` intentionally composes stateless
+  `PUnit` round outputs, while FRI and multi-round Sumcheck must thread
+  challenge prefixes, residual witnesses, and carried oracle families across
+  rounds.
 - [ ] Validate the boundary layer on concrete examples once operational
   pullbacks compile: Sumcheck single-round reuse, FRIBinius witness
   reinterpretation, and BatchedFRI batching boundary.

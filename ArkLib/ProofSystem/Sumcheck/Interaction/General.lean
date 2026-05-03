@@ -4,22 +4,26 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Quang Dao
 -/
 import ArkLib.ProofSystem.Sumcheck.Interaction.SingleRound
-import ArkLib.Interaction.Oracle.Composition
+import ArkLib.Interaction.Oracle.Chain
 
 /-!
 # Interaction-Native Sum-Check: Native Multi-Round Surface
 
-This module tests the lightweight state story for native `Interaction.Oracle.Spec`.
-Rather than adding a foundational state-chain object, the multi-round prover and
-verifier carry their state in the ordinary continuation structure of their
-strategies/counterparts.
+This module is intentionally small: it uses `Interaction.Oracle.Spec.Chain` as
+the protocol-shape primitive, then gives one concrete one-round `StateT` prover
+example.
 
-For sum-check:
+The point of the state example is limited but useful. Ordinary, non-dependent
+participant state, such as a challenge log, is cleanly carried by the monad. The
+sum-check residual witness is more dependent: its type changes from
+`PolyStmt ... (n + 1)` to `PolyStmt ... n` each round, so it still wants either
+an output-indexed continuation, a sigma-packed state, or a more dependent state
+monad.
 
-* the prover continuation closes over the private residual polynomial;
-* the verifier continuation closes over the live optional claim;
-* the protocol spec itself is just a recursive append of the native one-round
-  oracle spec.
+The existing `Oracle.Spec.Chain.Prover.comp` also currently specializes to
+`OracleComp` and `PUnit`. General `StateT` composition over native oracle chains
+should therefore be added as a chain-level combinator rather than by expanding
+append recursion in protocol files.
 -/
 
 namespace Sumcheck
@@ -32,30 +36,28 @@ section
 
 variable (R : Type) [BEq R] [CommSemiring R] [LawfulBEq R] [Nontrivial R] (deg : ℕ)
 
-/-- Native `n`-round sum-check oracle spec.
+/-- The native `n`-round sum-check oracle chain.
 
-Each round contributes one oracle polynomial node and one public verifier
-challenge. No protocol state is stored in the spec: state is carried by the
-participant continuations. -/
-def fullSpec : Nat → Interaction.Oracle.Spec
-  | 0 => .done
-  | n + 1 => (roundSpec R deg).append fun _ => fullSpec n
-
-/-- Native role decoration for the `n`-round sum-check oracle spec. -/
-def fullRoles : (n : Nat) → Interaction.Oracle.Spec.RoleDeco (fullSpec R deg n)
+Each level is the existing one-round native oracle spec. The continuation is
+constant because the next round shape does not depend on the public challenge;
+participant state is handled by the parties, not by the protocol shape. -/
+def fullChain : (n : Nat) → Interaction.Oracle.Spec.Chain n
   | 0 => ⟨⟩
   | n + 1 =>
-      Interaction.Oracle.Spec.RoleDeco.append
-        (roundSpec R deg) (fun _ => fullSpec R deg n)
-        (roundRoles R deg) (fun _ => fullRoles n)
+      ⟨roundSpec R deg, roundRoles R deg, roundOracleDeco R deg, fun _ => fullChain n⟩
 
-/-- Native oracle decoration for the `n`-round sum-check oracle spec. -/
-def fullOracleDeco : (n : Nat) → Interaction.Oracle.Spec.OracleDeco (fullSpec R deg n)
-  | 0 => ⟨⟩
-  | n + 1 =>
-      Interaction.Oracle.Spec.OracleDeco.append
-        (roundSpec R deg) (fun _ => fullSpec R deg n)
-        (roundOracleDeco R deg) (fun _ => fullOracleDeco n)
+/-- Native `n`-round sum-check oracle spec, flattened from `fullChain`. -/
+abbrev fullSpec (n : Nat) : Interaction.Oracle.Spec :=
+  Interaction.Oracle.Spec.Chain.toSpec n (fullChain R deg n)
+
+/-- Native role decoration for `fullSpec`. -/
+abbrev fullRoles (n : Nat) : Interaction.Oracle.Spec.RoleDeco (fullSpec R deg n) :=
+  Interaction.Oracle.Spec.Chain.toRoles n (fullChain R deg n)
+
+/-- Native oracle decoration for `fullSpec`. -/
+abbrev fullOracleDeco (n : Nat) :
+    Interaction.Oracle.Spec.OracleDeco (fullSpec R deg n) :=
+  Interaction.Oracle.Spec.Chain.toOracleDeco n (fullChain R deg n)
 
 end
 
@@ -63,91 +65,39 @@ section
 
 variable {R : Type} [BEq R] [CommSemiring R] [LawfulBEq R] [Nontrivial R] {deg : ℕ}
 
-/-- Honest multi-round prover strategy whose private state is the residual
-polynomial captured by recursive continuations.
+/-- One native sum-check round where the prover records the verifier challenge
+in its monadic state.
 
-This is the clean monadic-state example: after each verifier challenge, the
-continuation receives the next residual polynomial and recurses. No separate
-state-chain spec is needed. -/
-noncomputable def proverStrategy
+This is a genuine stateful-monad example: the challenge log lives in the
+strategy action monad, and the terminal strategy output is just `PUnit`. -/
+def challengeLogRoundStrategy
     {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
-    {m_dom : ℕ} (D : Fin m_dom → R) :
-    (n : Nat) →
-    Sumcheck.PolyStmt R deg n →
-    OracleComp oSpec
-      (Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
-        (fullSpec R deg n).toInteractionSpec
-        ((fullSpec R deg n).toSpecRoles (fullRoles R deg n))
-        (fun _ => Sumcheck.PolyStmt R deg 0))
-  | 0, residual => by
-      simpa [fullSpec, fullRoles] using (pure residual)
-  | n + 1, residual => by
-      let roundStrat :=
-        roundProverStepStateful (m := OracleComp oSpec) (R := R) (deg := deg)
-          D residual
-          (fun chal => stepResidual (R := R) (deg := deg) chal residual)
-      simpa [fullSpec, fullRoles] using
-        Interaction.Oracle.Prover.compAux
-          (roundSpec R deg) (fun _ => fullSpec R deg n)
-          (roundRoles R deg) (fun _ => fullRoles R deg n)
-          (OutType := fun _ _ => Sumcheck.PolyStmt R deg 0)
-          roundStrat
-          (fun _tr₁ nextResidual => proverStrategy D n nextResidual)
+    (poly : CDegreeLE R deg) :
+    Interaction.Spec.Strategy.withRoles (StateT (List R) (OracleComp oSpec))
+      (roundSpec R deg).toInteractionSpec
+      ((roundSpec R deg).toSpecRoles (roundRoles R deg))
+      (fun _ => PUnit) := by
+  unfold roundSpec roundRoles
+  change StateT (List R) (OracleComp oSpec)
+    ((x : CDegreeLE R deg) × (R → StateT (List R) (OracleComp oSpec) PUnit))
+  exact fun log =>
+    let respond : R → StateT (List R) (OracleComp oSpec) PUnit :=
+      fun chal log' => pure (PUnit.unit, log' ++ [chal])
+    pure (Sigma.mk poly respond, log)
 
-/-- Multi-round verifier counterpart whose public state is the live optional
-claim captured by recursive continuations.
+/-- One-round prover setup for `challengeLogRoundStrategy`.
 
-The accumulated oracle spec is still handled by the native oracle monad
-decoration; the protocol state itself is an ordinary recursive parameter. -/
-noncomputable def verifierCounterpartOption
+The setup monad is also `StateT`, but this example keeps setup pure and uses
+state in the actual party continuation where the verifier challenge arrives. -/
+def challengeLogRoundProver
     {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
-    {ιₛᵢ : Type} (OStmtIn : ιₛᵢ → Type)
-    [∀ i, OracleInterface (OStmtIn i)]
-    {ιₐ : Type} (accSpec : OracleSpec.{0, 0} ιₐ)
-    {m_dom : ℕ} (D : Fin m_dom → R)
-    (sampleChallenge : OracleComp oSpec R) :
-    (n : Nat) →
-    Option (RoundClaim R) →
-    Interaction.Spec.Counterpart.withMonads
-      (fullSpec R deg n).toInteractionSpec
-      ((fullSpec R deg n).toSpecRoles (fullRoles R deg n))
-      ((fullSpec R deg n).toMonadDecoration oSpec OStmtIn
-        (fullRoles R deg n) (fullOracleDeco R deg n) accSpec)
-      (fun _ => Option (RoundClaim R))
-  | 0, target => by
-      simpa [fullSpec, fullRoles, fullOracleDeco] using target
-  | n + 1, target => by
-      let roundVerifier :=
-        verifierStepOption (R := R) (deg := deg)
-          OStmtIn accSpec D target sampleChallenge
-      simpa [fullSpec, fullRoles, fullOracleDeco] using
-        Interaction.Oracle.Verifier.compAux
-          (roundSpec R deg) (fun _ => fullSpec R deg n)
-          (roundRoles R deg) (fun _ => fullRoles R deg n)
-          (roundOracleDeco R deg) (fun _ => fullOracleDeco R deg n)
-          accSpec
-          (OutType := fun _ _ => Option (RoundClaim R))
-          roundVerifier
-          (fun accSpec' _tr₁ nextTarget =>
-            verifierCounterpartOption OStmtIn accSpec' D sampleChallenge n nextTarget)
-
-/-- Top-level multi-round verifier counterpart starting from a live claim. -/
-noncomputable def verifierCounterpart
-    {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
-    {ιₛᵢ : Type} (OStmtIn : ιₛᵢ → Type)
-    [∀ i, OracleInterface (OStmtIn i)]
-    {ιₐ : Type} (accSpec : OracleSpec.{0, 0} ιₐ)
-    {m_dom : ℕ} (D : Fin m_dom → R)
-    (sampleChallenge : OracleComp oSpec R)
-    (n : Nat) (target : RoundClaim R) :
-    Interaction.Spec.Counterpart.withMonads
-      (fullSpec R deg n).toInteractionSpec
-      ((fullSpec R deg n).toSpecRoles (fullRoles R deg n))
-      ((fullSpec R deg n).toMonadDecoration oSpec OStmtIn
-        (fullRoles R deg n) (fullOracleDeco R deg n) accSpec)
-      (fun _ => Option (RoundClaim R)) :=
-  verifierCounterpartOption (R := R) (deg := deg)
-    OStmtIn accSpec D sampleChallenge n (some target)
+    (poly : CDegreeLE R deg) :
+    StateT (List R) (OracleComp oSpec)
+      (Interaction.Spec.Strategy.withRoles (StateT (List R) (OracleComp oSpec))
+        (roundSpec R deg).toInteractionSpec
+        ((roundSpec R deg).toSpecRoles (roundRoles R deg))
+        (fun _ => PUnit)) :=
+  pure (challengeLogRoundStrategy (oSpec := oSpec) poly)
 
 end
 

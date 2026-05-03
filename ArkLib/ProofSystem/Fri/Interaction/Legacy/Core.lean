@@ -6,7 +6,7 @@ Authors: Quang Dao
 import ArkLib.Data.CompPoly.Fold
 import ArkLib.Data.CodingTheory.ReedSolomon.FftDomain
 import ArkLib.Data.GroupTheory.Smooth
-import ArkLib.Interaction.Oracle.StateChain
+import ArkLib.Interaction.Oracle.Legacy.StateChain
 import ArkLib.ToMathlib.Finset.Basic
 import CompPoly.Fields.Basic
 

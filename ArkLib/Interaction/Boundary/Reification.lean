@@ -1,5 +1,5 @@
 import ArkLib.Interaction.Boundary.Oracle
-import ArkLib.Interaction.OracleReification
+import ArkLib.Interaction.Oracle.Legacy.Reification
 
 /-!
 # Interaction-Native Boundaries: Reification Layer

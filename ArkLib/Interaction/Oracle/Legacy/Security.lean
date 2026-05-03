@@ -1,4 +1,4 @@
-import ArkLib.Interaction.Oracle.Continuation
+import ArkLib.Interaction.Oracle.Legacy.Continuation
 import ArkLib.Interaction.Security
 
 /-!
@@ -18,7 +18,7 @@ The key design point is that the canonical oracle-side security notions are
   the protocol, not as auxiliary machinery.
 
 Concrete oracle materialization is intentionally pushed outward into
-`OracleReification.lean`.
+`Oracle/Legacy/Reification.lean`.
 
 ## Main definitions
 
@@ -33,7 +33,7 @@ Concrete oracle materialization is intentionally pushed outward into
 ## See also
 
 - `Security.lean` — plain (non-oracle) security definitions
-- `OracleReification.lean` — optional concrete reification layer
+- `Oracle/Legacy/Reification.lean` — optional concrete reification layer
 -/
 
 noncomputable section

@@ -3,8 +3,8 @@ Copyright (c) 2024-2026 ArkLib Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Quang Dao
 -/
-import ArkLib.ProofSystem.Sumcheck.Interaction.Oracle
-import ArkLib.Interaction.Oracle.Continuation
+import ArkLib.ProofSystem.Sumcheck.Interaction.Legacy.Oracle
+import ArkLib.Interaction.Oracle.Legacy.Continuation
 import VCVio.Interaction.TwoParty.Strategy
 
 /-!

@@ -1,14 +1,14 @@
-import ArkLib.Interaction.Oracle.Execution
-import ArkLib.Interaction.OracleSecurity
+import ArkLib.Interaction.Oracle.Legacy.Execution
+import ArkLib.Interaction.Oracle.Legacy.Security
 import CompPoly.Data.Classes.DCast
 
 /-!
 # Optional Reification for Interaction-Native Oracle Protocols
 
 This module builds the *concrete* oracle-statement view on top of the canonical
-relative oracle-security layer from `OracleSecurity.lean`.
+relative oracle-security layer from `Oracle/Legacy/Security.lean`.
 
-The core `Interaction.Oracle` / `Interaction.OracleSecurity` API is
+The legacy `Interaction.OracleDecoration` / `Oracle.Legacy.Security` API is
 behavior-first:
 
 - inputs are deterministic oracle implementations,

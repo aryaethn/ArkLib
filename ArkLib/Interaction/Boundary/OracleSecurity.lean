@@ -1,5 +1,5 @@
 import ArkLib.Interaction.Boundary.Reification
-import ArkLib.Interaction.OracleSecurity
+import ArkLib.Interaction.Oracle.Legacy.Security
 
 /-!
 # Interaction-Native Boundaries: Oracle Security Transport

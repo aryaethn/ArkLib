@@ -8,26 +8,45 @@ Reference branch: `quang/iop-refactor` (old Refactor/ approach, archived).
 
 ## Current snapshot
 
-As of commit `5be189b3`, the interaction-native oracle layer is the active
-design:
+The interaction-native oracle layer is the active design, but there are now
+three oracle strata in the tree:
+
+1. `ArkLib/OracleReduction/` is the legacy flat `ProtocolSpec n` stack. It is
+   still imported by many older proof systems, but should not be extended except
+   to keep old consumers compiling during migration.
+2. `Interaction.Spec` + `OracleDecoration` is the transitional W-type oracle
+   surface. It is quarantined under `Interaction/Oracle/Legacy/`.
+3. `Interaction.Oracle.Spec` is the forward path. It distinguishes `.public`
+   nodes from `.oracle` nodes and indexes verifier-visible behavior by
+   `PublicTranscript`, avoiding the cast pressure of the decoration-only layer.
+
+The current migration rule is: use native `Interaction.Oracle.Spec` for new
+oracle work, keep `OracleDecoration` only as quarantined legacy code, and treat
+`OracleReduction/` as legacy.
+
+As of the current branch, the interaction-native oracle design has:
 
 - `Interaction/Oracle` is split into `Core.lean`, `Composition.lean`,
-  `Continuation.lean`, and `StateChain.lean`, with `Oracle.lean` as the public
-  entrypoint.
+  `Spec.lean`, `Execution.lean`, `Security.lean`, `BCS.lean`, and
+  `Chain.lean`, with the old `OracleDecoration` surface moved under
+  `Interaction/Oracle/Legacy/`.
+- The downstream `OracleDecoration` examples in Sumcheck and FRI are also
+  quarantined under `ProofSystem/*/Interaction/Legacy/`. They remain useful as
+  references while porting, but they are not the forward API.
 - `InteractiveOracleVerifier` no longer bakes in `OptionT`; plain verifier
   output is separate from output-oracle access semantics.
 - `OracleReduction` and `OracleReduction.Continuation` now use
   transcript-dependent output oracle families, on par with `OracleVerifier`.
 - `OracleReduction.run` / `execute` are derived defs rather than stored fields.
-- Reification is now optional and lives in `Interaction/OracleReification.lean`.
-- Oracle-local files are currently `sorry`-free:
-  `Interaction/Oracle/`, `Interaction/OracleReification.lean`,
-  `Interaction/OracleSecurity.lean`.
-- Verified builds currently include:
-  - `lake build ArkLib.Interaction.Oracle`
-  - `lake build ArkLib.Interaction.OracleReification`
-  - `lake build ArkLib.Interaction.OracleSecurity`
-  - `lake build ArkLib.ProofSystem.Sumcheck.Interaction.Oracle`
+- Reification for the transitional `OracleDecoration` surface is optional and
+  now lives in `Interaction/Oracle/Legacy/Reification.lean`.
+- The native `Oracle.Spec` layer is implemented, but still has proof and BCS
+  construction gaps listed below.
+- Historically verified builds included:
+  - `lake build ArkLib.Interaction.Oracle.Core ArkLib.Interaction.Oracle.Execution`
+  - `lake build ArkLib.Interaction.Oracle.Legacy.Reification`
+  - `lake build ArkLib.Interaction.Oracle.Legacy.Security`
+  - `lake build ArkLib.ProofSystem.Sumcheck.Interaction.Legacy.Oracle`
 
 ## Architecture
 
@@ -66,34 +85,60 @@ Interaction/             ← generic, standalone (future VCVio)
                            rbrKnowledgeSoundness (currently via random
                            challenger + transcript predicates)
   Oracle/
-    Core.lean              OracleDecoration, QueryHandle, toOracleSpec,
-                           answerQuery, oracle routing lemmas,
-                           OracleCounterpart, InteractiveOracleVerifier,
-                           OracleVerifier, OracleProver, OracleReduction
-    Composition.lean       shared oracle composition entrypoint
-    Continuation.lean      `toMonadDecoration_append`, continuation semantics,
-                           binary oracle composition, simulator routing
-    StateChain.lean        oracle state-chain verifier/composition
-    Oracle.lean            public re-export entrypoint
-  OracleReification.lean   optional reification layer over oracle-only output
-                           access semantics
-  OracleSecurity.lean      completeness / soundness / knowledge-soundness
-                           layer specialized to oracle reductions
+    Spec.lean              Native oracle protocol spine: `.public`,
+                           `.oracle`, `.done`, `PublicTranscript`,
+                           `QueryHandle`, `toOracleSpec`,
+                           `toMonadDecoration`
+    Core.lean              Native oracle reduction core:
+                           shared oracle statement bundles plus native
+                           `Oracle.Prover`, `Oracle.Verifier`,
+                           `Oracle.Reduction` over `Oracle.Spec`
+    Execution.lean         concrete execution for native `Oracle.Spec`
+    Composition.lean       native `Oracle.Spec` composition
+    Chain.lean             N-ary native `Oracle.Spec` chain composition
+    Security.lean          native `Oracle.Spec` completeness / soundness /
+                           knowledge-soundness definitions
+    BCS.lean               native `Oracle.Spec` BCS transform scaffolding
+    Legacy/
+      Core.lean            quarantined `OracleDecoration`, `QueryHandle`,
+                           `OracleCounterpart`, `Interaction.OracleVerifier`,
+                           `OracleDecoration.OracleReduction`
+      Execution.lean       quarantined execution for `OracleDecoration`
+      Continuation.lean    quarantined continuation/composition layer for
+                           `OracleDecoration`
+      StateChain.lean      quarantined state-chain composition layer
+      Security.lean        quarantined completeness / soundness /
+                           knowledge-soundness for `OracleDecoration`
+      Reification.lean     quarantined concrete reification layer
+      Bridge.lean          quarantined spec/decorator conversion from
+                           `Interaction.Spec` + `OracleDecoration` to
+                           native `Oracle.Spec`
 
-OracleReduction/         ← ArkLib-specific (old core, to be replaced)
-  OracleInterface.lean     Stable, reused by Interaction/Oracle.lean
-  (TODO) Security/         Completeness, soundness, knowledge soundness, RBR
+OracleReduction/         ← legacy ArkLib-specific flat core
+  OracleInterface.lean     Stable shared query/response abstraction; reused
+                           by the interaction-native oracle layer
+  ProtocolSpec/            old fixed-round protocol spine
+  Basic.lean               old Prover/Verifier/OracleReduction API
+  Execution.lean           old execution semantics
+  Security/                old completeness, soundness, KS, RBR stack
+  Composition/             old append/chain composition stack
 
 ProofSystem/             ← concrete protocols on top of the above
-  Sumcheck/Interaction/    Interaction-native sumcheck: CompPoly types,
-                           single-round spec/prover/verifier, n-round
-                           stateChain composition, oracle layer (WIP)
-  (TODO) FRI, Binius, ...
+  Sumcheck/Interaction/    `Defs.lean` / `CompPoly.lean` are still usable
+                           shared interaction-native setup; the
+                           `OracleDecoration` protocol files are quarantined
+                           under `Legacy/`
+  Fri/Interaction/Legacy/  quarantined `OracleDecoration` FRI sketches
+  (TODO) native Oracle.Spec ports for Sumcheck, FRI, Binius, ...
 ```
 
 No `ProtocolSpec` or `Direction` wrapper — `Spec` + `RoleDecoration` replaces
 `ProtocolSpec n` entirely. No separate `TwoParty` or `Multiparty` inductive —
 roles are a decoration on `Spec`.
+
+For native oracle work, `Oracle.Spec` further refines this rule: `.public` and
+`.oracle` nodes replace the older convention of using ordinary sender nodes plus
+an `OracleDecoration`.
 
 ## Completed
 
@@ -137,7 +182,8 @@ roles are a decoration on `Spec`.
   `InteractiveOracleVerifier` is the unified recursive type with plain leaf
   verifier output (no baked-in `OptionT`). `OracleVerifier` bundles `iov` +
   transcript-dependent `simulate`; reification moved out to the optional
-  `OracleReification` layer. `OracleProver` and `OracleReduction` are defined.
+  `Oracle/Legacy/Reification` layer. `OracleProver` and `OracleReduction` are
+  defined.
 
 - [x] **Phase 3c: Oracle reduction cutover** —
   `OracleReduction` and `OracleReduction.Continuation` now use
@@ -148,9 +194,10 @@ roles are a decoration on `Spec`.
 
 - [x] **Phase 3d: Oracle module cleanup** —
   the old monolithic `Interaction/Oracle.lean` has been split into focused
-  submodules (`Core`, `Composition`, `Continuation`, `StateChain`) and the
-  public entrypoint is now a lightweight re-export file. Oracle-local files are
-  currently `sorry`-free.
+  submodules. The split now includes both the transitional `OracleDecoration`
+  surface and the native `Oracle.Spec` surface. Some proof obligations have
+  since reappeared as the native layer grew; see the active gaps above rather
+  than treating this checkpoint as the current proof status.
 
 - [x] **Phase 4: Security definitions** — `randomChallenger` (generic sampler
   to `Counterpart ProbComp`), `Reduction.completeness` / `perfectCompleteness`,
@@ -188,24 +235,30 @@ roles are a decoration on `Spec`.
   when accepted terminal statements admit a canonical transcript-indexed
   `WitnessOut`.
 
-## Oracle.Spec layer (new, cast-free)
+## Oracle.Spec layer (forward path, cast-free)
 
 The `Oracle.Spec` inductive provides a structural alternative to
 `OracleDecoration` on `Interaction.Spec`. It distinguishes `.public` nodes
 (value visible to both parties) from `.oracle` nodes (value accessed only
 through queries), yielding cast-free `PublicTranscript` indexing.
 
+This is the preferred API for new oracle protocols and transformations. The
+older `OracleDecoration` surface remains useful as a quarantined reference for
+already-ported interaction-native code, but it should not be the target for new
+protocol migrations.
+
 ### Files
 
 | File | Status | Content |
 |------|--------|---------|
 | `Oracle/Spec.lean` | Complete | `Oracle.Spec`, `RoleDeco`, `OracleDeco`, `PublicTranscript`, `toOracleSpec`, `toMonadDecoration`, `append`, `split` |
-| `Oracle/Core.lean` | Complete | `Oracle.Prover`, `Oracle.Verifier` (with `toFun` starting at `[]ₒ`), `Oracle.Reduction`, plus legacy `OracleDecoration` API (coexists) |
-| `Oracle/Execution.lean` | Complete | `Spec.runWithOracleCounterpart`, `Reduction.executeConcrete`, `Verifier.run` for `Oracle.Spec` layer |
+| `Oracle/Core.lean` | Mostly complete | shared oracle statement bundles, `Oracle.Prover`, `Oracle.Verifier` (with `toFun` starting at `[]ₒ`), `Oracle.Reduction` |
+| `Oracle/Execution.lean` | Implemented, proof gaps | `Spec.runWithOracleCounterpart`, `Reduction.executeConcrete`, `Verifier.run` for `Oracle.Spec` layer; active map-output proof gaps |
 | `Oracle/Composition.lean` | Complete, no sorry | `Reduction.comp`, `Counterpart.liftAcc`, `Verifier.retargetMonads` |
 | `Oracle/Security.lean` | 1 sorry | `OutputRealizes`, `completeness`/`soundness`/`knowledgeSoundness`, `knowledgeSoundness_implies_soundness` (sorry) |
 | `Oracle/BCS.lean` | Complete, no sorry | `CommitDeco`, `bcsSpec`, prover wrapping, `PublicQueryVerifier`, Phase 1/2 helpers, `answerCommittedQueries` |
-| `Oracle/Bridge.lean` | Spec-level only | `ofInteractionSpec`, `ofRoleDecoration`, `ofOracleDecoration`. Verifier/reduction conversion deferred. |
+| `Oracle/Chain.lean` | Implemented | N-ary native `Oracle.Spec` chain composition and `Reduction.ofChain` |
+| `Oracle/Legacy/*.lean` | Quarantined | transitional `OracleDecoration` implementation and bridge files slated for deletion after native migration |
 
 ### Key design decisions
 
@@ -221,21 +274,28 @@ through queries), yielding cast-free `PublicTranscript` indexing.
 
 ## In progress
 
+- [ ] **Execution bridge lemmas for native oracle composition** — close the
+  active proof gap in `Oracle/Execution.lean` around output mapping. The
+  old append-transcript simulation bridge is now quarantined in
+  `Oracle/Legacy/Continuation.lean`.
 - [ ] **Composition security for Oracle.Spec** — `Reduction.completeness_comp`
   statement for the new `Oracle.Spec` layer. The old `Interaction/Security.lean`
   has the analog; the new version needs `PublicTranscript` indexing and
   `OutputRealizes` handling.
 - [ ] **BCS Oracle.Verifier construction** — combine `PublicQueryVerifier`
   Phase 1 (challenger) and Phase 2 (query/decide) into a proper
-  `Oracle.Verifier` on `bcsSpec`. Architecture question: Phase 2 queries
-  committed oracles which are `.public` in `bcsSpec`, so they must be accessed
-  via output oracle simulation or an appended Phase 2 protocol.
+  `Oracle.Verifier` on `bcsSpec`. Current direction: model Phase 2 as an
+  appended opening protocol, rather than trying to recover committed-message
+  queries from `.public` commitment nodes.
 - [ ] **Phase 2 opening protocol** — define `openingSpec`, `openingRoles`,
-  Phase 2 prover/verifier for BCS. The old `BCS/Verifier.lean` has stubs
-  (all sorry). Depends on `CommitmentScheme.Basic.Opening`.
+  Phase 2 prover/verifier for BCS. `Interaction/BCS/Verifier.lean` currently
+  has the opening stubs. Depends on `CommitmentScheme.Basic.Opening`.
 
 ## Immediate deferred todos
 
+- [ ] Treat native `Oracle.Spec` as the forward path for new oracle work. Avoid
+  adding new protocol-facing abstractions to legacy `OracleReduction/`, and keep
+  `OracleDecoration` quarantined under `Oracle/Legacy/` as an interop layer.
 - [ ] Prove `knowledgeSoundness_implies_soundness` in `Oracle/Security.lean`.
   `Spec.runWithOracleCounterpart_mapOutputWithRoles` is proved in
   `Execution.lean`. The remaining difficulty: the KS prover must produce
@@ -245,18 +305,29 @@ through queries), yielding cast-free `PublicTranscript` indexing.
   `acceptOStmt`/`acceptWitness` parameters was circular (see docstring).
 - [ ] State `Reduction.completeness_comp` for `Oracle.Spec` composition
   (very verbose due to oracle statement handling).
-- [ ] Port `Sumcheck/Interaction/Oracle.lean` to native `Oracle.Spec`
-  (establishes the migration pattern for other protocols).
+- [ ] Port `Sumcheck/Interaction/Legacy/Oracle.lean` to native `Oracle.Spec`
+  in a new non-legacy module (establishes the migration pattern for other
+  protocols). Start from non-legacy `Sumcheck/Interaction/Defs.lean` and
+  `Sumcheck/Interaction/CompPoly.lean`; use the legacy file only as a behavior
+  reference.
+- [ ] Port the FRI interaction sketches out of
+  `Fri/Interaction/Legacy/` once the Sumcheck native oracle migration pattern is
+  settled.
+- [ ] Validate the boundary layer on concrete examples once operational
+  pullbacks compile: Sumcheck single-round reuse, FRIBinius witness
+  reinterpretation, and BatchedFRI batching boundary.
 - [ ] Revisit generic verifier monads for relations (`MonadQuery`-style),
   deferred during current cutover.
 
 ## Planned
-- [ ] **Phase 5: Sumcheck migration** — interaction-native sumcheck started:
-  `CompPoly` types (`CDegreeLE`, `CMvDegreeLE`), single-round spec/prover/verifier,
-  `n`-round `stateChain` composition, oracle layer stub. Remaining: fill `sorry`
-  obligations, connect to old `Sumcheck.Spec` proofs, oracle verifier body
+- [ ] **Phase 5: Sumcheck migration** — interaction-native sumcheck has reusable
+  `Defs` and `CompPoly` setup. The current single-round / n-round /
+  oracle-decorated protocol files are quarantined under `Interaction/Legacy/`.
+  Remaining: rebuild the oracle layer on native `Oracle.Spec`, then reconnect to
+  old `Sumcheck.Spec` proofs.
 - [ ] **Phase 6: Protocol migration** — FRI, Binius, Whir, Stir, Components,
-  CommitmentScheme
+  CommitmentScheme. The current FRI interaction sketches are quarantined under
+  `Interaction/Legacy/` until they are ported to native `Oracle.Spec`.
 - [ ] **Fiat-Shamir** — abstract FS transform on Spec + RoleDecoration
 - [ ] **DuplexSponge FS** — concrete instantiation (deferred)
 - [ ] **BCS transformation** — IOR + commitment → IR (in progress via
@@ -270,6 +341,15 @@ through queries), yielding cast-free `PublicTranscript` indexing.
   path-dependent (parameterized by the transcript), reflecting the W-type
   structure where move types depend on prior moves. This differs fundamentally
   from the old flat `ProtocolSpec n` approach.
+
+- **Two interaction-native oracle surfaces** (OPEN): `OracleDecoration` over
+  ordinary `Interaction.Spec` and native `Oracle.Spec` currently coexist. The
+  former is now quarantined under `Oracle/Legacy/` for existing
+  interaction-native code; the latter is the forward path because
+  `.public`/`.oracle` nodes make verifier-visible transcripts and oracle
+  outputs definitionally cleaner. `Oracle/Legacy/Bridge.lean` converts specs
+  and decorations, but verifier/reduction conversion is deferred because output
+  types must be reindexed.
 
 - **Execution of OracleReduction** (PARTIALLY RESOLVED): `OracleReduction.run`
   and `OracleReduction.execute` are reintroduced and build on
@@ -287,7 +367,8 @@ through queries), yielding cast-free `PublicTranscript` indexing.
   `ProtocolSpec n` model where message types are static, in the W-type model
   the oracle spec depends on the transcript (path through the tree).
   `simulate` is therefore transcript-dependent. Concrete reification is no
-  longer part of the core oracle API; it lives in `OracleReification.lean`.
+  longer part of the core oracle API; the transitional implementation lives in
+  `Oracle/Legacy/Reification.lean`.
 
 - **Witness typing** (RESOLVED): `WitnessIn` is now a plain type, not
   dependent on the input statement. `WitnessOut` remains parallel to
@@ -320,7 +401,9 @@ through queries), yielding cast-free `PublicTranscript` indexing.
   the current cutover.
 
 - **Where Interaction goes long-term**: planned to move to VCVio once stable.
-  Keep it import-free from ArkLib (except `Oracle.lean` which bridges VCVio).
+  Keep the generic interaction layer import-free from ArkLib. The oracle layer
+  still bridges to ArkLib's shared `OracleInterface` abstraction until that
+  abstraction is upstreamed or replaced.
 
 ## Related work
 
@@ -341,9 +424,9 @@ Our framework independently converges with several lines of work:
 |------|-------|--------|
 | `OracleReduction/ProtocolSpec/` | 3 files | Replaced by `Interaction/Basic/` modules |
 | `OracleReduction/Basic.lean` | 1 file | Replaced by `Interaction/Reduction.lean` |
-| `OracleReduction/` (rest) | ~32 files | Untouched, will break |
-| `ProofSystem/` | ~50 files | Untouched, will break |
-| `CommitmentScheme/` | ~6 files | Untouched, will break |
+| `OracleReduction/` (rest) | ~32 files | Legacy; many TODO/sorry sites remain |
+| `ProofSystem/` | many files | Mixed: older protocols still import legacy `OracleReduction`; Sumcheck/FRI `OracleDecoration` interaction work is quarantined under `Interaction/Legacy/` |
+| `CommitmentScheme/` | several files | Still partly tied to legacy oracle interfaces |
 | `OracleReduction/OracleInterface.lean` | 1 file | Stable, to be reused |
 
 Breakage is expected and intentional. We fix downstream incrementally.

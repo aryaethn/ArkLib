@@ -1,6 +1,6 @@
 import ArkLib.Interaction.Boundary.Core
-import ArkLib.Interaction.Oracle.Core
-import ArkLib.Interaction.Oracle.Execution
+import ArkLib.Interaction.Oracle.Legacy.Core
+import ArkLib.Interaction.Oracle.Legacy.Execution
 
 /-!
 # Interaction-Native Boundaries: Oracle Access Layer

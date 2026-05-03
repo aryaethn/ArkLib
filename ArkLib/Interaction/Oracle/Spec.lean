@@ -172,6 +172,48 @@ def answerQuery :
 
 /-! ## Verifier monad decoration -/
 
+/-- Default oracle-query spec available to an oracle verifier at receiver nodes:
+ambient oracles, input oracle statements, and oracle messages accumulated so far. -/
+abbrev verifierAccessSpec {ι : Type} (oSpec : OracleSpec.{0, 0} ι)
+    {ιₛᵢ : Type} (OStmtIn : ιₛᵢ → Type) [∀ i, OracleInterface.{0, 0} (OStmtIn i)]
+    {ιₐ : Type} (accSpec : OracleSpec.{0, 0} ιₐ) :=
+  oSpec + [OStmtIn]ₒ + accSpec
+
+/-- Default receiver-node monad for oracle verifiers. This is the point where
+the oracle verifier gets query access to the ambient oracles, input oracle
+statements, and accumulated prover oracle messages. -/
+abbrev verifierAccessMonad {ι : Type} (oSpec : OracleSpec.{0, 0} ι)
+    {ιₛᵢ : Type} (OStmtIn : ιₛᵢ → Type) [∀ i, OracleInterface.{0, 0} (OStmtIn i)]
+    {ιₐ : Type} (accSpec : OracleSpec.{0, 0} ιₐ) :
+    BundledMonad :=
+  ⟨OracleComp (verifierAccessSpec oSpec OStmtIn accSpec), inferInstance⟩
+
+/-- Compute a verifier-side `MonadDecoration` from caller-supplied node effects.
+
+The decoration still tracks accumulated oracle messages structurally, but it
+does not prescribe which monad is used at public sender, public receiver, or
+oracle-message nodes. The standard oracle verifier is recovered by choosing
+`Id` for sender/oracle nodes and `verifierAccessMonad` for receiver nodes. -/
+def toMonadDecorationWith
+    (senderMonad receiverMonad oracleMonad :
+      {ιₐ : Type} → OracleSpec.{0, 0} ιₐ → BundledMonad) :
+    (s : Oracle.Spec) → (roles : RoleDeco s) → (od : OracleDeco s) →
+    {ιₐ : Type} → OracleSpec.{0, 0} ιₐ →
+    Interaction.Spec.MonadDecoration s.toInteractionSpec
+  | .done, _, _, _, _ => ⟨⟩
+  | .«public» _ rest, ⟨.sender, rRest⟩, odRest, _, accSpec =>
+      ⟨senderMonad accSpec,
+       fun x => toMonadDecorationWith senderMonad receiverMonad oracleMonad
+         (rest x) (rRest x) (odRest x) accSpec⟩
+  | .«public» _ rest, ⟨.receiver, rRest⟩, odRest, _, accSpec =>
+      ⟨receiverMonad accSpec,
+       fun x => toMonadDecorationWith senderMonad receiverMonad oracleMonad
+         (rest x) (rRest x) (odRest x) accSpec⟩
+  | .oracle _ rest, roles, ⟨oi, odRest⟩, _, accSpec =>
+      ⟨oracleMonad accSpec,
+       fun _ => toMonadDecorationWith senderMonad receiverMonad oracleMonad
+         rest roles odRest (accSpec + @OracleInterface.spec _ oi)⟩
+
 /-- Compute the per-node `MonadDecoration` for the verifier on `toInteractionSpec`.
 
 - At `.oracle` nodes: monad is `Id` (verifier ignores the message value),
@@ -185,18 +227,11 @@ def toMonadDecoration {ι : Type} (oSpec : OracleSpec.{0, 0} ι)
     {ιₛᵢ : Type} (OStmtIn : ιₛᵢ → Type) [∀ i, OracleInterface.{0, 0} (OStmtIn i)] :
     (s : Oracle.Spec) → (roles : RoleDeco s) → (od : OracleDeco s) →
     {ιₐ : Type} → OracleSpec.{0, 0} ιₐ →
-    Interaction.Spec.MonadDecoration s.toInteractionSpec
-  | .done, _, _, _, _ => ⟨⟩
-  | .«public» _ rest, ⟨.sender, rRest⟩, odRest, _, accSpec =>
-      ⟨⟨Id, inferInstance⟩,
-       fun x => toMonadDecoration oSpec OStmtIn (rest x) (rRest x) (odRest x) accSpec⟩
-  | .«public» _ rest, ⟨.receiver, rRest⟩, odRest, _, accSpec =>
-      ⟨⟨OracleComp (oSpec + [OStmtIn]ₒ + accSpec), inferInstance⟩,
-       fun x => toMonadDecoration oSpec OStmtIn (rest x) (rRest x) (odRest x) accSpec⟩
-  | .oracle _ rest, roles, ⟨oi, odRest⟩, _, accSpec =>
-      ⟨⟨Id, inferInstance⟩,
-       fun _ => toMonadDecoration oSpec OStmtIn rest roles odRest
-         (accSpec + @OracleInterface.spec _ oi)⟩
+    Interaction.Spec.MonadDecoration s.toInteractionSpec :=
+  toMonadDecorationWith
+    (fun _ => ⟨Id, inferInstance⟩)
+    (fun accSpec => verifierAccessMonad oSpec OStmtIn accSpec)
+    (fun _ => ⟨Id, inferInstance⟩)
 
 /-! ## Sequential composition -/
 

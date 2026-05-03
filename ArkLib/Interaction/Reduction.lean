@@ -74,6 +74,59 @@ universe u v w
 
 namespace Interaction
 
+/-! ## Monad decorations -/
+
+namespace Spec
+namespace MonadDecoration
+
+/-- Nodewise monad homomorphism between two `MonadDecoration`s on the same
+specification. This is the generic lifting datum needed to retarget
+`Counterpart.withMonads` from one ambient effect layer to another. -/
+def Hom :
+    (spec : Spec.{u}) → MonadDecoration.{u, u, u} spec →
+      MonadDecoration.{u, u, u} spec → Type (u + 1)
+  | .done, _, _ => PUnit
+  | .node X rest, ⟨m₁, md₁⟩, ⟨m₂, md₂⟩ =>
+      (∀ {α : Type u}, m₁.M α → m₂.M α) ×
+        ((x : X) → Hom (rest x) (md₁ x) (md₂ x))
+
+end MonadDecoration
+
+namespace Counterpart
+namespace withMonads
+
+/-- Retarget a monadic counterpart along a nodewise monad homomorphism.
+
+This is independent of oracle semantics: callers provide the per-node lifts,
+and the counterpart tree is traversed structurally. Oracle-specific rewiring
+can then be expressed by constructing an appropriate homomorphism, while other
+ambient effect layers can use the same traversal. -/
+def mapDecoration
+    (spec : Spec.{u}) (roles : RoleDecoration spec)
+    {md₁ md₂ : Spec.MonadDecoration spec}
+    (hom : Spec.MonadDecoration.Hom spec md₁ md₂)
+    {Output : Spec.Transcript spec → Type u} :
+    Counterpart.withMonads spec roles md₁ Output →
+    Counterpart.withMonads spec roles md₂ Output :=
+  match spec, roles, md₁, md₂, hom with
+  | .done, _, _, _, _ => fun cpt => cpt
+  | .node _ rest, ⟨.sender, rRest⟩, ⟨_, _⟩, ⟨_, _⟩, ⟨lift, homRest⟩ =>
+      fun cpt x =>
+        lift <| Functor.map
+          (mapDecoration (rest x) (rRest x) (homRest x)) (cpt x)
+  | .node _ rest, ⟨.receiver, rRest⟩, ⟨_, _⟩, ⟨_, _⟩, ⟨lift, homRest⟩ =>
+      fun cpt =>
+        lift <| Functor.map
+          (fun msgAndRest =>
+            ⟨msgAndRest.1,
+              mapDecoration (rest msgAndRest.1) (rRest msgAndRest.1)
+                (homRest msgAndRest.1) msgAndRest.2⟩)
+          cpt
+
+end withMonads
+end Counterpart
+end Spec
+
 /-! ## Protocol participants -/
 
 /-- Output produced by an honest prover: the next statement together with the

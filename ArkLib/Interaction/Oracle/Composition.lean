@@ -191,6 +191,83 @@ def Reduction.pullbackShared
 
 namespace Prover
 
+/-- Compose two monad-decorated strategies on `Oracle.Spec` by structural recursion.
+
+This is the public-transcript-indexed oracle analogue of
+`Interaction.Spec.Strategy.withRolesAndMonads.compFlat`. The continuation that
+constructs the suffix strategy runs in `m`; `setupLift` embeds that construction
+effect into each first-phase node monad, so the first phase may use arbitrary
+node effects rather than a globally constant prover monad.
+
+The suffix is indexed by `s₁.projectPublic tr₁`, because oracle-message nodes
+are deliberately omitted from the public transcript used by oracle specs. -/
+def compAuxWithMonads
+    {m : Type → Type} [Monad m] :
+    (s₁ : Oracle.Spec) → (s₂ : Spec.PublicTranscript s₁ → Oracle.Spec) →
+    (r₁ : Spec.RoleDeco s₁) →
+    (r₂ : (pt₁ : Spec.PublicTranscript s₁) → Spec.RoleDeco (s₂ pt₁)) →
+    {md₁ : Interaction.Spec.MonadDecoration s₁.toInteractionSpec} →
+    {md₂ : (pt₁ : Spec.PublicTranscript s₁) →
+      Interaction.Spec.MonadDecoration (s₂ pt₁).toInteractionSpec} →
+    Interaction.Spec.MonadDecoration.Hom s₁.toInteractionSpec
+      (Interaction.Spec.MonadDecoration.constant ⟨m, inferInstance⟩ s₁.toInteractionSpec)
+      md₁ →
+    {Mid : Interaction.Spec.Transcript s₁.toInteractionSpec → Type} →
+    {OutType : (pt₁ : Spec.PublicTranscript s₁) →
+      Spec.PublicTranscript (s₂ pt₁) → Type} →
+    Interaction.Spec.Strategy.withRolesAndMonads
+      s₁.toInteractionSpec (s₁.toSpecRoles r₁) md₁ Mid →
+    ((tr₁ : Interaction.Spec.Transcript s₁.toInteractionSpec) → Mid tr₁ →
+      m
+        (Interaction.Spec.Strategy.withRolesAndMonads
+          ((s₂ (s₁.projectPublic tr₁)).toInteractionSpec)
+          ((s₂ (s₁.projectPublic tr₁)).toSpecRoles (r₂ (s₁.projectPublic tr₁)))
+          (md₂ (s₁.projectPublic tr₁))
+          (fun tr₂ => OutType (s₁.projectPublic tr₁)
+            ((s₂ (s₁.projectPublic tr₁)).projectPublic tr₂)))) →
+    m
+      (Interaction.Spec.Strategy.withRolesAndMonads
+        ((s₁.append s₂).toInteractionSpec)
+        ((s₁.append s₂).toSpecRoles (Spec.RoleDeco.append s₁ s₂ r₁ r₂))
+        (Spec.MonadDecoration.appendPublic s₁ s₂ md₁ md₂)
+        (fun tr =>
+          OutType
+            (Spec.PublicTranscript.split s₁ s₂
+              ((s₁.append s₂).projectPublic tr)).1
+            (Spec.PublicTranscript.split s₁ s₂
+              ((s₁.append s₂).projectPublic tr)).2))
+  | .done, _, _, _, _, _, _, _, _, strat₁, cont => cont ⟨⟩ strat₁
+  | .oracle _X rest, s₂, r₁, r₂, _, md₂, ⟨liftSetup, liftRest⟩, _, OutType, strat₁,
+      cont =>
+      pure <| do
+        let ⟨x, next⟩ ← strat₁
+        let result ← liftSetup <|
+          compAuxWithMonads rest s₂ r₁ r₂ (md₂ := md₂) (liftRest x)
+            (OutType := fun pt₁ pt₂ => OutType pt₁ pt₂) next
+            (fun tr₁ mid => cont ⟨x, tr₁⟩ mid)
+        pure ⟨x, result⟩
+  | .«public» _X rest, s₂, ⟨.sender, rRest⟩, r₂, _, md₂, ⟨liftSetup, liftRest⟩, _,
+      OutType, strat₁, cont =>
+      pure <| do
+        let ⟨x, next⟩ ← strat₁
+        let result ← liftSetup <|
+          compAuxWithMonads (rest x) (fun pt => s₂ ⟨x, pt⟩)
+            (rRest x) (fun pt => r₂ ⟨x, pt⟩)
+            (md₂ := fun pt => md₂ ⟨x, pt⟩) (liftRest x)
+            (OutType := fun pt₁ pt₂ => OutType ⟨x, pt₁⟩ pt₂) next
+            (fun tr₁ mid => cont ⟨x, tr₁⟩ mid)
+        pure ⟨x, result⟩
+  | .«public» _X rest, s₂, ⟨.receiver, rRest⟩, r₂, _, md₂, ⟨liftSetup, liftRest⟩, _,
+      OutType, strat₁, cont =>
+      pure fun x => do
+        let next ← strat₁ x
+        liftSetup <|
+          compAuxWithMonads (rest x) (fun pt => s₂ ⟨x, pt⟩)
+            (rRest x) (fun pt => r₂ ⟨x, pt⟩)
+            (md₂ := fun pt => md₂ ⟨x, pt⟩) (liftRest x)
+            (OutType := fun pt₁ pt₂ => OutType ⟨x, pt₁⟩ pt₂) next
+            (fun tr₁ mid => cont ⟨x, tr₁⟩ mid)
+
 /-- Compose two role-aware strategies on `Oracle.Spec` by structural recursion.
 At `.oracle` and `.public .sender` nodes, binds the first-phase strategy and
 recurses. At `.public .receiver` nodes, produces a function and recurses.
@@ -227,28 +304,38 @@ def compAux
               ((s₁.append s₂).projectPublic tr)).1
             (Spec.PublicTranscript.split s₁ s₂
               ((s₁.append s₂).projectPublic tr)).2))
-  | .done, _, _, _, _, _, out, cont => cont ⟨⟩ out
-  | .oracle _X rest, s₂, r₁, r₂, _, _, strat₁, cont =>
-      pure <| do
-        let ⟨x, next⟩ ← strat₁
-        let result ← compAux rest s₂ r₁ r₂ next
-          (fun tr₁ mid => cont ⟨x, tr₁⟩ mid)
-        pure ⟨x, result⟩
-  | .«public» _X rest, s₂, ⟨.sender, rRest⟩, r₂, _, OutType, strat₁, cont =>
-      pure <| do
-        let ⟨x, next⟩ ← strat₁
-        let result ← compAux (rest x) (fun pt => s₂ ⟨x, pt⟩)
-          (rRest x) (fun pt => r₂ ⟨x, pt⟩)
-          (OutType := fun pt₁ pt₂ => OutType ⟨x, pt₁⟩ pt₂) next
-          (fun tr₁ mid => cont ⟨x, tr₁⟩ mid)
-        pure ⟨x, result⟩
-  | .«public» _X rest, s₂, ⟨.receiver, rRest⟩, r₂, _, OutType, strat₁, cont =>
-      pure fun x => do
-        let next ← strat₁ x
-        compAux (rest x) (fun pt => s₂ ⟨x, pt⟩)
-          (rRest x) (fun pt => r₂ ⟨x, pt⟩)
-          (OutType := fun pt₁ pt₂ => OutType ⟨x, pt₁⟩ pt₂) next
-          (fun tr₁ mid => cont ⟨x, tr₁⟩ mid)
+  | s₁, s₂, r₁, r₂, _, OutType, strat₁, cont => do
+      let strat₁' :=
+        Interaction.Spec.Strategy.withRolesAndMonads.ofWithRolesConstant
+          s₁.toInteractionSpec (s₁.toSpecRoles r₁) strat₁
+      let strat ←
+        compAuxWithMonads s₁ s₂ r₁ r₂
+          (md₂ := fun pt₁ =>
+            Interaction.Spec.MonadDecoration.constant ⟨m, inferInstance⟩
+              (s₂ pt₁).toInteractionSpec)
+          (Interaction.Spec.MonadDecoration.Hom.id
+            s₁.toInteractionSpec
+            (Interaction.Spec.MonadDecoration.constant ⟨m, inferInstance⟩
+              s₁.toInteractionSpec))
+          (OutType := OutType) strat₁'
+          (fun tr₁ mid => do
+            let strat₂ ← cont tr₁ mid
+            pure <|
+              Interaction.Spec.Strategy.withRolesAndMonads.ofWithRolesConstant
+                ((s₂ (s₁.projectPublic tr₁)).toInteractionSpec)
+                ((s₂ (s₁.projectPublic tr₁)).toSpecRoles (r₂ (s₁.projectPublic tr₁)))
+                strat₂)
+      let strat' :=
+        Interaction.Spec.Strategy.withRolesAndMonads.mapDecoration
+          ((s₁.append s₂).toInteractionSpec)
+          ((s₁.append s₂).toSpecRoles (Spec.RoleDeco.append s₁ s₂ r₁ r₂))
+          (Spec.MonadDecoration.appendPublicConstantHom ⟨m, inferInstance⟩ s₁ s₂)
+          strat
+      pure <|
+        Interaction.Spec.Strategy.withRolesAndMonads.toWithRolesConstant
+          ((s₁.append s₂).toInteractionSpec)
+          ((s₁.append s₂).toSpecRoles (Spec.RoleDeco.append s₁ s₂ r₁ r₂))
+          strat'
 
 end Prover
 

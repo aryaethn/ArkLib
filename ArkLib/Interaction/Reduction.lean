@@ -98,6 +98,18 @@ def Hom :
       (∀ {α : Type u}, m₁.M α → m₂.M α) ×
         ((x : X) → Hom (rest x) (md₁ x) (md₂ x))
 
+namespace Hom
+
+/-- Identity homomorphism on a monad decoration. -/
+def id :
+    (spec : Spec.{u}) → (md : MonadDecoration.{u, u, u} spec) →
+      Hom spec md md
+  | .done, _ => PUnit.unit
+  | .node _ rest, ⟨_, mdRest⟩ =>
+      ⟨fun x => x, fun x => id (rest x) (mdRest x)⟩
+
+end Hom
+
 end MonadDecoration
 
 namespace Strategy
@@ -194,6 +206,46 @@ def ofWithRolesConstant {m : Type u → Type u} [Monad m]
   | .node _ rest, ⟨.receiver, rRest⟩ =>
       fun strat x =>
         Functor.map (ofWithRolesConstant (rest x) (rRest x)) (strat x)
+
+/-- Compose monad-decorated strategies along `Spec.append`.
+
+The continuation that builds the suffix strategy runs in a construction monad
+`m`. To splice that construction into the first-phase strategy tree, callers
+provide a nodewise hom from the constant `m` decoration into the first phase's
+prover decoration. At each first-phase node, recursive suffix construction is
+therefore lifted into the node's own effect layer. -/
+def compFlat {m : Type u → Type u} [Monad m]
+    {s₁ : Spec.{u}} {s₂ : Spec.Transcript s₁ → Spec.{u}}
+    {r₁ : RoleDecoration s₁}
+    {r₂ : (tr₁ : Spec.Transcript s₁) → RoleDecoration (s₂ tr₁)}
+    {md₁ : Spec.MonadDecoration s₁}
+    {md₂ : (tr₁ : Spec.Transcript s₁) → Spec.MonadDecoration (s₂ tr₁)}
+    (setupLift :
+      Spec.MonadDecoration.Hom s₁
+        (Spec.MonadDecoration.constant ⟨m, inferInstance⟩ s₁) md₁)
+    {Mid : Spec.Transcript s₁ → Type u}
+    {Output : Spec.Transcript (s₁.append s₂) → Type u}
+    (strat₁ : Strategy.withRolesAndMonads s₁ r₁ md₁ Mid)
+    (f : (tr₁ : Spec.Transcript s₁) → Mid tr₁ →
+      m (Strategy.withRolesAndMonads (s₂ tr₁) (r₂ tr₁) (md₂ tr₁)
+        (fun tr₂ => Output (Spec.Transcript.append s₁ s₂ tr₁ tr₂)))) :
+    m (Strategy.withRolesAndMonads (s₁.append s₂) (r₁.append r₂)
+      (Spec.Decoration.append md₁ md₂) Output) :=
+  match s₁, r₁, md₁, setupLift with
+  | .done, _, _, _ => f ⟨⟩ strat₁
+  | .node _ _, ⟨.sender, _⟩, ⟨_, _⟩, ⟨liftSetup, liftRest⟩ =>
+      pure <| do
+        let ⟨x, next⟩ ← strat₁
+        let restStrat ← liftSetup <|
+          compFlat (setupLift := liftRest x) next
+            (fun tr₁ mid => f ⟨x, tr₁⟩ mid)
+        pure ⟨x, restStrat⟩
+  | .node _ _, ⟨.receiver, _⟩, ⟨_, _⟩, ⟨liftSetup, liftRest⟩ =>
+      pure fun x => do
+        let next ← strat₁ x
+        liftSetup <|
+          compFlat (setupLift := liftRest x) next
+            (fun tr₁ mid => f ⟨x, tr₁⟩ mid)
 
 end withRolesAndMonads
 end Strategy

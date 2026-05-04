@@ -300,6 +300,53 @@ def OracleDeco.append :
   | .oracle _ rest, s₂, ⟨oi, odRest⟩, od₂ =>
       ⟨oi, OracleDeco.append rest s₂ odRest od₂⟩
 
+namespace MonadDecoration
+
+/-- Append monad decorations along `Oracle.Spec.append`.
+
+This is the oracle-public analogue of `Interaction.Spec.Decoration.append`:
+the suffix decoration is indexed by the prefix public transcript, while the
+first-phase decoration may still depend on every concrete message in
+`toInteractionSpec`, including oracle messages that are not public. -/
+def appendPublic :
+    (s₁ : Oracle.Spec) → (s₂ : PublicTranscript s₁ → Oracle.Spec) →
+    Interaction.Spec.MonadDecoration s₁.toInteractionSpec →
+    ((pt₁ : PublicTranscript s₁) →
+      Interaction.Spec.MonadDecoration (s₂ pt₁).toInteractionSpec) →
+    Interaction.Spec.MonadDecoration (s₁.append s₂).toInteractionSpec
+  | .done, _, _, md₂ => md₂ ⟨⟩
+  | .«public» _ rest, s₂, ⟨m₁, mdRest⟩, md₂ =>
+      ⟨m₁, fun x =>
+        appendPublic (rest x) (fun pt => s₂ ⟨x, pt⟩)
+          (mdRest x) (fun pt => md₂ ⟨x, pt⟩)⟩
+  | .oracle _ rest, s₂, ⟨m₁, mdRest⟩, md₂ =>
+      ⟨m₁, fun x =>
+        appendPublic rest s₂ (mdRest x) md₂⟩
+
+/-- Appending two constant monad decorations embeds into the constant
+decoration on the appended oracle spec.
+
+The result is stated as a nodewise homomorphism rather than an equality, so
+callers can retarget strategies without relying on unfolding an unknown
+`Oracle.Spec`. -/
+def appendPublicConstantHom (bm : BundledMonad) :
+    (s₁ : Oracle.Spec) → (s₂ : PublicTranscript s₁ → Oracle.Spec) →
+    Interaction.Spec.MonadDecoration.Hom (s₁.append s₂).toInteractionSpec
+      (appendPublic s₁ s₂
+        (Interaction.Spec.MonadDecoration.constant bm s₁.toInteractionSpec)
+        (fun pt₁ => Interaction.Spec.MonadDecoration.constant bm (s₂ pt₁).toInteractionSpec))
+      (Interaction.Spec.MonadDecoration.constant bm (s₁.append s₂).toInteractionSpec)
+  | .done, s₂ => Interaction.Spec.MonadDecoration.Hom.id (s₂ ⟨⟩).toInteractionSpec
+      (Interaction.Spec.MonadDecoration.constant bm (s₂ ⟨⟩).toInteractionSpec)
+  | .«public» _ rest, s₂ =>
+      ⟨fun x => x, fun x =>
+        appendPublicConstantHom bm (rest x) (fun pt => s₂ ⟨x, pt⟩)⟩
+  | .oracle _ rest, s₂ =>
+      ⟨fun x => x, fun _ =>
+        appendPublicConstantHom bm rest s₂⟩
+
+end MonadDecoration
+
 /-- `PublicTranscript` of an appended spec decomposes into a prefix and suffix. -/
 def PublicTranscript.append :
     (s₁ : Oracle.Spec) → (s₂ : PublicTranscript s₁ → Oracle.Spec) →

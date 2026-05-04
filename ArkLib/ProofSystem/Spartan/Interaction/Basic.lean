@@ -37,6 +37,39 @@ namespace OracleLayer
 
 noncomputable section
 
+/-- Simulating a finite dependent traversal whose entries all reduce to pure
+values reduces to the pure dependent function.
+
+This is the finite-family analogue of `simulateQ_map`: query routing can be
+proved pointwise, then lifted through the `Fin`-indexed traversal used by
+Spartan's concrete oracle evaluators. -/
+theorem simulateQ_fin_traverseM_pure
+    {ι : Type _} {spec : OracleSpec ι} {n : ℕ}
+    {β : Fin n → Type _}
+    (impl : QueryImpl spec Id)
+    (f : (i : Fin n) → OracleComp spec (β i))
+    (g : (i : Fin n) → β i)
+    (h : ∀ i, simulateQ impl (f i) = pure (g i)) :
+    simulateQ impl (Fin.traverseM f) = pure g := by
+  induction n with
+  | zero =>
+      rw [Fin.traverseM_zero]
+      simp
+      ext i
+      exact i.elim0
+  | succ n ih =>
+      rw [Fin.traverseM_succ, simulateQ_bind]
+      rw [ih
+        (β := fun i : Fin n => β i.castSucc)
+        (f := fun i => f i.castSucc)
+        (g := fun i => g i.castSucc)]
+      · simp only [bind_pure_comp, simulateQ_map, pure_bind]
+        rw [h (Fin.last n)]
+        change Fin.snoc (Fin.init g) (g (Fin.last n)) = g
+        rw [Fin.snoc_init_self]
+      · intro i
+        exact h i.castSucc
+
 /-- Public parameters for the padded Spartan protocol. The R1CS dimensions are
 `2 ^ ℓ_m`, `2 ^ ℓ_n`, and `2 ^ ℓ_w`. -/
 structure PublicParams where
@@ -106,14 +139,6 @@ def firstSumcheckDegree : ℕ :=
 abbrev FirstSumcheckClaim : Type :=
   Sumcheck.RoundClaim R
 
-/-- Queryable view of Spartan's first virtual sum-check polynomial. -/
-abbrev FirstSumcheckOracle : Type :=
-  (Fin pp.ℓ_m → R) → R
-
-/-- Singleton oracle family carrying the first virtual sum-check polynomial. -/
-abbrev FirstSumcheckOracleFamily : Unit → Type :=
-  fun _ => FirstSumcheckOracle R pp
-
 /-- Local state after the first sum-check: verifier result plus the previous
 Spartan state. -/
 abbrev AfterFirstSumcheckStatement : Type :=
@@ -130,17 +155,20 @@ section SumcheckTypes
 variable (R : Type) [BEq R] [CommSemiring R] [LawfulBEq R] [Nontrivial R]
 variable (pp : PublicParams)
 
-/-- Typed witness for a materialized first sum-check polynomial. The actual
-Spartan prover should obtain this through a reusable derived-oracle view rather
-than by making the verifier carry an ad hoc polynomial witness. -/
-abbrev FirstSumcheckWitness : Type :=
+/-- Degree-bounded statement for Spartan's first virtual sum-check polynomial. -/
+abbrev FirstSumcheckOracle : Type :=
   Sumcheck.PolyStmt R firstSumcheckDegree pp.ℓ_m
+
+/-- Singleton oracle family carrying the first virtual sum-check polynomial. -/
+abbrev FirstSumcheckOracleFamily : Unit → Type :=
+  Sumcheck.PolyFamily R firstSumcheckDegree pp.ℓ_m
 
 end SumcheckTypes
 
 section OracleInterfaces
 
-variable (R : Type) [CommRing R] [IsDomain R] [Fintype R] (pp : PublicParams)
+variable (R : Type) [BEq R] [CommRing R] [IsDomain R] [Fintype R] [LawfulBEq R]
+  [Nontrivial R] (pp : PublicParams)
 
 /-- Matrix oracles are queried by evaluating their multilinear extensions at a
 constraint point and a variable point. -/
@@ -150,7 +178,7 @@ instance instOracleInterfaceInputOracleFamily :
     Query := (Fin pp.ℓ_m → R) × (Fin pp.ℓ_n → R)
     toOC.spec := fun _ => R
     toOC.impl := fun ⟨x, y⟩ => do
-      return (← read).toMLE ⸨C ∘ x⸩ ⸨y⸩
+      return MvPolynomial.eval y (MvPolynomial.eval (MvPolynomial.C ∘ x) (← read).toMLE)
   }
 
 /-- The witness oracle is queried by evaluating the witness multilinear
@@ -177,7 +205,8 @@ end OracleInterfaces
 
 section FirstSumcheckView
 
-variable (R : Type) [CommRing R] [IsDomain R] [Fintype R] (pp : PublicParams)
+variable (R : Type) [BEq R] [CommRing R] [IsDomain R] [Fintype R] [LawfulBEq R]
+  [Nontrivial R] (pp : PublicParams)
 
 /-- Embed a public-input coordinate into the full padded R1CS vector index. -/
 def publicFullIndex (i : Fin pp.toSizeR1CS.n_x) :
@@ -233,7 +262,8 @@ def firstSumcheckEvalByQueries
   let a ← matrixVecEvalByQueries (R := R) pp .A stmt constraintPoint
   let b ← matrixVecEvalByQueries (R := R) pp .B stmt constraintPoint
   let c ← matrixVecEvalByQueries (R := R) pp .C stmt constraintPoint
-  pure <| MvPolynomial.eval constraintPoint (eqPolynomial τ) * (a * b - c)
+  pure <| CPoly.CMvPolynomial.eval constraintPoint
+    (CPoly.CMvPolynomial.eqPolynomial τ) * (a * b - c)
 
 /-- Simulate queries to the first virtual sum-check oracle using the post-setup
 R1CS matrix and witness oracle family. -/
@@ -243,29 +273,293 @@ def simulateFirstSumcheckOracle
       (OracleComp [WithWitnessOracleFamily R pp]ₒ)
   | ⟨(), point⟩ => firstSumcheckEvalByQueries (R := R) pp state point
 
-/-- Materialize the first virtual sum-check oracle from concrete post-setup
-oracle data. -/
-def firstSumcheckOracle
+/-- Materializer for the first virtual sum-check oracle.
+
+This is the soundness-relevant hook: the materialized oracle statement is a
+degree-bounded polynomial, while `firstSumcheckEvalByQueries` describes how its
+evaluations are routed back to the post-setup Spartan oracle family. -/
+abbrev FirstSumcheckOracleMaterializer : Type :=
+  AfterFirstChallengeStatement R pp →
+    OracleStatement (WithWitnessOracleFamily R pp) →
+      OracleStatement (FirstSumcheckOracleFamily R pp)
+
+/-- A first-sumcheck materializer agrees pointwise with verifier-side query
+routing through the post-setup Spartan oracle family. -/
+def FirstSumcheckOracleMaterializer.Realizes
+    (materialize : FirstSumcheckOracleMaterializer R pp) : Prop :=
+  ∀ state oracleStmt point,
+    simulateQ
+      (OracleInterface.toOracleImpl (WithWitnessOracleFamily R pp) oracleStmt)
+      (firstSumcheckEvalByQueries (R := R) pp state point) =
+      pure (OracleInterface.answer (materialize state oracleStmt ()) point)
+
+/-- Evaluate the multilinear extension of the concatenated public-input and
+witness vector against a concrete oracle statement. -/
+def zEvalFromOracleStmt
+    (stmt : Statement R pp)
+    (oracleStmt : OracleStatement (WithWitnessOracleFamily R pp))
+    (point : Fin pp.ℓ_n → R) : R :=
+  let publicPart :=
+    ∑ i : Fin pp.toSizeR1CS.n_x,
+      MvPolynomial.eqWeight (R := R) point (publicFullIndex pp i) * stmt i
+  let witnessPart :=
+    ∑ i : Fin pp.toSizeR1CS.n_w,
+      let wi : R :=
+        OracleInterface.answer (oracleStmt (.inr ()))
+          (MvPolynomial.booleanPoint (R := R) pp.ℓ_w i)
+      MvPolynomial.eqWeight (R := R) point (witnessFullIndex pp i) * wi
+  publicPart + witnessPart
+
+/-- For a fixed R1CS variable point, materialize the matrix multilinear
+extension as a polynomial in the constraint-index variables. -/
+def matrixEvalPolynomial
+    (matrix : R1CS.MatrixIdx)
+    (oracleStmt : OracleStatement (WithWitnessOracleFamily R pp))
+    (variablePoint : Fin pp.ℓ_n → R) :
+    CPoly.CMvPolynomial pp.ℓ_m R :=
+  CPoly.CMvPolynomial.MLE' fun constraintIdx =>
+    MvPolynomial.eval variablePoint
+      (MvPolynomial.MLE' ((oracleStmt (.inl matrix)) constraintIdx))
+
+/-- Matrix multilinear extensions are multilinear in the constraint-index
+variables after fixing the R1CS variable point. -/
+theorem matrixEvalPolynomial_degreeOf
+    (matrix : R1CS.MatrixIdx)
+    (oracleStmt : OracleStatement (WithWitnessOracleFamily R pp))
+    (variablePoint : Fin pp.ℓ_n → R)
+    (i : Fin pp.ℓ_m) :
+    CPoly.CMvPolynomial.degreeOf i (matrixEvalPolynomial R pp matrix oracleStmt variablePoint) ≤ 1 := by
+  unfold matrixEvalPolynomial
+  exact CPoly.CMvPolynomial.MLE'_degreeOf _ _
+
+/-- The materialized matrix polynomial agrees with the matrix oracle's native
+multilinear-extension answer at every constraint point. -/
+theorem matrixEvalPolynomial_eval
+    (matrix : R1CS.MatrixIdx)
+    (oracleStmt : OracleStatement (WithWitnessOracleFamily R pp))
+    (constraintPoint : Fin pp.ℓ_m → R)
+    (variablePoint : Fin pp.ℓ_n → R) :
+    CPoly.CMvPolynomial.eval constraintPoint
+        (matrixEvalPolynomial R pp matrix oracleStmt variablePoint) =
+      OracleInterface.answer (oracleStmt (.inl matrix))
+        (constraintPoint, variablePoint) := by
+  let A := oracleStmt (.inl matrix)
+  change CPoly.CMvPolynomial.eval constraintPoint
+      (CPoly.CMvPolynomial.MLE' fun constraintIdx =>
+        MvPolynomial.eval variablePoint (MvPolynomial.MLE' (A constraintIdx))) =
+    MvPolynomial.eval variablePoint
+      (MvPolynomial.eval (MvPolynomial.C ∘ constraintPoint) A.toMLE)
+  rw [CPoly.eval_equiv, CPoly.CMvPolynomial.fromCMvPolynomial_MLE']
+  have hMap :
+      MvPolynomial.map (MvPolynomial.eval variablePoint) A.toMLE =
+      MvPolynomial.MLE' fun constraintIdx =>
+          MvPolynomial.eval variablePoint (MvPolynomial.MLE' (A constraintIdx)) := by
+    simp [Matrix.toMLE, MvPolynomial.MLE', MvPolynomial.MLE,
+      MvPolynomial.eqPolynomial_expanded]
+  rw [MvPolynomial.map_eval, hMap]
+  have hEval :
+      MvPolynomial.eval constraintPoint =
+        MvPolynomial.eval (MvPolynomial.eval variablePoint ∘ MvPolynomial.C ∘ constraintPoint) := by
+    apply MvPolynomial.ringHom_ext
+    · intro r
+      simp
+    · intro i
+      simp
+  exact RingHom.congr_fun hEval _
+
+/-- Materialize `M z` as a polynomial in the constraint-index variables, with
+`z` evaluated from the concrete public statement and witness oracle. -/
+def matrixVecPolynomial
+    (matrix : R1CS.MatrixIdx)
+    (stmt : Statement R pp)
+    (oracleStmt : OracleStatement (WithWitnessOracleFamily R pp)) :
+    CPoly.CMvPolynomial pp.ℓ_m R :=
+  ∑ i : Fin pp.toSizeR1CS.n,
+    CPoly.CMvPolynomial.C
+      (zEvalFromOracleStmt (R := R) pp stmt oracleStmt
+        (MvPolynomial.booleanPoint (R := R) pp.ℓ_n i)) *
+      matrixEvalPolynomial (R := R) pp matrix oracleStmt
+        (MvPolynomial.booleanPoint (R := R) pp.ℓ_n i)
+
+/-- `M z` is multilinear in the constraint-index variables. -/
+theorem matrixVecPolynomial_degreeOf
+    (matrix : R1CS.MatrixIdx)
+    (stmt : Statement R pp)
+    (oracleStmt : OracleStatement (WithWitnessOracleFamily R pp))
+    (i : Fin pp.ℓ_m) :
+    CPoly.CMvPolynomial.degreeOf i (matrixVecPolynomial R pp matrix stmt oracleStmt) ≤ 1 := by
+  unfold matrixVecPolynomial
+  calc
+    _ ≤ (Finset.univ : Finset (Fin pp.toSizeR1CS.n)).sup (fun j =>
+        CPoly.CMvPolynomial.degreeOf i
+          (CPoly.CMvPolynomial.C
+            (zEvalFromOracleStmt (R := R) pp stmt oracleStmt
+              (MvPolynomial.booleanPoint (R := R) pp.ℓ_n j)) *
+            matrixEvalPolynomial (R := R) pp matrix oracleStmt
+              (MvPolynomial.booleanPoint (R := R) pp.ℓ_n j))) := by
+      exact CPoly.CMvPolynomial.degreeOf_sum_le i _ _
+    _ ≤ 1 := by
+      apply Finset.sup_le
+      intro j _
+      calc
+        _ ≤
+            CPoly.CMvPolynomial.degreeOf i
+              (CPoly.CMvPolynomial.C
+                (zEvalFromOracleStmt (R := R) pp stmt oracleStmt
+                  (MvPolynomial.booleanPoint (R := R) pp.ℓ_n j))) +
+              CPoly.CMvPolynomial.degreeOf i
+                (matrixEvalPolynomial (R := R) pp matrix oracleStmt
+                  (MvPolynomial.booleanPoint (R := R) pp.ℓ_n j)) := by
+          exact CPoly.CMvPolynomial.degreeOf_mul_le i _ _
+        _ ≤ 0 + 1 := by
+          gcongr
+          · exact le_of_eq (CPoly.CMvPolynomial.degreeOf_C (S := R) _ _)
+          · exact matrixEvalPolynomial_degreeOf R pp matrix oracleStmt _ i
+        _ = 1 := by norm_num
+
+/-- Computable polynomial expression for Spartan's first virtual sum-check
+polynomial. -/
+def firstSumcheckPolynomialExpr
+    (state : AfterFirstChallengeStatement R pp)
+    (oracleStmt : OracleStatement (WithWitnessOracleFamily R pp)) :
+    CPoly.CMvPolynomial pp.ℓ_m R :=
+  let τ := state.1
+  let stmt := state.2
+  let a := matrixVecPolynomial (R := R) pp .A stmt oracleStmt
+  let b := matrixVecPolynomial (R := R) pp .B stmt oracleStmt
+  let c := matrixVecPolynomial (R := R) pp .C stmt oracleStmt
+  CPoly.CMvPolynomial.eqPolynomial τ * (a * b - c)
+
+/-- Spartan's first virtual sum-check polynomial has individual degree at most
+three in every constraint-index variable. -/
+theorem firstSumcheckPolynomialExpr_degreeOf
+    (state : AfterFirstChallengeStatement R pp)
+    (oracleStmt : OracleStatement (WithWitnessOracleFamily R pp))
+    (i : Fin pp.ℓ_m) :
+    CPoly.CMvPolynomial.degreeOf i (firstSumcheckPolynomialExpr R pp state oracleStmt) ≤
+      firstSumcheckDegree := by
+  unfold firstSumcheckPolynomialExpr firstSumcheckDegree
+  dsimp only
+  calc
+    _ ≤ CPoly.CMvPolynomial.degreeOf i (CPoly.CMvPolynomial.eqPolynomial state.1) +
+        CPoly.CMvPolynomial.degreeOf i
+          (matrixVecPolynomial R pp .A state.2 oracleStmt *
+            matrixVecPolynomial R pp .B state.2 oracleStmt -
+              matrixVecPolynomial R pp .C state.2 oracleStmt) := by
+      exact CPoly.CMvPolynomial.degreeOf_mul_le i _ _
+    _ ≤ 1 + 2 := by
+      gcongr
+      · exact CPoly.CMvPolynomial.eqPolynomial_degreeOf state.1 i
+      · calc
+          _ ≤ max
+              (CPoly.CMvPolynomial.degreeOf i
+                (matrixVecPolynomial R pp .A state.2 oracleStmt *
+                  matrixVecPolynomial R pp .B state.2 oracleStmt))
+              (CPoly.CMvPolynomial.degreeOf i
+                (matrixVecPolynomial R pp .C state.2 oracleStmt)) := by
+            exact CPoly.CMvPolynomial.degreeOf_sub_le i _ _
+          _ ≤ max (1 + 1) 1 := by
+            gcongr
+            · calc
+                _ ≤ CPoly.CMvPolynomial.degreeOf i (matrixVecPolynomial R pp .A state.2 oracleStmt) +
+                    CPoly.CMvPolynomial.degreeOf i (matrixVecPolynomial R pp .B state.2 oracleStmt) := by
+                  exact CPoly.CMvPolynomial.degreeOf_mul_le i _ _
+                _ ≤ 1 + 1 := by
+                  gcongr <;> exact matrixVecPolynomial_degreeOf R pp _ state.2 oracleStmt i
+            · exact matrixVecPolynomial_degreeOf R pp .C state.2 oracleStmt i
+          _ = 2 := by norm_num
+    _ = 3 := by norm_num
+
+/-- Spartan's first virtual sum-check polynomial packaged as a CompPoly
+degree-bounded oracle statement. -/
+def firstSumcheckPolynomial
     (state : AfterFirstChallengeStatement R pp)
     (oracleStmt : OracleStatement (WithWitnessOracleFamily R pp)) :
     FirstSumcheckOracle R pp :=
-  fun point =>
+  ⟨firstSumcheckPolynomialExpr R pp state oracleStmt,
+    CPoly.CMvPolynomial.individualDegreeLE_of_degreeOf_le
+      (firstSumcheckPolynomialExpr R pp state oracleStmt)
+      (firstSumcheckPolynomialExpr_degreeOf R pp state oracleStmt)⟩
+
+/-- Canonical materializer for Spartan's first virtual sum-check oracle. -/
+def firstSumcheckOracleMaterializer : FirstSumcheckOracleMaterializer R pp :=
+  fun state oracleStmt _ => firstSumcheckPolynomial R pp state oracleStmt
+
+/-- Simulating the query-based view of `z` against a concrete oracle statement
+agrees with direct concrete evaluation. -/
+theorem simulateQ_zEvalByQueries
+    (stmt : Statement R pp)
+    (oracleStmt : OracleStatement (WithWitnessOracleFamily R pp))
+    (point : Fin pp.ℓ_n → R) :
     simulateQ
       (OracleInterface.toOracleImpl (WithWitnessOracleFamily R pp) oracleStmt)
-      (firstSumcheckEvalByQueries (R := R) pp state point)
+      (zEvalByQueries (R := R) pp stmt point) =
+      pure (zEvalFromOracleStmt (R := R) pp stmt oracleStmt point) := by
+  simp only [zEvalByQueries, zEvalFromOracleStmt, simulateQ_bind, simulateQ_pure]
+  rw [simulateQ_fin_traverseM_pure
+    (g := fun i : Fin pp.toSizeR1CS.n_w =>
+      let wi : R :=
+        OracleInterface.answer (oracleStmt (.inr ()))
+          (MvPolynomial.booleanPoint (R := R) pp.ℓ_w i)
+      MvPolynomial.eqWeight (R := R) point (witnessFullIndex pp i) *
+        wi)]
+  · simp
+  · intro i
+    rfl
 
-/-- Materialize the singleton first-sumcheck oracle family. -/
-def firstSumcheckOracleStmt
-    (state : AfterFirstChallengeStatement R pp)
-    (oracleStmt : OracleStatement (WithWitnessOracleFamily R pp)) :
-    OracleStatement (FirstSumcheckOracleFamily R pp)
-  | () => firstSumcheckOracle (R := R) pp state oracleStmt
+/-- Simulating the query-based view of `M z` agrees with evaluating the
+materialized `M z` polynomial. -/
+theorem simulateQ_matrixVecEvalByQueries
+    (matrix : R1CS.MatrixIdx)
+    (stmt : Statement R pp)
+    (oracleStmt : OracleStatement (WithWitnessOracleFamily R pp))
+    (constraintPoint : Fin pp.ℓ_m → R) :
+    simulateQ
+      (OracleInterface.toOracleImpl (WithWitnessOracleFamily R pp) oracleStmt)
+      (matrixVecEvalByQueries (R := R) pp matrix stmt constraintPoint) =
+      pure (CPoly.CMvPolynomial.eval constraintPoint
+        (matrixVecPolynomial R pp matrix stmt oracleStmt)) := by
+  simp only [matrixVecEvalByQueries, matrixVecPolynomial, simulateQ_bind, simulateQ_pure]
+  rw [simulateQ_fin_traverseM_pure
+    (g := fun i : Fin pp.toSizeR1CS.n =>
+      let matrixValue : R :=
+        OracleInterface.answer (oracleStmt (.inl matrix))
+          (constraintPoint, MvPolynomial.booleanPoint (R := R) pp.ℓ_n i)
+      matrixValue *
+        zEvalFromOracleStmt (R := R) pp stmt oracleStmt
+          (MvPolynomial.booleanPoint (R := R) pp.ℓ_n i))]
+  · simp [matrixEvalPolynomial_eval, mul_comm]
+  · intro i
+    simp [simulateQ_zEvalByQueries, OracleInterface.toOracleImpl]
+    let matrixValue : R :=
+      OracleInterface.answer (oracleStmt (.inl matrix))
+        (constraintPoint, MvPolynomial.booleanPoint (R := R) pp.ℓ_n i)
+    change
+      matrixValue * zEvalFromOracleStmt (R := R) pp stmt oracleStmt
+          (MvPolynomial.booleanPoint (R := R) pp.ℓ_n i) =
+        matrixValue * zEvalFromOracleStmt (R := R) pp stmt oracleStmt
+          (MvPolynomial.booleanPoint (R := R) pp.ℓ_n i)
+    rfl
+
+/-- The canonical first-sumcheck materializer realizes the verifier-side query
+routing through the Spartan oracle statement. -/
+theorem firstSumcheckOracleMaterializer_realizes :
+    (firstSumcheckOracleMaterializer R pp).Realizes := by
+  intro state oracleStmt point
+  change
+    simulateQ
+        (OracleInterface.toOracleImpl (WithWitnessOracleFamily R pp) oracleStmt)
+        (firstSumcheckEvalByQueries (R := R) pp state point) =
+      pure (CPoly.CMvPolynomial.eval point
+        (firstSumcheckPolynomialExpr R pp state oracleStmt))
+  simp [firstSumcheckEvalByQueries, firstSumcheckPolynomialExpr,
+    simulateQ_matrixVecEvalByQueries]
 
 end FirstSumcheckView
 
 section FirstSumcheckBoundary
 
-variable (R : Type) [BEq R] [CommRing R] [IsDomain R] [Fintype R]
+variable (R : Type) [BEq R] [CommRing R] [instDomain : IsDomain R] [instFintype : Fintype R]
   [LawfulBEq R] [Nontrivial R]
 variable (pp : PublicParams)
 
@@ -318,40 +612,90 @@ def firstSumcheckOracleAccess
   simulateOut := fun _ q =>
     liftM <| ([WithWitnessOracleFamily R pp]ₒ).query q
 
-/-- Spartan's first sum-check verifier obtained by pulling the generic
-sum-check verifier through the virtual-polynomial oracle boundary. -/
-def firstSumcheckVerifier {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
-    {m_dom : ℕ} (D : Fin m_dom → R)
-    (sampleChallenge : OracleComp oSpec R) :
-    Interaction.Oracle.Verifier oSpec
-      (AfterFirstChallengeStatement R pp)
-      (fun _ => firstSumcheckContext R pp)
-      (fun _ => firstSumcheckRoles R pp)
-      (fun _ => firstSumcheckOracleDeco R pp)
-      (fun _ => PUnit)
+/-- Concrete materialization for the first virtual sum-check oracle boundary.
+
+The inner singleton oracle is the virtual first sum-check polynomial derived
+from the Spartan state and outer oracle statement. The output oracle family is
+the unchanged Spartan matrix-plus-witness family. -/
+def firstSumcheckOracleReification
+    (state : AfterFirstChallengeStatement R pp) :
+    Interaction.Boundary.OracleStatementReification
+      (InnerContext := firstSumcheckContext R pp)
+      (WithWitnessOracleFamily R pp)
+      (FirstSumcheckOracleFamily R pp)
+      (fun _ => FirstSumcheckOracleFamily R pp)
+      (fun _ => AfterFirstSumcheckOracleFamily R pp) where
+  materializeIn := firstSumcheckOracleMaterializer R pp state
+  materializeOut := fun outer _ _ => outer
+
+/-- The concrete first-sumcheck materialization realizes the verifier-side
+query routing. -/
+lemma firstSumcheckOracleReification_realizes
+    (state : AfterFirstChallengeStatement R pp) :
+    Interaction.Boundary.OracleStatementReification.Realizes
+      (firstSumcheckOracleAccess R pp state)
+      (firstSumcheckOracleReification R pp state) := by
+  constructor
+  · intro oStmtIn i point
+    cases i
+    exact firstSumcheckOracleMaterializer_realizes R pp state oStmtIn point
+  · intro oStmtIn _ _ i q
+    rfl
+
+/-- Bundled oracle boundary for Spartan's first virtual sum-check. -/
+def firstSumcheckBoundary :
+    Interaction.Boundary.OracleStatement
+      (firstSumcheckStatementLift R pp)
       (fun _ => WithWitnessOracleFamily R pp)
+      (fun _ => FirstSumcheckOracleFamily R pp)
+      (fun _ _ => FirstSumcheckOracleFamily R pp)
+      (fun _ _ => AfterFirstSumcheckOracleFamily R pp) where
+  access := fun outer => firstSumcheckOracleAccess R pp outer
+  reification := fun outer => firstSumcheckOracleReification R pp outer
+  coherent := fun outer =>
+    firstSumcheckOracleReification_realizes R pp outer
+
+/-- Full statement-and-witness transport for the first virtual sum-check
+boundary. Sum-check has no external polynomial witness; the bounded-degree
+polynomial lives in the inner oracle statement materialized by the boundary. -/
+def firstSumcheckContextLift :
+    Interaction.Boundary.OracleContextLift
+      (firstSumcheckStatementProjection R pp)
+      PUnit
+      PUnit
+      (fun _ _ => Option (FirstSumcheckClaim R))
       (fun _ _ => AfterFirstSumcheckStatement R pp)
-      (fun _ _ => AfterFirstSumcheckOracleFamily R pp) :=
-  Interaction.Oracle.Verifier.pullback
-    (projection := firstSumcheckStatementProjection R pp)
-    (toStatement := firstSumcheckStatementLift R pp)
-    (OuterOStmtIn := fun _ => WithWitnessOracleFamily R pp)
-    (InnerOStmtIn := fun _ => FirstSumcheckOracleFamily R pp)
-    (InnerOStmtOut := fun _ _ => FirstSumcheckOracleFamily R pp)
-    (OuterOStmtOut := fun _ _ => AfterFirstSumcheckOracleFamily R pp)
-    (fun outer => firstSumcheckOracleAccess R pp outer)
-    (Sumcheck.reduction (R := R) (deg := firstSumcheckDegree)
-      (OStatementIn := FirstSumcheckOracleFamily R pp)
-      D sampleChallenge pp.ℓ_m).verifier
+      (fun _ _ => PUnit)
+      (fun _ _ => PUnit) where
+  witProj := {
+    proj := fun _ _ => PUnit.unit
+  }
+  stmt := firstSumcheckStatementLift R pp
+  wit := {
+    lift := fun _ _ _ _ _ => PUnit.unit
+  }
+
+/-- Bundled oracle context boundary for Spartan's first virtual sum-check. -/
+def firstSumcheckContextBoundary :
+    Interaction.Boundary.OracleContext
+      (firstSumcheckContextLift R pp)
+      (fun _ => WithWitnessOracleFamily R pp)
+      (fun _ => FirstSumcheckOracleFamily R pp)
+      (fun _ _ => FirstSumcheckOracleFamily R pp)
+      (fun _ _ => AfterFirstSumcheckOracleFamily R pp) where
+  access := fun outer => firstSumcheckOracleAccess R pp outer
+  reification := fun outer => firstSumcheckOracleReification R pp outer
+  coherent := fun outer =>
+    firstSumcheckOracleReification_realizes R pp outer
 
 /-- Spartan's first sum-check reduction as a boundary around the generic
 sum-check reduction.
 
-The input witness is the materialized degree-bounded first sum-check
-polynomial. The verifier sees it only through the derived virtual oracle
-boundary; the prover materializes the singleton inner oracle from the concrete
-post-setup matrix and witness oracle family. -/
+The input oracle family is the post-setup Spartan oracle family. The inner
+sum-check sees a singleton bounded-degree polynomial family, materialized by
+the boundary and realized by the pointwise routing hypothesis. -/
 def firstSumcheckReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
+    [IsDomain R] [Fintype R]
     {m_dom : ℕ} (D : Fin m_dom → R)
     (sampleChallenge : OracleComp oSpec R) :
     Interaction.Oracle.Reduction oSpec
@@ -361,21 +705,44 @@ def firstSumcheckReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
       (fun _ => firstSumcheckOracleDeco R pp)
       (fun _ => PUnit)
       (fun _ => WithWitnessOracleFamily R pp)
-      (fun _ => FirstSumcheckWitness R pp)
+      (fun _ => PUnit)
       (fun _ _ => AfterFirstSumcheckStatement R pp)
       (fun _ _ => AfterFirstSumcheckOracleFamily R pp)
-      (fun _ _ => Sumcheck.PolyStmt R firstSumcheckDegree 0) where
-  prover state sWithOracles witness := do
-    let innerReduction :=
-      Sumcheck.reduction (R := R) (deg := firstSumcheckDegree)
-        (OStatementIn := FirstSumcheckOracleFamily R pp)
-        D sampleChallenge pp.ℓ_m
-    let innerOracleStmt :=
-      firstSumcheckOracleStmt (R := R) pp state sWithOracles.oracleStmt
+      (fun _ _ => PUnit) :=
+  Interaction.Oracle.Reduction.pullback
+    (firstSumcheckContextLift R pp)
+    (firstSumcheckContextBoundary R pp)
+    (Sumcheck.reduction (R := R) (deg := firstSumcheckDegree)
+      (D := D) sampleChallenge pp.ℓ_m)
+
+/-- Spartan's first sum-check in continuation form, ready to follow a setup
+reduction by ordinary sequential composition.
+
+The post-setup Spartan state is the local input statement rather than the
+ambient shared index. This is the shape consumed by `Reduction.comp`: the setup
+prefix produces the state, then this reduction consumes it as its statement. -/
+def firstSumcheckContinuationReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
+    [IsDomain R] [Fintype R]
+    {m_dom : ℕ} (D : Fin m_dom → R)
+    (sampleChallenge : OracleComp oSpec R) :
+    Interaction.Oracle.Reduction oSpec PUnit
+      (fun _ => firstSumcheckContext R pp)
+      (fun _ => firstSumcheckRoles R pp)
+      (fun _ => firstSumcheckOracleDeco R pp)
+      (fun _ => AfterFirstChallengeStatement R pp)
+      (ιₛᵢ := fun _ => R1CS.MatrixIdx ⊕ Unit)
+      (fun _ => WithWitnessOracleFamily R pp)
+      (fun _ => PUnit)
+      (fun _ _ => AfterFirstSumcheckStatement R pp)
+      (ιₛₒ := fun _ _ => R1CS.MatrixIdx ⊕ Unit)
+      (fun _ _ => AfterFirstSumcheckOracleFamily R pp)
+      (fun _ _ => PUnit) where
+  prover _ sWithOracles witness := do
+    let state := sWithOracles.stmt
     let strat ←
-      innerReduction.prover
-        (0 : FirstSumcheckClaim R)
-        ⟨PUnit.unit, innerOracleStmt⟩
+      (firstSumcheckReduction (R := R) (pp := pp) D sampleChallenge).prover
+        state
+        ⟨PUnit.unit, sWithOracles.oracleStmt⟩
         witness
     pure <|
       Interaction.Spec.Strategy.withRolesAndMonads.mapOutput
@@ -383,16 +750,21 @@ def firstSumcheckReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
         ((firstSumcheckContext R pp).toSpecRoles (firstSumcheckRoles R pp))
         ((firstSumcheckContext R pp).toProverMonadDecoration oSpec)
         (fun _ out =>
-          (⟨⟨⟨out.stmt.stmt, state⟩, sWithOracles.oracleStmt⟩, out.wit⟩ :
+          (⟨⟨out.stmt.stmt, out.stmt.oracleStmt⟩, out.wit⟩ :
             HonestProverOutput
               (StatementWithOracles
                 (fun _ => AfterFirstSumcheckStatement R pp)
                 (fun _ => AfterFirstSumcheckOracleFamily R pp)
-                state)
-              (Sumcheck.PolyStmt R firstSumcheckDegree 0)))
+                PUnit.unit)
+              PUnit))
         strat
-  verifier :=
-    firstSumcheckVerifier (R := R) (pp := pp) D sampleChallenge
+  verifier := {
+    toFun := fun _ state =>
+      (firstSumcheckReduction (R := R) (pp := pp) D sampleChallenge).verifier.toFun
+        state PUnit.unit
+    simulate := fun _ _ q =>
+      liftM <| ([WithWitnessOracleFamily R pp]ₒ).query q
+  }
 
 end FirstSumcheckBoundary
 
@@ -402,7 +774,7 @@ variable (R : Type) [CommRing R] [IsDomain R] [Fintype R] (pp : PublicParams)
 
 /-- First Spartan round: the prover sends the witness oracle. -/
 def witnessSpec : Interaction.Oracle.Spec :=
-  .oracle (Witness R pp) .done
+  .oracle (Witness R pp) fun _ => .done
 
 /-- The witness oracle is sent by the prover. -/
 def witnessRoles :
@@ -447,7 +819,7 @@ def witnessReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι} :
       (fun _ _ => Statement R pp)
       (ιₛₒ := fun _ _ => R1CS.MatrixIdx ⊕ Unit)
       (fun _ _ => WithWitnessOracleFamily R pp)
-      (fun _ _ => PUnit) where
+      (fun _ _ => Witness R pp) where
   prover _ sWithOracles witness := do
     let proverStep :
         Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
@@ -459,19 +831,19 @@ def witnessReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι} :
                 (fun _ => Statement R pp)
                 (fun _ => WithWitnessOracleFamily R pp)
                 PUnit.unit)
-              PUnit) := do
+              (Witness R pp)) := do
       pure
         ⟨witness,
           (⟨⟨sWithOracles.stmt,
             fun
             | .inl idx => sWithOracles.oracleStmt idx
-            | .inr () => witness⟩, PUnit.unit⟩ :
+            | .inr () => witness⟩, witness⟩ :
             HonestProverOutput
               (StatementWithOracles
                 (fun _ => Statement R pp)
                 (fun _ => WithWitnessOracleFamily R pp)
                 PUnit.unit)
-              PUnit)⟩
+              (Witness R pp))⟩
     pure <|
       Interaction.Spec.Strategy.withRolesAndMonads.ofWithRolesConstant
         (witnessSpec R pp).toInteractionSpec
@@ -488,7 +860,8 @@ end WitnessOracleRound
 
 section FirstChallengeRound
 
-variable (R : Type) [CommRing R] [IsDomain R] [Fintype R] (pp : PublicParams)
+variable (R : Type) [BEq R] [CommRing R] [IsDomain R] [Fintype R]
+  [LawfulBEq R] [Nontrivial R] (pp : PublicParams)
 
 /-- Second Spartan setup round: the verifier samples `τ`. -/
 def firstChallengeSpec : Interaction.Oracle.Spec :=
@@ -518,6 +891,7 @@ def simulateAfterFirstChallenge
 
 /-- Sample the first Spartan challenge and remember it in the local statement. -/
 def firstChallengeReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
+    [Nontrivial R]
     (sampleFirstChallenge : OracleComp oSpec (FirstChallenge R pp)) :
     Interaction.Oracle.Reduction oSpec PUnit
       (fun _ => firstChallengeSpec R pp)
@@ -526,7 +900,7 @@ def firstChallengeReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
       (fun _ => Statement R pp)
       (ιₛᵢ := fun _ => R1CS.MatrixIdx ⊕ Unit)
       (fun _ => WithWitnessOracleFamily R pp)
-      (fun _ => PUnit)
+      (fun _ => Witness R pp)
       (fun _ _ => AfterFirstChallengeStatement R pp)
       (ιₛₒ := fun _ _ => R1CS.MatrixIdx ⊕ Unit)
       (fun _ _ => AfterFirstChallengeOracleFamily R pp)
@@ -544,8 +918,10 @@ def firstChallengeReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
                 PUnit.unit)
               PUnit) :=
       fun τ => do
+        let state : AfterFirstChallengeStatement R pp := ⟨τ, sWithOracles.stmt⟩
         pure
-          ⟨⟨⟨τ, sWithOracles.stmt⟩, sWithOracles.oracleStmt⟩, PUnit.unit⟩
+          ⟨⟨state, sWithOracles.oracleStmt⟩,
+            PUnit.unit⟩
     pure <|
       Interaction.Spec.Strategy.withRolesAndMonads.ofWithRolesConstant
         (firstChallengeSpec R pp).toInteractionSpec
@@ -563,7 +939,8 @@ end FirstChallengeRound
 
 section SetupPrefix
 
-variable (R : Type) [CommRing R] [IsDomain R] [Fintype R] (pp : PublicParams)
+variable (R : Type) [BEq R] [CommRing R] [instDomain : IsDomain R] [instFintype : Fintype R]
+  [LawfulBEq R] [Nontrivial R] (pp : PublicParams)
 
 /-- Spartan setup context: witness oracle message followed by the first
 verifier challenge. -/
@@ -590,6 +967,7 @@ abbrev setupOracleDeco :
 
 /-- Spartan setup prefix as a composed oracle reduction. -/
 def setupReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
+    [Nontrivial R] [IsDomain R] [Fintype R]
     (sampleFirstChallenge : OracleComp oSpec (FirstChallenge R pp)) :
     Interaction.Oracle.Reduction oSpec PUnit
       (fun _ => setupContext R pp)
@@ -610,6 +988,81 @@ def setupReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
         sampleFirstChallenge)
 
 end SetupPrefix
+
+section SetupThenFirstSumcheck
+
+variable (R : Type) [BEq R] [CommRing R] [LawfulBEq R] [Nontrivial R]
+variable (pp : PublicParams)
+
+/-- Spartan prefix through the first virtual sum-check. -/
+abbrev setupThenFirstSumcheckContext [IsDomain R] [Fintype R] :
+    Interaction.Oracle.Spec :=
+  (setupContext R pp).append (fun _ => firstSumcheckContext R pp)
+
+/-- Role decoration for the Spartan prefix through the first virtual
+sum-check. -/
+abbrev setupThenFirstSumcheckRoles [IsDomain R] [Fintype R] :
+    Interaction.Oracle.Spec.RoleDeco (setupThenFirstSumcheckContext R pp) :=
+  Interaction.Oracle.Spec.RoleDeco.append
+    (setupContext R pp)
+    (fun _ => firstSumcheckContext R pp)
+    (setupRoles R pp)
+    (fun _ => firstSumcheckRoles R pp)
+
+/-- Oracle-message decoration for the Spartan prefix through the first virtual
+sum-check. -/
+abbrev setupThenFirstSumcheckOracleDeco [IsDomain R] [Fintype R] :
+    Interaction.Oracle.Spec.OracleDeco (setupThenFirstSumcheckContext R pp) :=
+  Interaction.Oracle.Spec.OracleDeco.append
+    (setupContext R pp)
+    (fun _ => firstSumcheckContext R pp)
+    (setupOracleDeco R pp)
+    (fun _ => firstSumcheckOracleDeco R pp)
+
+/-- Spartan setup followed by the first virtual sum-check, composed with the
+generic oracle-reduction composition primitive. -/
+abbrev setupThenFirstSumcheckReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
+    [instDomain : IsDomain R] [instFintype : Fintype R]
+    {m_dom : ℕ} (D : Fin m_dom → R)
+    (sampleFirstChallenge : OracleComp oSpec (FirstChallenge R pp))
+    (sampleSumcheckChallenge : OracleComp oSpec R) :
+    Interaction.Oracle.Reduction oSpec PUnit
+      (fun _ => (setupContext R pp).append (fun _ => firstSumcheckContext R pp))
+      (fun _ =>
+        Interaction.Oracle.Spec.RoleDeco.append
+          (setupContext R pp)
+          (fun _ => firstSumcheckContext R pp)
+          (setupRoles R pp)
+          (fun _ => firstSumcheckRoles R pp))
+      (fun _ =>
+        Interaction.Oracle.Spec.OracleDeco.append
+          (setupContext R pp)
+          (fun _ => firstSumcheckContext R pp)
+          (setupOracleDeco R pp)
+          (fun _ => firstSumcheckOracleDeco R pp))
+      (fun _ => Statement R pp)
+      (ιₛᵢ := fun _ => R1CS.MatrixIdx)
+      (fun _ => InputOracleFamily R pp)
+      (fun _ => Witness R pp)
+      (fun _ _ => AfterFirstSumcheckStatement R pp)
+      (ιₛₒ := fun _ _ => R1CS.MatrixIdx ⊕ Unit)
+      (fun _ _ => AfterFirstSumcheckOracleFamily R pp)
+      (fun _ _ => PUnit) :=
+  Interaction.Oracle.Reduction.comp
+    (Context₂ := fun _ _ => firstSumcheckContext R pp)
+    (Roles₂ := fun _ _ => firstSumcheckRoles R pp)
+    (OracleDeco₂ := fun _ _ => firstSumcheckOracleDeco R pp)
+    (StatementOut := fun _ _ _ => AfterFirstSumcheckStatement R pp)
+    (ιₛₒ := fun _ _ _ => R1CS.MatrixIdx ⊕ Unit)
+    (OStatementOut := fun _ _ _ => AfterFirstSumcheckOracleFamily R pp)
+    (WitnessOut := fun _ _ _ => PUnit)
+    (setupReduction (R := R) (pp := pp) (oSpec := oSpec)
+      sampleFirstChallenge)
+    (fun _ _ =>
+      firstSumcheckContinuationReduction (R := R) (pp := pp) (oSpec := oSpec)
+        D sampleSumcheckChallenge)
+
+end SetupThenFirstSumcheck
 
 end
 

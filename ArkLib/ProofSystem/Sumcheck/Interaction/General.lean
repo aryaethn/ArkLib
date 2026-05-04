@@ -102,37 +102,6 @@ private noncomputable def verifierRoundSteps
         verifierStepOption (R := R) (deg := deg) OStatementIn []ₒ D claim sampleChallenge,
         fun _ => verifierRoundSteps (oSpec := oSpec) OStatementIn D sampleChallenge n⟩
 
-/-- Extract the terminal honest-prover state selected by the public transcript. -/
-private def proverOutputState
-    {ιₛᵢ : Type} {OStatementIn : ιₛᵢ → Type} :
-    (n : Nat) →
-      (pt : Interaction.Oracle.Spec.PublicTranscript (fullSpec R deg n)) →
-      Interaction.Oracle.Spec.Chain.outputFamily
-        (fun {k} _ => ProverState (R := R) (deg := deg) OStatementIn k)
-        n (fullChain R deg n) pt →
-      ProverState (R := R) (deg := deg) OStatementIn 0
-  | 0, _, state => state
-  | n + 1, pt, state =>
-      let split :=
-        Interaction.Oracle.Spec.Chain.splitPublicTranscript
-          n (fullChain R deg (n + 1)) pt
-      proverOutputState n split.2 state
-
-/-- Extract the terminal verifier state selected by the public transcript. -/
-private def verifierOutputState :
-    (n : Nat) →
-      (pt : Interaction.Oracle.Spec.PublicTranscript (fullSpec R deg n)) →
-      Interaction.Oracle.Spec.Chain.outputFamily
-        (fun {_k} _ => Option (RoundClaim R))
-        n (fullChain R deg n) pt →
-      Option (RoundClaim R)
-  | 0, _, state => state
-  | n + 1, pt, state =>
-      let split :=
-        Interaction.Oracle.Spec.Chain.splitPublicTranscript
-          n (fullChain R deg (n + 1)) pt
-      verifierOutputState n split.2 state
-
 /-- Native stateful `n`-round sum-check reduction, built by composing native
 one-round oracle reductions.
 
@@ -182,10 +151,22 @@ noncomputable def reductionStateful
       (fun _ =>
         verifierRoundSteps (R := R) (deg := deg) (oSpec := oSpec)
           OStatementIn D sampleChallenge n)
-      (fun _ pt state => (proverOutputState (R := R) (deg := deg) n pt state).claim)
-      (fun _ pt state => verifierOutputState (R := R) (deg := deg) n pt state)
-      (fun _ pt state => (proverOutputState (R := R) (deg := deg) n pt state).oracleStmt)
-      (fun _ pt state => (proverOutputState (R := R) (deg := deg) n pt state).residual)
+      (fun _ pt state =>
+        (Interaction.Oracle.Spec.Chain.terminalOutput
+          (fun {k} _ => ProverState (R := R) (deg := deg) OStatementIn k)
+          n (fullChain R deg n) pt state).claim)
+      (fun _ pt state =>
+        Interaction.Oracle.Spec.Chain.terminalOutput
+          (fun {_k} _ => Option (RoundClaim R))
+          n (fullChain R deg n) pt state)
+      (fun _ pt state =>
+        (Interaction.Oracle.Spec.Chain.terminalOutput
+          (fun {k} _ => ProverState (R := R) (deg := deg) OStatementIn k)
+          n (fullChain R deg n) pt state).oracleStmt)
+      (fun _ pt state =>
+        (Interaction.Oracle.Spec.Chain.terminalOutput
+          (fun {k} _ => ProverState (R := R) (deg := deg) OStatementIn k)
+          n (fullChain R deg n) pt state).residual)
       (fun _ _ q => liftM <| ([OStatementIn]ₒ).query q)
 
 end

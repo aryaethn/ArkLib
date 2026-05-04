@@ -147,6 +147,23 @@ def outputFamily
       PublicTranscript.liftAppend spec (fun pt₁ => toSpec n (cont pt₁))
         (fun pt₁ pt₂ => outputFamily Family n (cont pt₁) pt₂) pt
 
+/-- Extract the terminal value selected by a full public transcript.
+
+This is the canonical eliminator for `outputFamily`: callers that only care
+about the final state no longer need to hand-roll recursive splitting of the
+flattened public transcript. -/
+def terminalOutput
+    (Family : {n : Nat} → Chain n → Type) :
+    (n : Nat) → (c : Chain n) →
+      (pt : PublicTranscript (toSpec n c)) →
+        outputFamily Family n c pt → Family (n := 0) ⟨⟩
+  | 0, _, _, out => out
+  | n + 1, ⟨spec, _, _, cont⟩, pt, out =>
+      let split := PublicTranscript.split spec (fun pt₁ => toSpec n (cont pt₁)) pt
+      terminalOutput Family n (cont split.1) split.2
+        (PublicTranscript.unliftAppend spec (fun pt₁ => toSpec n (cont pt₁))
+          (fun pt₁ pt₂ => outputFamily Family n (cont pt₁) pt₂) pt out)
+
 /-! ## Prover composition -/
 
 namespace Prover

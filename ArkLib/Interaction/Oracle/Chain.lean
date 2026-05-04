@@ -378,4 +378,113 @@ def Reduction.ofChain
     simulate := simulate
   }
 
+namespace Spec
+
+/-! ## Indexed chains -/
+
+/-- A chain whose nodes are indexed by a caller-chosen protocol position.
+
+Unlike `Chain n`, an indexed chain remembers more than the number of remaining
+nodes. This is useful for heterogeneous protocols whose round-local state is
+naturally indexed by a phase position: each continuation returns the next
+position together with the remaining chain at that position. -/
+def IndexedChain (Idx : Type) : Nat → Idx → Type 1
+  | 0, _ => PUnit
+  | n + 1, _ =>
+      (spec : Oracle.Spec) × (_ : RoleDeco spec) ×
+      (_ : OracleDeco spec) ×
+      (PublicTranscript spec → (idx' : Idx) × IndexedChain Idx n idx')
+
+namespace IndexedChain
+
+/-- Flatten an indexed chain into a concrete `Oracle.Spec`. -/
+def toSpec {Idx : Type} :
+    (n : Nat) → {idx : Idx} → IndexedChain Idx n idx → Oracle.Spec
+  | 0, _, _ => .done
+  | n + 1, _, ⟨spec, _, _, cont⟩ =>
+      spec.append (fun pt => toSpec n (cont pt).2)
+
+/-- Flatten role decorations along an indexed chain. -/
+def toRoles {Idx : Type} :
+    (n : Nat) → {idx : Idx} → (c : IndexedChain Idx n idx) → RoleDeco (toSpec n c)
+  | 0, _, _ => ⟨⟩
+  | n + 1, _, ⟨spec, roles, _, cont⟩ =>
+      RoleDeco.append spec (fun pt => toSpec n (cont pt).2)
+        roles (fun pt => toRoles n (cont pt).2)
+
+/-- Flatten oracle decorations along an indexed chain. -/
+def toOracleDeco {Idx : Type} :
+    (n : Nat) → {idx : Idx} → (c : IndexedChain Idx n idx) → OracleDeco (toSpec n c)
+  | 0, _, _ => ⟨⟩
+  | n + 1, _, ⟨spec, _, od, cont⟩ =>
+      OracleDeco.append spec (fun pt => toSpec n (cont pt).2)
+        od (fun pt => toOracleDeco n (cont pt).2)
+
+/-- Lift an index family to a family over full public transcripts. -/
+def outputFamily {Idx : Type}
+    (Family : Idx → Type) :
+    (n : Nat) → {idx : Idx} → (c : IndexedChain Idx n idx) →
+      PublicTranscript (toSpec n c) → Type
+  | 0, idx, _, _ => Family idx
+  | n + 1, _, ⟨spec, _, _, cont⟩, pt =>
+      PublicTranscript.liftAppend spec (fun pt₁ => toSpec n (cont pt₁).2)
+        (fun pt₁ pt₂ => outputFamily Family n (cont pt₁).2 pt₂) pt
+
+/-- Extract the terminal index and value selected by a full public transcript. -/
+def terminalOutput {Idx : Type}
+    (Family : Idx → Type) :
+    (n : Nat) → {idx : Idx} → (c : IndexedChain Idx n idx) →
+      (pt : PublicTranscript (toSpec n c)) →
+        outputFamily Family n c pt → (idx' : Idx) × Family idx'
+  | 0, idx, _, _, out => ⟨idx, out⟩
+  | n + 1, _, ⟨spec, _, _, cont⟩, pt, out =>
+      let split := PublicTranscript.split spec (fun pt₁ => toSpec n (cont pt₁).2) pt
+      terminalOutput Family n (cont split.1).2 split.2
+        (PublicTranscript.unliftAppend spec (fun pt₁ => toSpec n (cont pt₁).2)
+          (fun pt₁ pt₂ => outputFamily Family n (cont pt₁).2 pt₂) pt out)
+
+namespace Prover
+
+/-- Per-node prover handlers for an indexed chain. -/
+def RoundSteps {Idx : Type} {m : Type → Type} [Monad m]
+    (State : Idx → Type) :
+    (n : Nat) → {idx : Idx} → (c : IndexedChain Idx n idx) → Type 1
+  | 0, _, _ => PUnit
+  | n + 1, idx, c =>
+      ((state : State idx) →
+        m
+          (Interaction.Spec.Strategy.withRoles m
+            c.1.toInteractionSpec (c.1.toSpecRoles c.2.1)
+            (fun tr => State (c.2.2.2 (c.1.projectPublic tr)).1))) ×
+      ((pt : PublicTranscript c.1) → RoundSteps (m := m) State n (c.2.2.2 pt).2)
+
+/-- Compose prover handlers attached to one indexed chain. -/
+def comp {Idx : Type}
+    {m : Type → Type} [Monad m]
+    (State : Idx → Type) :
+    (n : Nat) → {idx : Idx} → (c : IndexedChain Idx n idx) → State idx →
+    RoundSteps (m := m) State n c →
+    m
+      (Interaction.Spec.Strategy.withRoles m
+        (toSpec n c).toInteractionSpec
+        ((toSpec n c).toSpecRoles (toRoles n c))
+        (fun tr => outputFamily State n c ((toSpec n c).projectPublic tr)))
+  | 0, _, _, state, _ => pure state
+  | n + 1, _, ⟨spec, roles, _od, cont⟩, state, steps => do
+      let strat ← steps.1 state
+      Prover.compAux spec (fun pt => toSpec n (cont pt).2)
+        roles (fun pt => toRoles n (cont pt).2)
+        (Mid := fun tr₁ => State (cont (spec.projectPublic tr₁)).1)
+        (OutType := fun pt₁ pt₂ => outputFamily State n (cont pt₁).2 pt₂)
+        strat
+        (fun tr₁ state' =>
+          comp (m := m) State n (cont (spec.projectPublic tr₁)).2 state'
+            (steps.2 (spec.projectPublic tr₁)))
+
+end Prover
+
+end IndexedChain
+
+end Spec
+
 end Interaction.Oracle

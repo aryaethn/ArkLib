@@ -483,8 +483,171 @@ def comp {Idx : Type}
 
 end Prover
 
+namespace Verifier
+
+/-- Per-node verifier handlers for an indexed chain. -/
+def RoundSteps {Idx : Type}
+    {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
+    {ιₛᵢ : Type} {OStmtIn : ιₛᵢ → Type} [∀ i, OracleInterface (OStmtIn i)]
+    (State : Idx → Type) :
+    (n : Nat) → {idx : Idx} → (c : IndexedChain Idx n idx) → Type 1
+  | 0, _, _ => PUnit
+  | n + 1, idx, c =>
+      ((state : State idx) →
+        Interaction.Spec.Counterpart.withMonads
+          c.1.toInteractionSpec (c.1.toSpecRoles c.2.1)
+          (c.1.toMonadDecoration oSpec OStmtIn c.2.1 c.2.2.1 []ₒ)
+          (fun tr => State (c.2.2.2 (c.1.projectPublic tr)).1)) ×
+      ((pt : PublicTranscript c.1) → RoundSteps (oSpec := oSpec) (OStmtIn := OStmtIn)
+        State n (c.2.2.2 pt).2)
+
+/-- Compose verifier handlers attached to one indexed chain. -/
+def comp {Idx : Type}
+    {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
+    {ιₛᵢ : Type} {OStmtIn : ιₛᵢ → Type} [∀ i, OracleInterface (OStmtIn i)]
+    (State : Idx → Type) :
+    (n : Nat) → {idx : Idx} → (c : IndexedChain Idx n idx) → State idx →
+    RoundSteps (oSpec := oSpec) (OStmtIn := OStmtIn) State n c →
+    Interaction.Spec.Counterpart.withMonads
+      (toSpec n c).toInteractionSpec
+      ((toSpec n c).toSpecRoles (toRoles n c))
+      ((toSpec n c).toMonadDecoration oSpec OStmtIn (toRoles n c) (toOracleDeco n c) []ₒ)
+      (fun tr => outputFamily State n c ((toSpec n c).projectPublic tr))
+  | 0, _, _, state, _ => state
+  | n + 1, _, ⟨spec, roles, od, cont⟩, state, steps =>
+      Verifier.compAux (OStmtIn := OStmtIn)
+        spec (fun pt => toSpec n (cont pt).2)
+        roles (fun pt => toRoles n (cont pt).2)
+        od (fun pt => toOracleDeco n (cont pt).2)
+        []ₒ
+        (OutType := fun pt₁ pt₂ => outputFamily State n (cont pt₁).2 pt₂)
+        (steps.1 state)
+        (fun accSpec' tr₁ state' =>
+          let pt₁ := spec.projectPublic tr₁
+          Counterpart.liftAcc
+            (toSpec n (cont pt₁).2) (toRoles n (cont pt₁).2) (toOracleDeco n (cont pt₁).2)
+            []ₒ accSpec' (fun q => q.elim)
+            (comp (oSpec := oSpec) (OStmtIn := OStmtIn)
+              State n (cont pt₁).2 state' (steps.2 pt₁)))
+
+end Verifier
+
 end IndexedChain
 
 end Spec
+
+/-! ## Reduction.ofIndexedChain -/
+
+/-- Compose indexed-chain prover and verifier handlers into a full
+`Oracle.Reduction`.
+
+This is the indexed analogue of `Reduction.ofChain`: the chain carries a
+caller-chosen protocol position at every continuation, and party state is
+indexed by that position rather than only by the number of remaining rounds. -/
+def Reduction.ofIndexedChain
+    {Idx : Type}
+    {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
+    {SharedIn : Type}
+    {StatementIn : SharedIn → Type}
+    {WitnessIn : SharedIn → Type}
+    {ιₛᵢ : SharedIn → Type}
+    {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type}
+    [∀ shared i, OracleInterface (OStatementIn shared i)]
+    {n : Nat}
+    {idx : SharedIn → Idx}
+    {c : (shared : SharedIn) → Spec.IndexedChain Idx n (idx shared)}
+    {StatementOut :
+      (shared : SharedIn) → Spec.PublicTranscript (Spec.IndexedChain.toSpec n (c shared)) → Type}
+    {ιₛₒ : (shared : SharedIn) →
+      Spec.PublicTranscript (Spec.IndexedChain.toSpec n (c shared)) → Type}
+    {OStatementOut :
+      (shared : SharedIn) →
+        (pt : Spec.PublicTranscript (Spec.IndexedChain.toSpec n (c shared))) →
+          ιₛₒ shared pt → Type}
+    [∀ shared pt i, OracleInterface (OStatementOut shared pt i)]
+    {WitnessOut :
+      (shared : SharedIn) → Spec.PublicTranscript (Spec.IndexedChain.toSpec n (c shared)) → Type}
+    (ProverState : (shared : SharedIn) → Idx → Type)
+    (VerifierState : (shared : SharedIn) → Idx → Type)
+    (proverInit : (shared : SharedIn) →
+      StatementWithOracles StatementIn OStatementIn shared → WitnessIn shared →
+        ProverState shared (idx shared))
+    (verifierInit : (shared : SharedIn) →
+      StatementIn shared → VerifierState shared (idx shared))
+    (proverSteps : (shared : SharedIn) →
+      Spec.IndexedChain.Prover.RoundSteps (m := OracleComp oSpec)
+        (ProverState shared) n (c shared))
+    (verifierSteps : (shared : SharedIn) →
+      Spec.IndexedChain.Verifier.RoundSteps (oSpec := oSpec) (OStmtIn := OStatementIn shared)
+        (VerifierState shared) n (c shared))
+    (proverStmtResult : (shared : SharedIn) →
+      (pt : Spec.PublicTranscript (Spec.IndexedChain.toSpec n (c shared))) →
+        Spec.IndexedChain.outputFamily (ProverState shared) n (c shared) pt →
+        StatementOut shared pt)
+    (verifierStmtResult : (shared : SharedIn) →
+      (pt : Spec.PublicTranscript (Spec.IndexedChain.toSpec n (c shared))) →
+        Spec.IndexedChain.outputFamily (VerifierState shared) n (c shared) pt →
+        StatementOut shared pt)
+    (oStmtResult : (shared : SharedIn) →
+      (pt : Spec.PublicTranscript (Spec.IndexedChain.toSpec n (c shared))) →
+        Spec.IndexedChain.outputFamily (ProverState shared) n (c shared) pt →
+        ∀ i, OStatementOut shared pt i)
+    (witResult : (shared : SharedIn) →
+      (pt : Spec.PublicTranscript (Spec.IndexedChain.toSpec n (c shared))) →
+        Spec.IndexedChain.outputFamily (ProverState shared) n (c shared) pt →
+        WitnessOut shared pt)
+    (simulate : (shared : SharedIn) →
+      (pt : Spec.PublicTranscript (Spec.IndexedChain.toSpec n (c shared))) →
+        QueryImpl [OStatementOut shared pt]ₒ
+          (OracleComp
+            ([OStatementIn shared]ₒ +
+              (Spec.IndexedChain.toSpec n (c shared)).toOracleSpec
+                (Spec.IndexedChain.toOracleDeco n (c shared)) pt))) :
+    Reduction oSpec SharedIn
+      (fun shared => Spec.IndexedChain.toSpec n (c shared))
+      (fun shared => Spec.IndexedChain.toRoles n (c shared))
+      (fun shared => Spec.IndexedChain.toOracleDeco n (c shared))
+      StatementIn OStatementIn WitnessIn
+      StatementOut OStatementOut WitnessOut where
+  prover shared sWithOracles w := do
+    let strat ← Spec.IndexedChain.Prover.comp (ProverState shared)
+      n (c shared) (proverInit shared sWithOracles w) (proverSteps shared)
+    let strat' :=
+      Interaction.Spec.Strategy.mapOutputWithRoles
+        (fun tr proverState =>
+          let pt := (Spec.IndexedChain.toSpec n (c shared)).projectPublic tr
+          (⟨⟨proverStmtResult shared pt proverState,
+                oStmtResult shared pt proverState⟩,
+              witResult shared pt proverState⟩ :
+            HonestProverOutput
+              (StatementWithOracles
+                (fun _ => StatementOut shared pt)
+                (fun _ => OStatementOut shared pt)
+                shared)
+              (WitnessOut shared pt)))
+        strat
+    pure <|
+      Interaction.Spec.Strategy.withRolesAndMonads.ofWithRolesConstant
+        (Spec.IndexedChain.toSpec n (c shared)).toInteractionSpec
+        ((Spec.IndexedChain.toSpec n (c shared)).toSpecRoles
+          (Spec.IndexedChain.toRoles n (c shared)))
+        strat'
+  verifier := {
+    toFun := fun shared stmtIn =>
+      Interaction.Spec.Counterpart.withMonads.mapOutput
+        (Spec.IndexedChain.toSpec n (c shared)).toInteractionSpec
+        ((Spec.IndexedChain.toSpec n (c shared)).toSpecRoles
+          (Spec.IndexedChain.toRoles n (c shared)))
+        ((Spec.IndexedChain.toSpec n (c shared)).toMonadDecoration oSpec (OStatementIn shared)
+          (Spec.IndexedChain.toRoles n (c shared)) (Spec.IndexedChain.toOracleDeco n (c shared))
+          []ₒ)
+        (fun tr verifierState =>
+          let pt := (Spec.IndexedChain.toSpec n (c shared)).projectPublic tr
+          verifierStmtResult shared pt verifierState)
+        (Spec.IndexedChain.Verifier.comp (oSpec := oSpec)
+          (OStmtIn := OStatementIn shared) (VerifierState shared)
+          n (c shared) (verifierInit shared stmtIn) (verifierSteps shared))
+    simulate := simulate
+  }
 
 end Interaction.Oracle

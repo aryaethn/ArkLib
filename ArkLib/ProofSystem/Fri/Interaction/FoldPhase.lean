@@ -198,6 +198,124 @@ private def indexedProverNext
       poly := nextPoly }
   ⟨nextCodeword, nextState⟩
 
+/-- Verifier state indexed directly by the absolute fold round. -/
+private structure IndexedVerifierState (round : Nat) where
+  challenges : FoldChallenges (F := F) (k := k)
+
+/-- Initial verifier state for the indexed fold phase. -/
+private def indexedVerifierInit :
+    IndexedVerifierState (F := F) (k := k) 0 :=
+  { challenges := initialFoldChallenges (F := F) (k := k) }
+
+/-- Pure cast-free verifier transition for a non-final fold round. -/
+private def indexedVerifierNext
+    (round : Nat) (hround : round < k)
+    (state : IndexedVerifierState (F := F) (k := k) round)
+    (α : F) :
+    IndexedVerifierState (F := F) (k := k) round.succ :=
+  let i : Fin k := ⟨round, hround⟩
+  { challenges := recordChallenge (F := F) i state.challenges α }
+
+/-- One indexed honest-prover fold-round handler. -/
+private def indexedProverStepAux {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
+    {remaining round : Nat}
+    (hround : round + (remaining + 1) = k)
+    (state : IndexedProverState (D := D) (n := n) (x := x) (s := s) (d := d) round) :
+    OracleComp oSpec
+      (Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
+        (foldRoundSpec (F := F) (n := n) D x s
+          ⟨round, stateRound_lt (k := k) hround⟩).toInteractionSpec
+        ((foldRoundSpec (F := F) (n := n) D x s
+          ⟨round, stateRound_lt (k := k) hround⟩).toSpecRoles
+            (foldRoundRoles (F := F) (n := n) D x s
+              ⟨round, stateRound_lt (k := k) hround⟩))
+        (fun _ => IndexedProverState
+          (D := D) (n := n) (x := x) (s := s) (d := d) round.succ)) := do
+  let roundIdx : Fin k := ⟨round, stateRound_lt (k := k) hround⟩
+  pure <| fun α => do
+    let next := indexedProverNext
+      (F := F) (D := D) (n := n) (x := x) (s := s) (d := d)
+      round roundIdx.2 state α
+    let roundOutput :
+        (_cw : Codeword (F := F) s n round.succ) ×
+          IndexedProverState
+            (D := D) (n := n) (x := x) (s := s) (d := d) round.succ :=
+      ⟨next.1, next.2⟩
+    pure <|
+      (show OracleComp oSpec
+          ((_cw : Codeword (F := F) s n round.succ) ×
+            IndexedProverState
+              (D := D) (n := n) (x := x) (s := s) (d := d) round.succ) from
+        pure roundOutput)
+
+/-- One indexed verifier fold-round handler. -/
+private def indexedVerifierStepAux {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
+    (sampleChallenge : (i : Fin k) → OracleComp oSpec F)
+    {remaining round : Nat}
+    (hround : round + (remaining + 1) = k)
+    (state : IndexedVerifierState (F := F) (k := k) round) :
+    Interaction.Spec.Counterpart.withMonads
+      (foldRoundSpec (F := F) (n := n) D x s
+        ⟨round, stateRound_lt (k := k) hround⟩).toInteractionSpec
+      ((foldRoundSpec (F := F) (n := n) D x s
+        ⟨round, stateRound_lt (k := k) hround⟩).toSpecRoles
+          (foldRoundRoles (F := F) (n := n) D x s
+            ⟨round, stateRound_lt (k := k) hround⟩))
+      ((foldRoundSpec (F := F) (n := n) D x s
+        ⟨round, stateRound_lt (k := k) hround⟩).toMonadDecoration oSpec
+          (InputOracleFamily (F := F) (n := n) D x s)
+          (foldRoundRoles (F := F) (n := n) D x s
+            ⟨round, stateRound_lt (k := k) hround⟩)
+          (foldRoundOD (F := F) (n := n) D x s
+            ⟨round, stateRound_lt (k := k) hround⟩)
+          []ₒ)
+      (fun _ => IndexedVerifierState (F := F) (k := k) round.succ) := do
+  let roundIdx : Fin k := ⟨round, stateRound_lt (k := k) hround⟩
+  let α ← sampleChallenge roundIdx
+  pure ⟨α, fun _ =>
+    indexedVerifierNext (F := F) (k := k)
+      round (stateRound_lt (k := k) hround) state α⟩
+
+/-- Indexed honest-prover handlers for all remaining fold rounds. -/
+private def indexedProverSteps {ι : Type} {oSpec : OracleSpec.{0, 0} ι} :
+    (remaining round : Nat) → (h : round + remaining = k) →
+      Interaction.Oracle.Spec.IndexedChain.Prover.RoundSteps
+        (m := OracleComp oSpec)
+        (IndexedProverState (D := D) (n := n) (x := x) (s := s) (d := d))
+        remaining
+        (foldPhaseIndexedChainFrom
+          (D := D) (n := n) (x := x) (s := s) (k := k)
+          remaining round h)
+  | 0, _, _ => ⟨⟩
+  | remaining + 1, round, h =>
+      ⟨indexedProverStepAux
+          (F := F) (D := D) (n := n) (x := x) (s := s) (d := d)
+          (k := k) (oSpec := oSpec) h,
+        fun _ =>
+          indexedProverSteps (oSpec := oSpec)
+            remaining round.succ (nextStateEq (k := k) h)⟩
+
+/-- Indexed verifier handlers for all remaining fold rounds. -/
+private def indexedVerifierSteps {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
+    (sampleChallenge : (i : Fin k) → OracleComp oSpec F) :
+    (remaining round : Nat) → (h : round + remaining = k) →
+      Interaction.Oracle.Spec.IndexedChain.Verifier.RoundSteps
+        (oSpec := oSpec)
+        (OStmtIn := InputOracleFamily (F := F) (n := n) D x s)
+        (IndexedVerifierState (F := F) (k := k))
+        remaining
+        (foldPhaseIndexedChainFrom
+          (D := D) (n := n) (x := x) (s := s) (k := k)
+          remaining round h)
+  | 0, _, _ => ⟨⟩
+  | remaining + 1, round, h =>
+      ⟨indexedVerifierStepAux
+          (F := F) (D := D) (n := n) (x := x) (s := s) (k := k)
+          (oSpec := oSpec) sampleChallenge h,
+        fun _ =>
+          indexedVerifierSteps (oSpec := oSpec) sampleChallenge
+            remaining round.succ (nextStateEq (k := k) h)⟩
+
 end
 
 end NativeOracle

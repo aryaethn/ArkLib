@@ -226,7 +226,7 @@ def foldRoundSpec
     (_D : Subgroup Fˣ) (_x : Fˣ) (_s : Fin (k + 1) → ℕ+) (i : Fin k) :
     Interaction.Oracle.Spec :=
   .public F fun _ =>
-    .oracle (Codeword (F := F) _s n i.succ.1) .done
+    .oracle (Codeword (F := F) _s n i.1.succ) .done
 
 /-- Role decoration for a non-final fold round. -/
 def foldRoundRoles
@@ -254,7 +254,7 @@ abbrev foldRoundChallenge
 abbrev foldRoundCodeword
     {_D : Subgroup Fˣ} {_x : Fˣ} {_s : Fin (k + 1) → ℕ+} {i : Fin k}
     (tr : Spec.Transcript (foldRoundSpec (F := F) (n := n) _D _x _s i).toInteractionSpec) :
-    Codeword (F := F) _s n i.succ.1 :=
+    Codeword (F := F) _s n i.1.succ :=
   match tr with
   | ⟨_, ⟨codeword, _⟩⟩ => codeword
 

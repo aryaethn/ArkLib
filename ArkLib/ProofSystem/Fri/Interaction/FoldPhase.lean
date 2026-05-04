@@ -141,6 +141,53 @@ abbrev foldPhaseIndexedOD :
   Interaction.Oracle.Spec.IndexedChain.toOracleDeco k
     (foldPhaseIndexedChain (D := D) (n := n) (x := x) (s := s))
 
+/-- Terminal-indexed native chain of the remaining non-final fold rounds.
+
+This has the same round shape as `foldPhaseIndexedChainFrom`, but the terminal
+round `k` is part of the chain type. That extra endpoint is what lets final
+result code recover an `IndexedProverState k` without a result-time cast. -/
+def foldPhasePathChainFrom :
+    (remaining round : Nat) → (h : round + remaining = k) →
+      Interaction.Oracle.Spec.PathChain Nat remaining round k
+  | 0, _round, h =>
+      match h with
+      | rfl => .nil
+  | remaining + 1, round, h =>
+      let i : Fin k := ⟨round, stateRound_lt (k := k) h⟩
+      .cons
+        (foldRoundSpec (F := F) (n := n) D x s i)
+        (foldRoundRoles (F := F) (n := n) D x s i)
+        (foldRoundOD (F := F) (n := n) D x s i)
+        (fun _ => round.succ)
+        (fun _ =>
+          foldPhasePathChainFrom remaining round.succ
+            (nextStateEq (k := k) h))
+
+/-- Terminal-indexed native chain for all non-final fold rounds. -/
+def foldPhasePathChain :
+    Interaction.Oracle.Spec.PathChain Nat k 0 k :=
+  foldPhasePathChainFrom (D := D) (n := n) (x := x) (s := s) (k := k)
+    k 0 (initialRoundEq (k := k))
+
+/-- Native oracle context for the full terminal-indexed non-final fold phase. -/
+abbrev foldPhasePathContext : Interaction.Oracle.Spec :=
+  Interaction.Oracle.Spec.PathChain.toSpec k
+    (foldPhasePathChain (D := D) (n := n) (x := x) (s := s))
+
+/-- Native role decoration for the full terminal-indexed non-final fold phase. -/
+abbrev foldPhasePathRoles :
+    Interaction.Oracle.Spec.RoleDeco
+      (foldPhasePathContext (D := D) (n := n) (x := x) (s := s) (k := k)) :=
+  Interaction.Oracle.Spec.PathChain.toRoles k
+    (foldPhasePathChain (D := D) (n := n) (x := x) (s := s))
+
+/-- Native oracle decoration for the full terminal-indexed non-final fold phase. -/
+abbrev foldPhasePathOD :
+    Interaction.Oracle.Spec.OracleDeco
+      (foldPhasePathContext (D := D) (n := n) (x := x) (s := s) (k := k)) :=
+  Interaction.Oracle.Spec.PathChain.toOracleDeco k
+    (foldPhasePathChain (D := D) (n := n) (x := x) (s := s))
+
 /-- Honest prover state indexed directly by the absolute fold round. -/
 private structure IndexedProverState (round : Nat) where
   challenges : FoldChallenges (F := F) (k := k)

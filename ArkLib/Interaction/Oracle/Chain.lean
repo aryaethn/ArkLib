@@ -534,6 +534,163 @@ end Verifier
 
 end IndexedChain
 
+/-! ## Terminal-indexed chains -/
+
+/-- An indexed chain with both its starting and terminal indices in the type.
+
+`IndexedChain` is enough when the next round's state is indexed by the
+transcript-selected successor. `PathChain` additionally records the terminal
+index, so its terminal eliminator returns `Family finish` directly instead of
+an existential terminal index. This is the right shape for protocols whose
+final output type depends on the known last stage. -/
+inductive PathChain (Idx : Type) : Nat → Idx → Idx → Type 1 where
+  | nil {idx : Idx} : PathChain Idx 0 idx idx
+  | cons {n : Nat} {idx finish : Idx}
+      (spec : Oracle.Spec) (roles : RoleDeco spec) (od : OracleDeco spec)
+      (nextIdx : PublicTranscript spec → Idx)
+      (cont : (pt : PublicTranscript spec) → PathChain Idx n (nextIdx pt) finish) :
+      PathChain Idx (n + 1) idx finish
+
+namespace PathChain
+
+/-- Flatten a terminal-indexed chain into a concrete `Oracle.Spec`. -/
+def toSpec {Idx : Type} :
+    (n : Nat) → {idx finish : Idx} → PathChain Idx n idx finish → Oracle.Spec
+  | 0, _, _, .nil => .done
+  | n + 1, _, _, .cons spec _ _ _ cont =>
+      spec.append (fun pt => toSpec n (cont pt))
+
+/-- Flatten role decorations along a terminal-indexed chain. -/
+def toRoles {Idx : Type} :
+    (n : Nat) → {idx finish : Idx} → (c : PathChain Idx n idx finish) → RoleDeco (toSpec n c)
+  | 0, _, _, .nil => ⟨⟩
+  | n + 1, _, _, .cons spec roles _ _ cont =>
+      RoleDeco.append spec (fun pt => toSpec n (cont pt))
+        roles (fun pt => toRoles n (cont pt))
+
+/-- Flatten oracle decorations along a terminal-indexed chain. -/
+def toOracleDeco {Idx : Type} :
+    (n : Nat) → {idx finish : Idx} → (c : PathChain Idx n idx finish) → OracleDeco (toSpec n c)
+  | 0, _, _, .nil => ⟨⟩
+  | n + 1, _, _, .cons spec _ od _ cont =>
+      OracleDeco.append spec (fun pt => toSpec n (cont pt))
+        od (fun pt => toOracleDeco n (cont pt))
+
+/-- Lift an index family to a family over full public transcripts, with a known
+terminal index. -/
+def outputFamily {Idx : Type}
+    (Family : Idx → Type) :
+    (n : Nat) → {idx finish : Idx} → (c : PathChain Idx n idx finish) →
+      PublicTranscript (toSpec n c) → Type
+  | 0, _, finish, .nil, _ => Family finish
+  | n + 1, _, _, .cons spec _ _ _ cont, pt =>
+      PublicTranscript.liftAppend spec (fun pt₁ => toSpec n (cont pt₁))
+        (fun pt₁ pt₂ => outputFamily Family n (cont pt₁) pt₂) pt
+
+/-- Extract the terminal value selected by a full public transcript. -/
+def terminalOutput {Idx : Type}
+    (Family : Idx → Type) :
+    (n : Nat) → {idx finish : Idx} → (c : PathChain Idx n idx finish) →
+      (pt : PublicTranscript (toSpec n c)) →
+        outputFamily Family n c pt → Family finish
+  | 0, _, _, .nil, _, out => out
+  | n + 1, _, _, .cons spec _ _ _ cont, pt, out =>
+      let split := PublicTranscript.split spec (fun pt₁ => toSpec n (cont pt₁)) pt
+      terminalOutput Family n (cont split.1) split.2
+        (PublicTranscript.unliftAppend spec (fun pt₁ => toSpec n (cont pt₁))
+          (fun pt₁ pt₂ => outputFamily Family n (cont pt₁) pt₂) pt out)
+
+namespace Prover
+
+/-- Per-node prover handlers for a terminal-indexed chain. -/
+def RoundSteps {Idx : Type} {m : Type → Type} [Monad m]
+    (State : Idx → Type) :
+    (n : Nat) → {idx finish : Idx} → (c : PathChain Idx n idx finish) → Type 1
+  | 0, _, _, .nil => PUnit
+  | n + 1, idx, _, .cons spec roles _ nextIdx cont =>
+      ((state : State idx) →
+        m
+          (Interaction.Spec.Strategy.withRoles m
+            spec.toInteractionSpec (spec.toSpecRoles roles)
+            (fun tr => State (nextIdx (spec.projectPublic tr))))) ×
+      ((pt : PublicTranscript spec) → RoundSteps (m := m) State n (cont pt))
+
+/-- Compose prover handlers attached to one terminal-indexed chain. -/
+def comp {Idx : Type}
+    {m : Type → Type} [Monad m]
+    (State : Idx → Type) :
+    (n : Nat) → {idx finish : Idx} → (c : PathChain Idx n idx finish) → State idx →
+    RoundSteps (m := m) State n c →
+    m
+      (Interaction.Spec.Strategy.withRoles m
+        (toSpec n c).toInteractionSpec
+        ((toSpec n c).toSpecRoles (toRoles n c))
+        (fun tr => outputFamily State n c ((toSpec n c).projectPublic tr)))
+  | 0, _, _, .nil, state, _ => pure state
+  | n + 1, _, _, .cons spec roles _ nextIdx cont, state, steps => do
+      let strat ← steps.1 state
+      Prover.compAux spec (fun pt => toSpec n (cont pt))
+        roles (fun pt => toRoles n (cont pt))
+        (Mid := fun tr₁ => State (nextIdx (spec.projectPublic tr₁)))
+        (OutType := fun pt₁ pt₂ => outputFamily State n (cont pt₁) pt₂)
+        strat
+        (fun tr₁ state' =>
+          comp (m := m) State n (cont (spec.projectPublic tr₁)) state'
+            (steps.2 (spec.projectPublic tr₁)))
+
+end Prover
+
+namespace Verifier
+
+/-- Per-node verifier handlers for a terminal-indexed chain. -/
+def RoundSteps {Idx : Type}
+    {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
+    {ιₛᵢ : Type} {OStmtIn : ιₛᵢ → Type} [∀ i, OracleInterface (OStmtIn i)]
+    (State : Idx → Type) :
+    (n : Nat) → {idx finish : Idx} → (c : PathChain Idx n idx finish) → Type 1
+  | 0, _, _, .nil => PUnit
+  | n + 1, idx, _, .cons spec roles od nextIdx cont =>
+      ((state : State idx) →
+        Interaction.Spec.Counterpart.withMonads
+          spec.toInteractionSpec (spec.toSpecRoles roles)
+          (spec.toMonadDecoration oSpec OStmtIn roles od []ₒ)
+          (fun tr => State (nextIdx (spec.projectPublic tr)))) ×
+      ((pt : PublicTranscript spec) → RoundSteps (oSpec := oSpec) (OStmtIn := OStmtIn)
+        State n (cont pt))
+
+/-- Compose verifier handlers attached to one terminal-indexed chain. -/
+def comp {Idx : Type}
+    {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
+    {ιₛᵢ : Type} {OStmtIn : ιₛᵢ → Type} [∀ i, OracleInterface (OStmtIn i)]
+    (State : Idx → Type) :
+    (n : Nat) → {idx finish : Idx} → (c : PathChain Idx n idx finish) → State idx →
+    RoundSteps (oSpec := oSpec) (OStmtIn := OStmtIn) State n c →
+    Interaction.Spec.Counterpart.withMonads
+      (toSpec n c).toInteractionSpec
+      ((toSpec n c).toSpecRoles (toRoles n c))
+      ((toSpec n c).toMonadDecoration oSpec OStmtIn (toRoles n c) (toOracleDeco n c) []ₒ)
+      (fun tr => outputFamily State n c ((toSpec n c).projectPublic tr))
+  | 0, _, _, .nil, state, _ => state
+  | n + 1, _, _, .cons spec roles od _ cont, state, steps =>
+      Verifier.compAux (OStmtIn := OStmtIn)
+        spec (fun pt => toSpec n (cont pt))
+        roles (fun pt => toRoles n (cont pt))
+        od (fun pt => toOracleDeco n (cont pt))
+        []ₒ
+        (OutType := fun pt₁ pt₂ => outputFamily State n (cont pt₁) pt₂)
+        (steps.1 state)
+        (fun accSpec' tr₁ state' =>
+          let pt₁ := spec.projectPublic tr₁
+          Counterpart.liftAcc
+            (toSpec n (cont pt₁)) (toRoles n (cont pt₁)) (toOracleDeco n (cont pt₁))
+            []ₒ accSpec' (fun q => q.elim)
+            (comp (oSpec := oSpec) (OStmtIn := OStmtIn)
+              State n (cont pt₁) state' (steps.2 pt₁)))
+
+end Verifier
+
+end PathChain
+
 end Spec
 
 /-! ## Reduction.ofIndexedChain -/

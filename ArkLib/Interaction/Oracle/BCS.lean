@@ -25,7 +25,7 @@ another `Oracle.Spec` where:
 
 This gives a clean separation: the BCS `Oracle.Spec` directly encodes which
 nodes are queryable (non-committed oracle messages) vs public (commitments
-and original public messages), without needing a separate `HybridDecoration`.
+and original public messages).
 
 ## Main definitions
 

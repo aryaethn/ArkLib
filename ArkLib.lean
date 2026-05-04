@@ -88,10 +88,6 @@ import ArkLib.Data.Polynomial.SplitFold
 import ArkLib.Data.Polynomial.Trivariate
 import ArkLib.Data.Probability.Instances
 import ArkLib.Data.Probability.Notation
-import ArkLib.Interaction.BCS.HybridDecoration
-import ArkLib.Interaction.BCS.HybridReduction
-import ArkLib.Interaction.BCS.HybridSpec
-import ArkLib.Interaction.BCS.Verifier
 import ArkLib.Interaction.Boundary.Compatibility
 import ArkLib.Interaction.Boundary.Core
 import ArkLib.Interaction.Boundary.Oracle
@@ -106,13 +102,7 @@ import ArkLib.Interaction.Oracle.Chain
 import ArkLib.Interaction.Oracle.Composition
 import ArkLib.Interaction.Oracle.Core
 import ArkLib.Interaction.Oracle.Execution
-import ArkLib.Interaction.Oracle.Legacy.Bridge
-import ArkLib.Interaction.Oracle.Legacy.Continuation
-import ArkLib.Interaction.Oracle.Legacy.Core
-import ArkLib.Interaction.Oracle.Legacy.Execution
-import ArkLib.Interaction.Oracle.Legacy.Reification
-import ArkLib.Interaction.Oracle.Legacy.Security
-import ArkLib.Interaction.Oracle.Legacy.StateChain
+import ArkLib.Interaction.Oracle.Reification
 import ArkLib.Interaction.Oracle.Security
 import ArkLib.Interaction.Oracle.Spec
 import ArkLib.Interaction.Reduction

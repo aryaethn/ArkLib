@@ -8,11 +8,9 @@ import ArkLib.Interaction.Oracle.Spec
 import VCVio.Interaction.TwoParty.Refine
 
 /-!
-# Native Oracle.Spec Prover, Verifier, and Reduction
+# Oracle.Spec Prover, Verifier, and Reduction
 
 This module contains the forward oracle API built on `Interaction.Oracle.Spec`.
-The transitional `OracleDecoration` API has been quarantined under
-`ArkLib.Interaction.Oracle.Legacy`.
 -/
 
 universe u v w
@@ -25,6 +23,29 @@ namespace Interaction
 abbrev OracleStatement {ιₛ : Type v} (OStmt : ιₛ → Type w) :=
   ∀ i, OStmt i
 
+namespace OracleStatement
+
+/-- A concrete oracle statement realizes a deterministic query implementation
+when every query receives exactly the answer specified by that statement. -/
+def Realizes
+    {ιₛ : Type v} {OStatement : ιₛ → Type w}
+    [∀ i, OracleInterface (OStatement i)]
+    (impl : QueryImpl [OStatement]ₒ Id)
+    (oStatement : OracleStatement OStatement) : Prop :=
+  ∀ i (q : OracleInterface.Query (OStatement i)),
+    impl ⟨i, q⟩ = OracleInterface.answer (oStatement i) q
+
+@[simp]
+theorem realizes_simOracle0
+    {ιₛ : Type v} {OStatement : ιₛ → Type w}
+    [∀ i, OracleInterface (OStatement i)]
+    (oStatement : OracleStatement OStatement) :
+    Realizes (OracleInterface.simOracle0 OStatement oStatement) oStatement := by
+  intro i q
+  rfl
+
+end OracleStatement
+
 /-- A local statement bundled with oracle-statement data for a fixed ambient
 input `i`. Used for both oracle inputs and oracle outputs. -/
 structure StatementWithOracles
@@ -36,14 +57,11 @@ structure StatementWithOracles
   oracleStmt : OracleStatement (OStmt i)
 /-! ## Oracle.Spec-based prover, verifier, and reduction
 
-These definitions use `Oracle.Spec` (the inductive type with `.public`/`.oracle`)
-instead of `Spec` + `OracleDecoration`. Output types and `simulate` are indexed
-by `Oracle.Spec.PublicTranscript`, giving definitional independence from oracle
-message values.
-
-Like the `OracleDecoration`-based types above, everything is indexed by a
-`SharedIn` ambient input that determines the protocol context, roles, oracle
-decoration, and statement/witness families. -/
+These definitions use `Oracle.Spec` (the inductive type with `.public`/`.oracle`).
+Output types and `simulate` are indexed by `Oracle.Spec.PublicTranscript`,
+giving definitional independence from oracle message values. Everything is
+indexed by a `SharedIn` ambient input that determines the protocol context,
+roles, oracle decoration, and statement/witness families. -/
 
 namespace Oracle
 

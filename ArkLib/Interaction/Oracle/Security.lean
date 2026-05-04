@@ -9,13 +9,10 @@ import ArkLib.Interaction.Oracle.Execution
 # Security Definitions for Oracle.Spec Protocols
 
 Oracle-side security definitions using the cast-free `Oracle.Spec` framework.
-This is the `Oracle.Spec` analog of
-`ArkLib.Interaction.Oracle.Legacy.Security`.
 
-The key structural difference from the old `OracleDecoration`-based security is
-that all output types are indexed by `PublicTranscript` rather than the full
-`Spec.Transcript`. This means output relations, oracle behaviors, and extractors
-are definitionally independent of oracle message values.
+All output types are indexed by `PublicTranscript` rather than the full
+`Spec.Transcript`, so output relations, oracle behaviors, and extractors are
+definitionally independent of oracle message values.
 
 ## Main definitions
 

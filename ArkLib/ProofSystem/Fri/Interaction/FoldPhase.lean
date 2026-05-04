@@ -10,7 +10,7 @@ import ArkLib.Interaction.Oracle.Chain
 # Interaction-Native FRI: Native Fold Phase
 
 This module composes the `k` non-final FRI fold rounds over the native
-`Interaction.Oracle.Spec.Chain` layer.
+terminal-indexed `Interaction.Oracle.Spec.PathChain` layer.
 -/
 
 open Interaction CompPoly CPoly OracleComp OracleSpec
@@ -41,11 +41,6 @@ private theorem nextStateEq {m round : ℕ}
     round.succ + m = k := by
   omega
 
-private theorem finalRoundEq {round : ℕ}
-    (h : round + 0 = k) :
-    round = k := by
-  simpa using h
-
 /-- Total challenge vector used internally while the fold phase is running.
 Entries beyond the current round are irrelevant until they are filled in. -/
 def initialFoldChallenges :
@@ -60,92 +55,11 @@ def recordChallenge
     FoldChallenges (F := F) (k := k) :=
   Function.update challenges round α
 
-/-- The native chain of the remaining non-final fold rounds, starting at
-round `start`. -/
-def foldPhaseChainFrom :
-    (remaining start : Nat) → (h : start + remaining = k) →
-    Interaction.Oracle.Spec.Chain remaining
-  | 0, _, _ => ⟨⟩
-  | remaining + 1, start, h =>
-      let round : Fin k := ⟨start, stateRound_lt (k := k) h⟩
-      ⟨foldRoundSpec (F := F) (n := n) D x s round,
-       foldRoundRoles (F := F) (n := n) D x s round,
-       foldRoundOD (F := F) (n := n) D x s round,
-       fun _ => foldPhaseChainFrom remaining start.succ (nextStateEq (k := k) h)⟩
-
-/-- The native chain of all non-final fold rounds. -/
-def foldPhaseChain : Interaction.Oracle.Spec.Chain k :=
-  foldPhaseChainFrom (D := D) (n := n) (x := x) (s := s) (k := k)
-    k 0 (initialRoundEq (k := k))
-
-/-- Native oracle context for the full non-final folding phase. -/
-abbrev foldPhaseContext : Interaction.Oracle.Spec :=
-  Interaction.Oracle.Spec.Chain.toSpec k
-    (foldPhaseChain (D := D) (n := n) (x := x) (s := s))
-
-/-- Native role decoration for the full non-final folding phase. -/
-abbrev foldPhaseRoles :
-    Interaction.Oracle.Spec.RoleDeco
-      (foldPhaseContext (D := D) (n := n) (x := x) (s := s) (k := k)) :=
-  Interaction.Oracle.Spec.Chain.toRoles k
-    (foldPhaseChain (D := D) (n := n) (x := x) (s := s))
-
-/-- Native oracle decoration for the full non-final folding phase. -/
-abbrev foldPhaseOD :
-    Interaction.Oracle.Spec.OracleDeco
-      (foldPhaseContext (D := D) (n := n) (x := x) (s := s) (k := k)) :=
-  Interaction.Oracle.Spec.Chain.toOracleDeco k
-    (foldPhaseChain (D := D) (n := n) (x := x) (s := s))
-
-/-- The indexed native chain of the remaining non-final fold rounds, starting
-at absolute fold round `round`.
-
-Unlike `foldPhaseChainFrom`, the current round is part of the chain index. This
-is the cast-free shape for heterogeneous protocols such as FRI: party state can
-be indexed directly by the same round index as the current chain node. -/
-def foldPhaseIndexedChainFrom :
-    (remaining round : Nat) → (h : round + remaining = k) →
-      Interaction.Oracle.Spec.IndexedChain Nat remaining round
-  | 0, _, _ => ⟨⟩
-  | remaining + 1, round, h =>
-      let i : Fin k := ⟨round, stateRound_lt (k := k) h⟩
-      ⟨foldRoundSpec (F := F) (n := n) D x s i,
-       foldRoundRoles (F := F) (n := n) D x s i,
-       foldRoundOD (F := F) (n := n) D x s i,
-       fun _ =>
-        ⟨round.succ,
-          foldPhaseIndexedChainFrom remaining round.succ (nextStateEq (k := k) h)⟩⟩
-
-/-- Indexed native chain for all non-final fold rounds. -/
-def foldPhaseIndexedChain :
-    Interaction.Oracle.Spec.IndexedChain Nat k 0 :=
-  foldPhaseIndexedChainFrom (D := D) (n := n) (x := x) (s := s) (k := k)
-    k 0 (initialRoundEq (k := k))
-
-/-- Native oracle context for the full indexed non-final folding phase. -/
-abbrev foldPhaseIndexedContext : Interaction.Oracle.Spec :=
-  Interaction.Oracle.Spec.IndexedChain.toSpec k
-    (foldPhaseIndexedChain (D := D) (n := n) (x := x) (s := s))
-
-/-- Native role decoration for the full indexed non-final folding phase. -/
-abbrev foldPhaseIndexedRoles :
-    Interaction.Oracle.Spec.RoleDeco
-      (foldPhaseIndexedContext (D := D) (n := n) (x := x) (s := s) (k := k)) :=
-  Interaction.Oracle.Spec.IndexedChain.toRoles k
-    (foldPhaseIndexedChain (D := D) (n := n) (x := x) (s := s))
-
-/-- Native oracle decoration for the full indexed non-final folding phase. -/
-abbrev foldPhaseIndexedOD :
-    Interaction.Oracle.Spec.OracleDeco
-      (foldPhaseIndexedContext (D := D) (n := n) (x := x) (s := s) (k := k)) :=
-  Interaction.Oracle.Spec.IndexedChain.toOracleDeco k
-    (foldPhaseIndexedChain (D := D) (n := n) (x := x) (s := s))
-
 /-- Terminal-indexed native chain of the remaining non-final fold rounds.
 
-This has the same round shape as `foldPhaseIndexedChainFrom`, but the terminal
-round `k` is part of the chain type. That extra endpoint is what lets final
-result code recover an `IndexedProverState k` without a result-time cast. -/
+The current round and terminal round `k` are both part of the chain type. That
+extra endpoint is what lets final result code recover an `IndexedProverState k`
+without a result-time cast. -/
 def foldPhasePathChainFrom :
     (remaining round : Nat) → (h : round + remaining = k) →
       Interaction.Oracle.Spec.PathChain Nat remaining round k
@@ -323,44 +237,48 @@ private def indexedVerifierStepAux {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
     indexedVerifierNext (F := F) (k := k)
       round (stateRound_lt (k := k) hround) state α⟩
 
-/-- Indexed honest-prover handlers for all remaining fold rounds. -/
-private def indexedProverSteps {ι : Type} {oSpec : OracleSpec.{0, 0} ι} :
+/-- Terminal-indexed honest-prover handlers for all remaining fold rounds. -/
+private def pathProverSteps {ι : Type} {oSpec : OracleSpec.{0, 0} ι} :
     (remaining round : Nat) → (h : round + remaining = k) →
-      Interaction.Oracle.Spec.IndexedChain.Prover.RoundSteps
+      Interaction.Oracle.Spec.PathChain.Prover.RoundSteps
         (m := OracleComp oSpec)
         (IndexedProverState (D := D) (n := n) (x := x) (s := s) (d := d))
         remaining
-        (foldPhaseIndexedChainFrom
+        (foldPhasePathChainFrom
           (D := D) (n := n) (x := x) (s := s) (k := k)
           remaining round h)
-  | 0, _, _ => ⟨⟩
+  | 0, _, h => by
+      cases h
+      exact ⟨⟩
   | remaining + 1, round, h =>
       ⟨indexedProverStepAux
           (F := F) (D := D) (n := n) (x := x) (s := s) (d := d)
           (k := k) (oSpec := oSpec) h,
         fun _ =>
-          indexedProverSteps (oSpec := oSpec)
+          pathProverSteps (oSpec := oSpec)
             remaining round.succ (nextStateEq (k := k) h)⟩
 
-/-- Indexed verifier handlers for all remaining fold rounds. -/
-private def indexedVerifierSteps {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
+/-- Terminal-indexed verifier handlers for all remaining fold rounds. -/
+private def pathVerifierSteps {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
     (sampleChallenge : (i : Fin k) → OracleComp oSpec F) :
     (remaining round : Nat) → (h : round + remaining = k) →
-      Interaction.Oracle.Spec.IndexedChain.Verifier.RoundSteps
+      Interaction.Oracle.Spec.PathChain.Verifier.RoundSteps
         (oSpec := oSpec)
         (OStmtIn := InputOracleFamily (F := F) (n := n) D x s)
         (IndexedVerifierState (F := F) (k := k))
         remaining
-        (foldPhaseIndexedChainFrom
+        (foldPhasePathChainFrom
           (D := D) (n := n) (x := x) (s := s) (k := k)
           remaining round h)
-  | 0, _, _ => ⟨⟩
+  | 0, _, h => by
+      cases h
+      exact ⟨⟩
   | remaining + 1, round, h =>
       ⟨indexedVerifierStepAux
           (F := F) (D := D) (n := n) (x := x) (s := s) (k := k)
           (oSpec := oSpec) sampleChallenge h,
         fun _ =>
-          indexedVerifierSteps (oSpec := oSpec) sampleChallenge
+          pathVerifierSteps (oSpec := oSpec) sampleChallenge
             remaining round.succ (nextStateEq (k := k) h)⟩
 
 end

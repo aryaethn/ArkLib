@@ -159,7 +159,7 @@ noncomputable def reductionStateful
       (fun _ _ => OStatementIn)
       (fun _ _ => Sumcheck.PolyStmt R deg 0) := by
   simpa [fullSpec, fullRoles, fullOracleDeco] using
-    Interaction.Oracle.Reduction.ofChainWithRoundSteps
+    Interaction.Oracle.Reduction.ofChain
       (oSpec := oSpec)
       (SharedIn := RoundClaim R)
       (StatementIn := fun _ => PUnit)

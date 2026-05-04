@@ -27,11 +27,11 @@ Converting to an `Oracle.Spec` via `Chain.toSpec` uses only `Oracle.Spec.append`
   `PublicTranscript` operations for the first round vs the rest.
 * `Chain.outputFamily` — lift a family on remaining chains to a family on the
   flattened `PublicTranscript`.
-* `Chain.Prover.comp` / `Chain.Verifier.comp` — compose per-round prover
-  strategies / verifier counterparts along the chain.
 * `Chain.Prover.RoundSteps` / `Chain.Verifier.RoundSteps` — per-node round
   handlers for one concrete chain, avoiding unnecessary quantification over
   arbitrary chains.
+* `Chain.Prover.comp` / `Chain.Verifier.comp` — compose concrete-chain prover
+  strategies / verifier counterparts along the chain.
 * `Oracle.Reduction.ofChain` — compose per-round steps into a full
   `Oracle.Reduction`.
 
@@ -142,53 +142,11 @@ def outputFamily
 
 namespace Prover
 
-/-- Compose per-round prover strategies into a full strategy over the flattened
-chain.
-
-`State rem` is the private state available before running `rem`. A round step
-consumes `State rem` and returns a strategy for the current round whose output
-is the state for the public-transcript-selected remaining chain. After all
-rounds, the strategy output is `outputFamily State`, i.e. the state associated
-with the terminal chain selected by the full public transcript.
-
-The monad is arbitrary; use `StateT σ m` when state should live in the party
-action monad rather than in the round output. -/
-def comp
-    {m : Type → Type} [Monad m]
-    (State : {k : Nat} → Chain k → Type)
-    (step : {k : Nat} → (rem : Chain (k + 1)) → State rem →
-      m
-        (Interaction.Spec.Strategy.withRoles m
-          rem.1.toInteractionSpec (rem.1.toSpecRoles rem.2.1)
-          (fun tr => State (rem.2.2.2 (rem.1.projectPublic tr))))) :
-    (n : Nat) → (c : Chain n) → State c →
-    m
-      (Interaction.Spec.Strategy.withRoles m
-        (toSpec n c).toInteractionSpec
-        ((toSpec n c).toSpecRoles (toRoles n c))
-        (fun tr => outputFamily State n c ((toSpec n c).projectPublic tr)))
-  | 0, _, state => pure state
-  | n + 1, ⟨spec, roles, od, cont⟩, state => do
-      let strat ← step ⟨spec, roles, od, cont⟩ state
-      Prover.compAux spec (fun pt => toSpec n (cont pt))
-        roles (fun pt => toRoles n (cont pt))
-        (Mid := fun tr₁ => State (cont (spec.projectPublic tr₁)))
-        (OutType := fun pt₁ pt₂ => outputFamily State n (cont pt₁) pt₂)
-        strat
-        (fun tr₁ state' => comp State step n (cont (spec.projectPublic tr₁)) state')
-
-end Prover
-
-/-! ## Concrete-chain prover composition -/
-
-namespace Prover
-
 /-- Per-node prover handlers for a concrete `Chain`.
 
-Unlike `Prover.comp`, this does not require a single round-step function that
-works for every possible `Chain (k + 1)`. Instead, the handlers follow the
-actual continuation tree of one chain. This is the ergonomic surface for
-protocols whose round transition is only meaningful for their own chain shape. -/
+The handlers follow the actual continuation tree of one chain, so a protocol
+does not need to provide a single round-step function that works for every
+possible `Chain (k + 1)`. -/
 def RoundSteps {m : Type → Type} [Monad m]
     (State : {k : Nat} → Chain k → Type) :
     (n : Nat) → (c : Chain n) → Type 1
@@ -202,7 +160,7 @@ def RoundSteps {m : Type → Type} [Monad m]
       ((pt : PublicTranscript c.1) → RoundSteps (m := m) State n (c.2.2.2 pt))
 
 /-- Compose prover handlers attached to one concrete chain. -/
-def compWithRoundSteps
+def comp
     {m : Type → Type} [Monad m]
     (State : {k : Nat} → Chain k → Type) :
     (n : Nat) → (c : Chain n) → State c → RoundSteps (m := m) State n c →
@@ -220,56 +178,12 @@ def compWithRoundSteps
         (OutType := fun pt₁ pt₂ => outputFamily State n (cont pt₁) pt₂)
         strat
         (fun tr₁ state' =>
-          compWithRoundSteps (m := m) State n (cont (spec.projectPublic tr₁)) state'
+          comp (m := m) State n (cont (spec.projectPublic tr₁)) state'
             (steps.2 (spec.projectPublic tr₁)))
 
 end Prover
 
 /-! ## Verifier composition -/
-
-namespace Verifier
-
-/-- Compose per-round verifier counterparts into a full counterpart over the
-flattened chain. `State` has the same meaning as in `Prover.comp`: a round
-counterpart consumes the current state and returns the state for the remaining
-chain selected by that round's public transcript.
-
-The step function is universally quantified over `accSpec` because
-`Verifier.compAux` accumulates oracle access through `.oracle` nodes. -/
-def comp
-    {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
-    {ιₛᵢ : Type} {OStmtIn : ιₛᵢ → Type} [∀ i, OracleInterface (OStmtIn i)]
-    (State : {k : Nat} → Chain k → Type)
-    (step : {k : Nat} → (rem : Chain (k + 1)) → State rem →
-      Interaction.Spec.Counterpart.withMonads
-        rem.1.toInteractionSpec (rem.1.toSpecRoles rem.2.1)
-        (rem.1.toMonadDecoration oSpec OStmtIn rem.2.1 rem.2.2.1 []ₒ)
-        (fun tr => State (rem.2.2.2 (rem.1.projectPublic tr)))) :
-    (n : Nat) → (c : Chain n) → State c →
-    Interaction.Spec.Counterpart.withMonads
-      (toSpec n c).toInteractionSpec
-      ((toSpec n c).toSpecRoles (toRoles n c))
-      ((toSpec n c).toMonadDecoration oSpec OStmtIn (toRoles n c) (toOracleDeco n c) []ₒ)
-      (fun tr => outputFamily State n c ((toSpec n c).projectPublic tr))
-  | 0, _, state => state
-  | n + 1, ⟨spec, roles, od, cont⟩, state =>
-      Verifier.compAux (OStmtIn := OStmtIn)
-        spec (fun pt => toSpec n (cont pt))
-        roles (fun pt => toRoles n (cont pt))
-        od (fun pt => toOracleDeco n (cont pt))
-        []ₒ
-        (OutType := fun pt₁ pt₂ => outputFamily State n (cont pt₁) pt₂)
-        (step ⟨spec, roles, od, cont⟩ state)
-        (fun accSpec' tr₁ state' =>
-          let pt₁ := spec.projectPublic tr₁
-          Counterpart.liftAcc
-            (toSpec n (cont pt₁)) (toRoles n (cont pt₁)) (toOracleDeco n (cont pt₁))
-            []ₒ accSpec' (fun q => q.elim)
-            (comp State step n (cont pt₁) state'))
-
-end Verifier
-
-/-! ## Concrete-chain verifier composition -/
 
 namespace Verifier
 
@@ -294,7 +208,7 @@ def RoundSteps
         State n (c.2.2.2 pt))
 
 /-- Compose verifier handlers attached to one concrete chain. -/
-def compWithRoundSteps
+def comp
     {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
     {ιₛᵢ : Type} {OStmtIn : ιₛᵢ → Type} [∀ i, OracleInterface (OStmtIn i)]
     (State : {k : Nat} → Chain k → Type) :
@@ -319,7 +233,7 @@ def compWithRoundSteps
           Counterpart.liftAcc
             (toSpec n (cont pt₁)) (toRoles n (cont pt₁)) (toOracleDeco n (cont pt₁))
             []ₒ accSpec' (fun q => q.elim)
-            (compWithRoundSteps (oSpec := oSpec) (OStmtIn := OStmtIn)
+            (comp (oSpec := oSpec) (OStmtIn := OStmtIn)
               State n (cont pt₁) state' (steps.2 pt₁)))
 
 end Verifier
@@ -330,8 +244,8 @@ end Spec
 
 /-! ## Reduction.ofChain -/
 
-/-- Compose per-round prover and verifier steps into a full `Oracle.Reduction`
-over an `n`-round `Chain`.
+/-- Compose per-node prover and verifier handlers attached to one concrete
+`Chain` into a full `Oracle.Reduction`.
 
 The prover and verifier each receive their own state family indexed by the
 remaining chain. Round steps consume the current state and return the state for
@@ -340,118 +254,6 @@ provided result functions turn the terminal prover state into honest prover
 outputs, and the terminal verifier state into the verifier's local output
 statement. -/
 def Reduction.ofChain
-    {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
-    {SharedIn : Type}
-    {StatementIn : SharedIn → Type}
-    {WitnessIn : SharedIn → Type}
-    {ιₛᵢ : SharedIn → Type}
-    {OStatementIn : (shared : SharedIn) → ιₛᵢ shared → Type}
-    [∀ shared i, OracleInterface (OStatementIn shared i)]
-    {n : Nat}
-    {c : SharedIn → Spec.Chain n}
-    {StatementOut :
-      (shared : SharedIn) → Spec.PublicTranscript (Spec.Chain.toSpec n (c shared)) → Type}
-    {ιₛₒ : (shared : SharedIn) →
-      Spec.PublicTranscript (Spec.Chain.toSpec n (c shared)) → Type}
-    {OStatementOut :
-      (shared : SharedIn) →
-        (pt : Spec.PublicTranscript (Spec.Chain.toSpec n (c shared))) →
-          ιₛₒ shared pt → Type}
-    [∀ shared pt i, OracleInterface (OStatementOut shared pt i)]
-    {WitnessOut :
-      (shared : SharedIn) → Spec.PublicTranscript (Spec.Chain.toSpec n (c shared)) → Type}
-    (ProverState : (shared : SharedIn) → {k : Nat} → Spec.Chain k → Type)
-    (VerifierState : (shared : SharedIn) → {k : Nat} → Spec.Chain k → Type)
-    (proverInit : (shared : SharedIn) →
-      StatementWithOracles StatementIn OStatementIn shared → WitnessIn shared →
-        ProverState shared (c shared))
-    (verifierInit : (shared : SharedIn) →
-      StatementIn shared → VerifierState shared (c shared))
-    (proverRound : (shared : SharedIn) →
-      {k : Nat} → (rem : Spec.Chain (k + 1)) → ProverState shared rem →
-        OracleComp oSpec
-          (Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
-            rem.1.toInteractionSpec (rem.1.toSpecRoles rem.2.1)
-            (fun tr => ProverState shared (rem.2.2.2 (rem.1.projectPublic tr)))))
-    (verifierRound : (shared : SharedIn) →
-      {k : Nat} → (rem : Spec.Chain (k + 1)) → VerifierState shared rem →
-        Interaction.Spec.Counterpart.withMonads
-          rem.1.toInteractionSpec (rem.1.toSpecRoles rem.2.1)
-          (rem.1.toMonadDecoration oSpec (OStatementIn shared) rem.2.1 rem.2.2.1 []ₒ)
-          (fun tr => VerifierState shared (rem.2.2.2 (rem.1.projectPublic tr))))
-    (proverStmtResult : (shared : SharedIn) →
-      (pt : Spec.PublicTranscript (Spec.Chain.toSpec n (c shared))) →
-        Spec.Chain.outputFamily (ProverState shared) n (c shared) pt →
-        StatementOut shared pt)
-    (verifierStmtResult : (shared : SharedIn) →
-      (pt : Spec.PublicTranscript (Spec.Chain.toSpec n (c shared))) →
-        Spec.Chain.outputFamily (VerifierState shared) n (c shared) pt →
-        StatementOut shared pt)
-    (oStmtResult : (shared : SharedIn) →
-      (pt : Spec.PublicTranscript (Spec.Chain.toSpec n (c shared))) →
-        Spec.Chain.outputFamily (ProverState shared) n (c shared) pt →
-        ∀ i, OStatementOut shared pt i)
-    (witResult : (shared : SharedIn) →
-      (pt : Spec.PublicTranscript (Spec.Chain.toSpec n (c shared))) →
-        Spec.Chain.outputFamily (ProverState shared) n (c shared) pt →
-        WitnessOut shared pt)
-    (simulate : (shared : SharedIn) →
-      (pt : Spec.PublicTranscript (Spec.Chain.toSpec n (c shared))) →
-        QueryImpl [OStatementOut shared pt]ₒ
-          (OracleComp
-            ([OStatementIn shared]ₒ +
-              (Spec.Chain.toSpec n (c shared)).toOracleSpec
-                (Spec.Chain.toOracleDeco n (c shared)) pt))) :
-    Reduction oSpec SharedIn
-      (fun shared => Spec.Chain.toSpec n (c shared))
-      (fun shared => Spec.Chain.toRoles n (c shared))
-      (fun shared => Spec.Chain.toOracleDeco n (c shared))
-      StatementIn OStatementIn WitnessIn
-      StatementOut OStatementOut WitnessOut where
-  prover shared sWithOracles w := do
-    let strat ← Spec.Chain.Prover.comp (ProverState shared)
-      (proverRound shared) n (c shared) (proverInit shared sWithOracles w)
-    let strat' :=
-      Interaction.Spec.Strategy.mapOutputWithRoles
-        (fun tr proverState =>
-          let pt := (Spec.Chain.toSpec n (c shared)).projectPublic tr
-          (⟨⟨proverStmtResult shared pt proverState,
-                oStmtResult shared pt proverState⟩,
-              witResult shared pt proverState⟩ :
-            HonestProverOutput
-              (StatementWithOracles
-                (fun _ => StatementOut shared pt)
-                (fun _ => OStatementOut shared pt) shared)
-              (WitnessOut shared pt)))
-        strat
-    pure <|
-      Interaction.Spec.Strategy.withRolesAndMonads.ofWithRolesConstant
-        (Spec.Chain.toSpec n (c shared)).toInteractionSpec
-        ((Spec.Chain.toSpec n (c shared)).toSpecRoles (Spec.Chain.toRoles n (c shared)))
-        strat'
-  verifier := {
-    toFun := fun shared stmtIn =>
-      Interaction.Spec.Counterpart.withMonads.mapOutput
-        (Spec.Chain.toSpec n (c shared)).toInteractionSpec
-        ((Spec.Chain.toSpec n (c shared)).toSpecRoles (Spec.Chain.toRoles n (c shared)))
-        ((Spec.Chain.toSpec n (c shared)).toMonadDecoration oSpec (OStatementIn shared)
-          (Spec.Chain.toRoles n (c shared)) (Spec.Chain.toOracleDeco n (c shared)) []ₒ)
-        (fun tr verifierState =>
-          let pt := (Spec.Chain.toSpec n (c shared)).projectPublic tr
-          verifierStmtResult shared pt verifierState)
-        (Spec.Chain.Verifier.comp (VerifierState shared)
-          (verifierRound shared) n (c shared) (verifierInit shared stmtIn))
-    simulate := simulate
-  }
-
-/-- Compose per-node prover and verifier handlers attached to one concrete
-`Chain` into a full `Oracle.Reduction`.
-
-This is the concrete-chain counterpart of `Reduction.ofChain`. Use this when a
-protocol has a recursive chain-specific transition: the caller supplies a tree
-of handlers following the exact continuation structure of `c shared`, rather
-than a round-step function that must work for every possible chain. -/
-def Reduction.ofChainWithRoundSteps
     {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
     {SharedIn : Type}
     {StatementIn : SharedIn → Type}
@@ -514,7 +316,7 @@ def Reduction.ofChainWithRoundSteps
       StatementIn OStatementIn WitnessIn
       StatementOut OStatementOut WitnessOut where
   prover shared sWithOracles w := do
-    let strat ← Spec.Chain.Prover.compWithRoundSteps (ProverState shared)
+    let strat ← Spec.Chain.Prover.comp (ProverState shared)
       n (c shared) (proverInit shared sWithOracles w) (proverSteps shared)
     let strat' :=
       Interaction.Spec.Strategy.mapOutputWithRoles
@@ -544,7 +346,7 @@ def Reduction.ofChainWithRoundSteps
         (fun tr verifierState =>
           let pt := (Spec.Chain.toSpec n (c shared)).projectPublic tr
           verifierStmtResult shared pt verifierState)
-        (Spec.Chain.Verifier.compWithRoundSteps (oSpec := oSpec)
+        (Spec.Chain.Verifier.comp (oSpec := oSpec)
           (OStmtIn := OStatementIn shared) (VerifierState shared)
           n (c shared) (verifierInit shared stmtIn) (verifierSteps shared))
     simulate := simulate

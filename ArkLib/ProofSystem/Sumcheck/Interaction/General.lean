@@ -9,10 +9,10 @@ import ArkLib.Interaction.Oracle.Chain
 /-!
 # Interaction-Native Sum-Check: Native Multi-Round Surface
 
-This module builds the native `n`-round sum-check oracle reduction from the
-native single-round reduction and `Oracle.Reduction.comp`. The prover's private
-state is the residual polynomial witness; its type shrinks from
-`PolyStmt ... (n + 1)` to `PolyStmt ... n` at each round.
+This module builds the native `n`-round sum-check oracle reduction as a
+state-machine fold over the native oracle chain. The prover's private state is
+the residual polynomial witness; its type shrinks from `PolyStmt ... (n + 1)`
+to `PolyStmt ... n` at each round.
 -/
 
 namespace Sumcheck
@@ -54,254 +54,85 @@ section
 
 variable {R : Type} [BEq R] [CommSemiring R] [LawfulBEq R] [Nontrivial R] {deg : ℕ}
 
-/-- Terminal native reduction for zero remaining sum-check rounds. -/
-noncomputable def reductionStatefulOptionZero
+/-- Honest prover state for the native chain fold. The current claim mirrors
+the verifier state so the honest prover can emit the terminal statement, while
+the residual polynomial is the typed private witness that shrinks each round. -/
+private structure ProverState {ιₛᵢ : Type} (OStatementIn : ιₛᵢ → Type)
+    (k : Nat) where
+  claim : Option (RoundClaim R)
+  oracleStmt : OracleStatement OStatementIn
+  residual : Sumcheck.PolyStmt R deg k
+
+/-- Prover round handlers for the concrete native sum-check chain. -/
+private noncomputable def proverRoundSteps
     {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
     {ιₛᵢ : Type} (OStatementIn : ιₛᵢ → Type)
-    [∀ i, OracleInterface (OStatementIn i)] :
-    Interaction.Oracle.Reduction oSpec
-      (Option (RoundClaim R))
-      (fun _ => .done)
-      (fun _ => ⟨⟩)
-      (fun _ => ⟨⟩)
-      (fun _ => PUnit)
-      (fun _ => OStatementIn)
-      (fun _ => Sumcheck.PolyStmt R deg 0)
-      (fun _ _ => Option (RoundClaim R))
-      (fun _ _ => OStatementIn)
-      (fun _ _ => Sumcheck.PolyStmt R deg 0) where
-  prover stmt sWithOracles witness :=
-    pure ⟨⟨stmt, sWithOracles.oracleStmt⟩, witness⟩
-  verifier := {
-    toFun := fun stmt _ => stmt
-    simulate := fun _ _ q => liftM <| ([OStatementIn]ₒ).query q
-  }
+    {m_dom : ℕ} (D : Fin m_dom → R) :
+    (n : Nat) →
+      Interaction.Oracle.Spec.Chain.Prover.RoundSteps (m := OracleComp oSpec)
+        (fun {k} _ => ProverState (R := R) (deg := deg) OStatementIn k)
+        n (fullChain R deg n)
+  | 0 => PUnit.unit
+  | n + 1 =>
+      ⟨fun state => do
+        let sentPoly := honestRoundPoly (R := R) (deg := deg) D state.residual
+        pure <|
+          roundProverStepStateful (m := OracleComp oSpec) (R := R) (deg := deg)
+            D state.residual
+            (fun chal =>
+              { claim := state.claim.bind fun _ => some (CPolynomial.eval chal sentPoly.1)
+                oracleStmt := state.oracleStmt
+                residual := stepResidual (R := R) (deg := deg) chal state.residual }),
+        fun _ => proverRoundSteps (oSpec := oSpec) OStatementIn D n⟩
 
-/-- View an option-valued suffix reduction as the continuation expected by
-`Oracle.Reduction.comp`.
-
-The recursive suffix uses the current claim as its ambient shared input. Binary
-composition instead passes the current claim as the local input statement to a
-`PUnit`-shared continuation. This adapter moves the claim across that boundary
-while leaving the oracle statement and shrinking witness untouched. -/
-private noncomputable def optionReductionAsContinuation
-    {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
-    {ιₛᵢ : Type} (OStatementIn : ιₛᵢ → Type)
-    [∀ i, OracleInterface (OStatementIn i)]
-    (n : Nat)
-    (suffix :
-      Interaction.Oracle.Reduction oSpec
-        (Option (RoundClaim R))
-        (fun _ => fullSpec R deg n)
-        (fun _ => fullRoles R deg n)
-        (fun _ => fullOracleDeco R deg n)
-        (fun _ => PUnit)
-        (fun _ => OStatementIn)
-        (fun _ => Sumcheck.PolyStmt R deg n)
-        (fun _ _ => Option (RoundClaim R))
-        (fun _ _ => OStatementIn)
-        (fun _ _ => Sumcheck.PolyStmt R deg 0)) :
-    Interaction.Oracle.Reduction oSpec PUnit
-      (fun _ => fullSpec R deg n)
-      (fun _ => fullRoles R deg n)
-      (fun _ => fullOracleDeco R deg n)
-      (fun _ => Option (RoundClaim R))
-      (fun _ => OStatementIn)
-      (fun _ => Sumcheck.PolyStmt R deg n)
-      (fun _ _ => Option (RoundClaim R))
-      (fun _ _ => OStatementIn)
-      (fun _ _ => Sumcheck.PolyStmt R deg 0) where
-  prover _ sWithOracles witness := do
-    let input' : StatementWithOracles
-        (fun _ : Option (RoundClaim R) => PUnit)
-        (fun _ : Option (RoundClaim R) => OStatementIn)
-        sWithOracles.stmt :=
-      ⟨PUnit.unit, sWithOracles.oracleStmt⟩
-    let strat ← suffix.prover sWithOracles.stmt input' witness
-    let remap :
-        (tr : Interaction.Spec.Transcript (fullSpec R deg n).toInteractionSpec) →
-        HonestProverOutput
-          (StatementWithOracles
-            (fun _ : Option (RoundClaim R) => Option (RoundClaim R))
-            (fun _ : Option (RoundClaim R) => OStatementIn)
-            sWithOracles.stmt)
-          (Sumcheck.PolyStmt R deg 0) →
-        HonestProverOutput
-          (StatementWithOracles
-            (fun _ : PUnit => Option (RoundClaim R))
-            (fun _ : PUnit => OStatementIn)
-            PUnit.unit)
-          (Sumcheck.PolyStmt R deg 0)
-      | _, ⟨stmtOut, witOut⟩ => ⟨⟨stmtOut.stmt, stmtOut.oracleStmt⟩, witOut⟩
-    pure <|
-      Interaction.Spec.Strategy.withRolesAndMonads.mapOutput
-        (fullSpec R deg n).toInteractionSpec
-        ((fullSpec R deg n).toSpecRoles (fullRoles R deg n))
-        ((fullSpec R deg n).toProverMonadDecoration oSpec)
-        remap strat
-  verifier := {
-    toFun := fun _ stmt => suffix.verifier.toFun stmt PUnit.unit
-    simulate := fun _ pt q => suffix.verifier.simulate none pt q
-  }
-
-/-- Successor step for the option-valued native sum-check reduction. -/
-private noncomputable def reductionStatefulOptionSucc
+/-- Verifier round handlers for the concrete native sum-check chain. -/
+private noncomputable def verifierRoundSteps
     {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
     {ιₛᵢ : Type} (OStatementIn : ιₛᵢ → Type)
     [∀ i, OracleInterface (OStatementIn i)]
     {m_dom : ℕ} (D : Fin m_dom → R)
-    (sampleChallenge : OracleComp oSpec R)
-    (n : Nat)
-    (suffix :
-      Interaction.Oracle.Reduction oSpec
-        (Option (RoundClaim R))
-        (fun _ => fullSpec R deg n)
-        (fun _ => fullRoles R deg n)
-        (fun _ => fullOracleDeco R deg n)
-        (fun _ => PUnit)
-        (fun _ => OStatementIn)
-        (fun _ => Sumcheck.PolyStmt R deg n)
-        (fun _ _ => Option (RoundClaim R))
-        (fun _ _ => OStatementIn)
-        (fun _ _ => Sumcheck.PolyStmt R deg 0)) :
-    Interaction.Oracle.Reduction oSpec
-      (Option (RoundClaim R))
-      (fun _ => fullSpec R deg (n + 1))
-      (fun _ => fullRoles R deg (n + 1))
-      (fun _ => fullOracleDeco R deg (n + 1))
-      (fun _ => PUnit)
-      (fun _ => OStatementIn)
-      (fun _ => Sumcheck.PolyStmt R deg (n + 1))
-      (fun _ _ => Option (RoundClaim R))
-      (fun _ _ => OStatementIn)
-      (fun _ _ => Sumcheck.PolyStmt R deg 0) := by
-  simpa [fullSpec, fullRoles, fullOracleDeco, fullChain] using
-    Interaction.Oracle.Reduction.comp
-      (SharedIn := Option (RoundClaim R))
-      (Context₁ := fun _ => roundSpec R deg)
-      (Roles₁ := fun _ => roundRoles R deg)
-      (OracleDeco₁ := fun _ => roundOracleDeco R deg)
-      (StatementIn := fun _ => PUnit)
-      (ιₛᵢ := fun _ : Option (RoundClaim R) => ιₛᵢ)
-      (OStatementIn := fun _ => OStatementIn)
-      (WitnessIn := fun _ => Sumcheck.PolyStmt R deg (n + 1))
-      (StatementMid := fun _ _ => Option (RoundClaim R))
-      (ιₛₘ := fun _ _ => ιₛᵢ)
-      (OStatementMid := fun _ _ => OStatementIn)
-      (WitnessMid := fun _ _ => Sumcheck.PolyStmt R deg n)
-      (Context₂ := fun _ _ => fullSpec R deg n)
-      (Roles₂ := fun _ _ => fullRoles R deg n)
-      (OracleDeco₂ := fun _ _ => fullOracleDeco R deg n)
-      (StatementOut := fun _ _ _ => Option (RoundClaim R))
-      (ιₛₒ := fun _ _ _ => ιₛᵢ)
-      (OStatementOut := fun _ _ _ => OStatementIn)
-      (WitnessOut := fun _ _ _ => Sumcheck.PolyStmt R deg 0)
-      (roundReductionStatefulOptionWithOracle (R := R) (deg := deg)
-        (oSpec := oSpec) OStatementIn D n sampleChallenge)
-      (fun _ _ =>
-        optionReductionAsContinuation (R := R) (deg := deg) (oSpec := oSpec)
-          OStatementIn n suffix)
+    (sampleChallenge : OracleComp oSpec R) :
+    (n : Nat) →
+      Interaction.Oracle.Spec.Chain.Verifier.RoundSteps
+        (oSpec := oSpec) (OStmtIn := OStatementIn)
+        (fun {_k} _ => Option (RoundClaim R))
+        n (fullChain R deg n)
+  | 0 => PUnit.unit
+  | n + 1 =>
+      ⟨fun claim =>
+        verifierStepOption (R := R) (deg := deg) OStatementIn []ₒ D claim sampleChallenge,
+        fun _ => verifierRoundSteps (oSpec := oSpec) OStatementIn D sampleChallenge n⟩
 
-/-- Native stateful sum-check reduction with option-valued current claim.
+/-- Extract the terminal honest-prover state selected by the public transcript. -/
+private def proverOutputState
+    {ιₛᵢ : Type} {OStatementIn : ιₛᵢ → Type} :
+    (n : Nat) →
+      (pt : Interaction.Oracle.Spec.PublicTranscript (fullSpec R deg n)) →
+      Interaction.Oracle.Spec.Chain.outputFamily
+        (fun {k} _ => ProverState (R := R) (deg := deg) OStatementIn k)
+        n (fullChain R deg n) pt →
+      ProverState (R := R) (deg := deg) OStatementIn 0
+  | 0, _, state => state
+  | n + 1, pt, state =>
+      let split :=
+        Interaction.Oracle.Spec.PublicTranscript.split
+          (roundSpec R deg) (fun _ => fullSpec R deg n) pt
+      proverOutputState n split.2 state
 
-This is the recursive continuation used after the first round. A `none` claim
-means a previous verifier check failed; later rounds keep the same interaction
-shape but preserve rejection. -/
-noncomputable abbrev reductionStatefulOption
-    {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
-    {ιₛᵢ : Type} (OStatementIn : ιₛᵢ → Type)
-    [∀ i, OracleInterface (OStatementIn i)]
-    {m_dom : ℕ} (D : Fin m_dom → R)
-    (sampleChallenge : OracleComp oSpec R) (n : Nat) :
-    Interaction.Oracle.Reduction oSpec
-      (Option (RoundClaim R))
-      (fun _ => fullSpec R deg n)
-      (fun _ => fullRoles R deg n)
-      (fun _ => fullOracleDeco R deg n)
-      (fun _ => PUnit)
-      (fun _ => OStatementIn)
-      (fun _ => Sumcheck.PolyStmt R deg n)
-      (fun _ _ => Option (RoundClaim R))
-      (fun _ _ => OStatementIn)
-      (fun _ _ => Sumcheck.PolyStmt R deg 0) :=
-  Nat.rec
-    (motive := fun n =>
-      Interaction.Oracle.Reduction oSpec
-        (Option (RoundClaim R))
-        (fun _ => fullSpec R deg n)
-        (fun _ => fullRoles R deg n)
-        (fun _ => fullOracleDeco R deg n)
-        (fun _ => PUnit)
-        (fun _ => OStatementIn)
-        (fun _ => Sumcheck.PolyStmt R deg n)
-        (fun _ _ => Option (RoundClaim R))
-        (fun _ _ => OStatementIn)
-        (fun _ _ => Sumcheck.PolyStmt R deg 0))
-    (by
-      simpa [fullSpec, fullRoles, fullOracleDeco] using
-        reductionStatefulOptionZero (R := R) (deg := deg) (oSpec := oSpec) OStatementIn)
-    (fun n suffix =>
-      reductionStatefulOptionSucc (R := R) (deg := deg) (oSpec := oSpec)
-        OStatementIn D sampleChallenge n suffix)
-    n
-
-/-- Successor step for the top-level native sum-check reduction. -/
-private noncomputable def reductionStatefulSucc
-    {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
-    {ιₛᵢ : Type} (OStatementIn : ιₛᵢ → Type)
-    [∀ i, OracleInterface (OStatementIn i)]
-    {m_dom : ℕ} (D : Fin m_dom → R)
-    (sampleChallenge : OracleComp oSpec R)
-    (n : Nat)
-    (suffix :
-      Interaction.Oracle.Reduction oSpec
-        (Option (RoundClaim R))
-        (fun _ => fullSpec R deg n)
-        (fun _ => fullRoles R deg n)
-        (fun _ => fullOracleDeco R deg n)
-        (fun _ => PUnit)
-        (fun _ => OStatementIn)
-        (fun _ => Sumcheck.PolyStmt R deg n)
-        (fun _ _ => Option (RoundClaim R))
-        (fun _ _ => OStatementIn)
-        (fun _ _ => Sumcheck.PolyStmt R deg 0)) :
-    Interaction.Oracle.Reduction oSpec
-      (RoundClaim R)
-      (fun _ => fullSpec R deg (n + 1))
-      (fun _ => fullRoles R deg (n + 1))
-      (fun _ => fullOracleDeco R deg (n + 1))
-      (fun _ => PUnit)
-      (fun _ => OStatementIn)
-      (fun _ => Sumcheck.PolyStmt R deg (n + 1))
-      (fun _ _ => Option (RoundClaim R))
-      (fun _ _ => OStatementIn)
-      (fun _ _ => Sumcheck.PolyStmt R deg 0) := by
-  simpa [fullSpec, fullRoles, fullOracleDeco, fullChain] using
-    Interaction.Oracle.Reduction.comp
-      (SharedIn := RoundClaim R)
-      (Context₁ := fun _ => roundSpec R deg)
-      (Roles₁ := fun _ => roundRoles R deg)
-      (OracleDeco₁ := fun _ => roundOracleDeco R deg)
-      (StatementIn := fun _ => PUnit)
-      (ιₛᵢ := fun _ : RoundClaim R => ιₛᵢ)
-      (OStatementIn := fun _ => OStatementIn)
-      (WitnessIn := fun _ => Sumcheck.PolyStmt R deg (n + 1))
-      (StatementMid := fun _ _ => Option (RoundClaim R))
-      (ιₛₘ := fun _ _ => ιₛᵢ)
-      (OStatementMid := fun _ _ => OStatementIn)
-      (WitnessMid := fun _ _ => Sumcheck.PolyStmt R deg n)
-      (Context₂ := fun _ _ => fullSpec R deg n)
-      (Roles₂ := fun _ _ => fullRoles R deg n)
-      (OracleDeco₂ := fun _ _ => fullOracleDeco R deg n)
-      (StatementOut := fun _ _ _ => Option (RoundClaim R))
-      (ιₛₒ := fun _ _ _ => ιₛᵢ)
-      (OStatementOut := fun _ _ _ => OStatementIn)
-      (WitnessOut := fun _ _ _ => Sumcheck.PolyStmt R deg 0)
-      (roundReductionStatefulWithOracle (R := R) (deg := deg)
-        (oSpec := oSpec) OStatementIn D n sampleChallenge)
-      (fun _ _ =>
-        optionReductionAsContinuation (R := R) (deg := deg) (oSpec := oSpec)
-          OStatementIn n suffix)
+/-- Extract the terminal verifier state selected by the public transcript. -/
+private def verifierOutputState :
+    (n : Nat) →
+      (pt : Interaction.Oracle.Spec.PublicTranscript (fullSpec R deg n)) →
+      Interaction.Oracle.Spec.Chain.outputFamily
+        (fun {_k} _ => Option (RoundClaim R))
+        n (fullChain R deg n) pt →
+      Option (RoundClaim R)
+  | 0, _, state => state
+  | n + 1, pt, state =>
+      let split :=
+        Interaction.Oracle.Spec.PublicTranscript.split
+          (roundSpec R deg) (fun _ => fullSpec R deg n) pt
+      verifierOutputState n split.2 state
 
 /-- Native stateful `n`-round sum-check reduction, built by composing native
 one-round oracle reductions.
@@ -326,21 +157,37 @@ noncomputable def reductionStateful
       (fun _ => Sumcheck.PolyStmt R deg n)
       (fun _ _ => Option (RoundClaim R))
       (fun _ _ => OStatementIn)
-      (fun _ _ => Sumcheck.PolyStmt R deg 0) :=
-  match n with
-  | 0 => {
-      prover := fun stmt sWithOracles witness =>
-        pure ⟨⟨some stmt, sWithOracles.oracleStmt⟩, witness⟩
-      verifier := {
-        toFun := fun stmt _ => some stmt
-        simulate := fun _ _ q => liftM <| ([OStatementIn]ₒ).query q
-      }
-    }
-  | n + 1 =>
-      let suffix :=
-        reductionStatefulOption (oSpec := oSpec) OStatementIn D sampleChallenge n
-      reductionStatefulSucc (R := R) (deg := deg) (oSpec := oSpec)
-        OStatementIn D sampleChallenge n suffix
+      (fun _ _ => Sumcheck.PolyStmt R deg 0) := by
+  simpa [fullSpec, fullRoles, fullOracleDeco] using
+    Interaction.Oracle.Reduction.ofChainWithRoundSteps
+      (oSpec := oSpec)
+      (SharedIn := RoundClaim R)
+      (StatementIn := fun _ => PUnit)
+      (WitnessIn := fun _ => Sumcheck.PolyStmt R deg n)
+      (ιₛᵢ := fun _ : RoundClaim R => ιₛᵢ)
+      (OStatementIn := fun _ => OStatementIn)
+      (n := n)
+      (c := fun _ => fullChain R deg n)
+      (StatementOut := fun _ _ => Option (RoundClaim R))
+      (ιₛₒ := fun _ _ => ιₛᵢ)
+      (OStatementOut := fun _ _ => OStatementIn)
+      (WitnessOut := fun _ _ => Sumcheck.PolyStmt R deg 0)
+      (ProverState := fun _ {k} _ => ProverState (R := R) (deg := deg) OStatementIn k)
+      (VerifierState := fun _ {_k} _ => Option (RoundClaim R))
+      (fun shared sWithOracles witness =>
+        { claim := some shared
+          oracleStmt := sWithOracles.oracleStmt
+          residual := witness })
+      (fun shared _ => some shared)
+      (fun _ => proverRoundSteps (R := R) (deg := deg) (oSpec := oSpec) OStatementIn D n)
+      (fun _ =>
+        verifierRoundSteps (R := R) (deg := deg) (oSpec := oSpec)
+          OStatementIn D sampleChallenge n)
+      (fun _ pt state => (proverOutputState (R := R) (deg := deg) n pt state).claim)
+      (fun _ pt state => verifierOutputState (R := R) (deg := deg) n pt state)
+      (fun _ pt state => (proverOutputState (R := R) (deg := deg) n pt state).oracleStmt)
+      (fun _ pt state => (proverOutputState (R := R) (deg := deg) n pt state).residual)
+      (fun _ _ q => liftM <| ([OStatementIn]ₒ).query q)
 
 end
 

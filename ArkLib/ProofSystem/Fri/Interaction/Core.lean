@@ -11,7 +11,7 @@ import ArkLib.ToMathlib.Finset.Basic
 import CompPoly.Fields.Basic
 
 /-!
-# Interaction-Native FRI: Core Definitions
+# FRI Interaction: Core Definitions
 
 This module defines the shared executable shape for the refactored FRI stack.
 
@@ -25,7 +25,7 @@ open Interaction CompPoly CPoly
 
 namespace Fri
 
-namespace NativeOracle
+namespace OracleLayer
 
 section
 
@@ -82,27 +82,86 @@ abbrev HonestPoly (i : ℕ) :=
 abbrev FoldChallenges : Type :=
   Fin k → F
 
-/-- The verifier challenges collected across the first `i` non-final fold
-rounds. -/
-abbrev FoldChallengePrefix (i : ℕ) : Type :=
-  Fin i → F
+/-- Structurally stored non-initial FRI codewords.
 
-/-- The empty challenge prefix before any non-final folding rounds. -/
-def initialChallenges : FoldChallengePrefix (F := F) 0 :=
-  fun i => nomatch i
+`MessageTrace len start finish` stores `len` consecutive prover codeword
+messages, starting at round `start` and ending at round `finish`. The endpoint
+indices make appending the next codeword a structural operation rather than an
+arithmetic cast. -/
+inductive MessageTrace (_s : Fin (k + 1) → ℕ+) :
+    Nat → Nat → Nat → Type where
+  | nil {round : Nat} : MessageTrace _s 0 round round
+  | cons {len round finish : Nat} :
+      Codeword (F := F) _s n round.succ →
+        MessageTrace _s len round.succ finish →
+          MessageTrace _s (len + 1) round finish
 
-/-- The queryable codewords available after the first `i` non-final fold rounds,
-including the initial codeword at index `0`. -/
-abbrev FoldCodewordPrefix
-    (_D : Subgroup Fˣ) (_x : Fˣ) (_s : Fin (k + 1) → ℕ+) (i : ℕ) :
-    Fin (i + 1) → Type :=
-  fun j => Codeword (F := F) _s n j.1
+namespace MessageTrace
 
-/-- The queryable codewords emitted by the `k` non-final fold rounds. -/
-abbrev FoldCodewordOracleFamily
+/-- Query one codeword in a structurally stored FRI message trace. -/
+inductive Query (_s : Fin (k + 1) → ℕ+) :
+    Nat → Nat → Nat → Type where
+  | here {len round finish : Nat} :
+      EvalIdx (n := n) _s round.succ →
+        Query _s (len + 1) round finish
+  | later {len round finish : Nat} :
+      Query _s len round.succ finish →
+        Query _s (len + 1) round finish
+
+/-- Append the next codeword to a structurally stored FRI message trace. -/
+def snoc (_s : Fin (k + 1) → ℕ+) :
+    {len start finish : Nat} →
+      MessageTrace (F := F) (n := n) _s len start finish →
+        Codeword (F := F) _s n finish.succ →
+          MessageTrace (F := F) (n := n) _s (len + 1) start finish.succ
+  | 0, _, _, .nil, codeword => .cons codeword .nil
+  | _ + 1, _, _, .cons codeword rest, nextCodeword =>
+      .cons codeword (snoc _s rest nextCodeword)
+
+/-- Answer a query against a structurally stored FRI message trace. -/
+def answer (_s : Fin (k + 1) → ℕ+) :
+    {len start finish : Nat} →
+      MessageTrace (F := F) (n := n) _s len start finish →
+        Query (n := n) _s len start finish → F
+  | 0, _, _, .nil, query => nomatch query
+  | _ + 1, _, _, .cons codeword _, .here idx => codeword idx
+  | _ + 1, _, _, .cons _ rest, .later query => answer _s rest query
+
+end MessageTrace
+
+/-- The full FRI codeword trace: the initial input codeword plus all non-final
+fold-round codeword messages. -/
+structure FoldCodewordTrace (_s : Fin (k + 1) → ℕ+) where
+  initial : Codeword (F := F) _s n 0
+  messages : MessageTrace (F := F) (n := n) _s k 0 k
+
+namespace FoldCodewordTrace
+
+/-- Query either the initial codeword or one of the non-final fold codeword
+messages in a full FRI codeword trace. -/
+abbrev Query (_s : Fin (k + 1) → ℕ+) : Type :=
+  EvalIdx (n := n) _s 0 ⊕ MessageTrace.Query (n := n) _s k 0 k
+
+/-- Answer a query against a full FRI codeword trace. -/
+def answer (_s : Fin (k + 1) → ℕ+) (trace : FoldCodewordTrace (F := F) (n := n) _s) :
+    Query (n := n) _s → F
+  | .inl idx => trace.initial idx
+  | .inr query => MessageTrace.answer (n := n) _s trace.messages query
+
+end FoldCodewordTrace
+
+/-- The queryable codeword trace emitted by the `k` non-final fold rounds. -/
+abbrev FoldCodewordTraceOracleFamily
     (_D : Subgroup Fˣ) (_x : Fˣ) (_s : Fin (k + 1) → ℕ+) :
-    Fin (k + 1) → Type :=
-  FoldCodewordPrefix (F := F) (n := n) _D _x _s k
+    Unit → Type :=
+  fun _ => FoldCodewordTrace (F := F) (n := n) _s
+
+instance instOracleInterfaceFoldCodewordTrace (_s : Fin (k + 1) → ℕ+) :
+    OracleInterface (FoldCodewordTrace (F := F) (n := n) _s) where
+  Query := FoldCodewordTrace.Query (n := n) _s
+  toOC.spec := fun _ => F
+  toOC.impl query := do
+    return FoldCodewordTrace.answer (n := n) _s (← read) query
 
 /-- The plain verifier statement after the final fold: all challenges together
 with the final degree-bounded polynomial. -/
@@ -296,13 +355,6 @@ def honestCodeword (i : ℕ) (p : HonestPoly (F := F) (s := s) (d := d) i) :
     Codeword (F := F) s n i :=
   fun idx => evalAtIdx (D := D) (x := x) (s := s) p.1 idx
 
-/-- Package the initial codeword as the singleton carried oracle family used by
-the first non-final fold round. -/
-def initialCodewords (codeword : Codeword (F := F) s n 0) :
-    OracleStatement (FoldCodewordPrefix (F := F) (n := n) D x s 0) :=
-  fun
-  | ⟨0, _⟩ => codeword
-
 /-- Degree bound for honest non-final folding. -/
 theorem honestFoldPoly_natDegree_le {i : Fin k}
     (p : HonestPoly (F := F) (s := s) (d := d) i.1)
@@ -367,6 +419,6 @@ def honestFinalPolynomial
 
 end
 
-end NativeOracle
+end OracleLayer
 
 end Fri

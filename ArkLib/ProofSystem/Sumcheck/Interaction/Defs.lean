@@ -10,9 +10,9 @@ import ArkLib.Interaction.RoleChain
 import ArkLib.ProofSystem.Sumcheck.Interaction.CompPoly
 
 /-!
-# Interaction-Native Sum-Check: Shared Definitions
+# Sum-Check Interaction: Shared Definitions
 
-This module defines the shared algebraic core for the Interaction-native sum-check stack,
+This module defines the shared algebraic core for the sum-check interaction stack,
 using CompPoly types throughout.
 
 ## Overview
@@ -36,15 +36,15 @@ After round `i`, the target is updated to `p_i(r_i)`. The public *stage state*
 ## Main Definitions
 
 - `RoundClaim R`: the public per-round claim (target value).
-- `roundSpec R deg`: the `Interaction.Spec` for one round (two messages).
-- `roundRoles R deg`: the `RoleDecoration` (sender then receiver).
-- `fullRoleChain`: the `n`-round native `RoleChain` surface.
+- `underlyingRoundSpec R deg`: the plain `Interaction.Spec` projection for one round.
+- `underlyingRoundRoles R deg`: the corresponding plain role decoration.
+- `underlyingRoleChain`: the `n`-round plain `RoleChain` projection.
 - `advance`: updates the claim after a round (`target ↦ poly.eval(challenge)`).
 - `roundCheck`: the per-round sum check (computable `Bool`).
 - `RoundCheckProp`: propositional version of `roundCheck`.
 - `fullSum`: the full sum `∑_{x ∈ D^n} poly(x)` that sum-check verifies.
 - `PolyStmt` / `PolyFamily`: the fixed original polynomial oracle statement.
-- `fullSpec` / `fullRoles`: the `n`-round replicated interaction surface.
+- `underlyingSpec` / `underlyingRoles`: the `n`-round replicated plain interaction surface.
 - `challengePrefix`: extract the verifier challenges already present in a
   replicated-round transcript.
 -/
@@ -72,65 +72,66 @@ abbrev RoundClaim := R
 
 /-! ## Single-round interaction shape -/
 
-/-- The `Interaction.Spec` for a single round: prover sends a degree-bounded univariate
-polynomial (`CDegreeLE R deg`), then verifier sends a field element challenge. -/
-def roundSpec : Spec :=
+/-- The plain `Interaction.Spec` projection for a single round: prover sends a
+degree-bounded univariate polynomial (`CDegreeLE R deg`), then verifier sends a
+field element challenge. -/
+def underlyingRoundSpec : Spec :=
   .node (CDegreeLE R deg) fun _ =>
     .node R fun _ =>
       .done
 
-/-- Role decoration for a single round: prover (sender) sends first, verifier (receiver)
-sends second. -/
-def roundRoles : RoleDecoration (roundSpec R deg) :=
+/-- Plain role decoration for a single round: prover (sender) sends first,
+verifier (receiver) sends second. -/
+def underlyingRoundRoles : RoleDecoration (underlyingRoundSpec R deg) :=
   ⟨.sender, fun _ => ⟨.receiver, fun _ => ⟨⟩⟩⟩
 
-/-- The `n`-round role chain for sum-check. The protocol shape is constant;
-stateful information belongs to the parties, not the chain. -/
-def fullRoleChain (n : Nat) : Spec.RoleChain n :=
-  Spec.RoleChain.replicate (roundSpec R deg) (roundRoles R deg) n
+/-- The plain `n`-round role chain for sum-check. The protocol shape is
+constant; stateful information belongs to the parties, not the chain. -/
+def underlyingRoleChain (n : Nat) : Spec.RoleChain n :=
+  Spec.RoleChain.replicate (underlyingRoundSpec R deg) (underlyingRoundRoles R deg) n
 
-/-- The `n`-round interaction surface for sum-check. -/
-abbrev fullSpec (n : Nat) : Spec :=
-  Spec.RoleChain.toSpec n (fullRoleChain R deg n)
+/-- The plain `n`-round interaction projection for sum-check. -/
+abbrev underlyingSpec (n : Nat) : Spec :=
+  Spec.RoleChain.toSpec n (underlyingRoleChain R deg n)
 
-/-- The role decoration for the `n`-round replicated interaction surface. -/
-abbrev fullRoles (n : Nat) : RoleDecoration (fullSpec R deg n) :=
-  Spec.RoleChain.toRoles n (fullRoleChain R deg n)
+/-- The role decoration for the plain `n`-round replicated interaction projection. -/
+abbrev underlyingRoles (n : Nat) : RoleDecoration (underlyingSpec R deg n) :=
+  Spec.RoleChain.toRoles n (underlyingRoleChain R deg n)
 
 /-- Extract the polynomial from a single-round transcript. -/
-abbrev roundPoly (tr : Spec.Transcript (roundSpec R deg)) :
+abbrev underlyingRoundPoly (tr : Spec.Transcript (underlyingRoundSpec R deg)) :
     CDegreeLE R deg :=
   tr.1
 
 /-- Extract the challenge from a single-round transcript. -/
-abbrev roundChallenge (tr : Spec.Transcript (roundSpec R deg)) :
+abbrev underlyingRoundChallenge (tr : Spec.Transcript (underlyingRoundSpec R deg)) :
     R :=
   tr.2.1
 
 /-- Extract the `i`-th round transcript from an `n`-round transcript. -/
-def roundTranscript (n : Nat)
-    (tr : Spec.Transcript (fullSpec R deg n)) (i : Fin n) :
-    Spec.Transcript (roundSpec R deg) :=
+def underlyingRoundTranscript (n : Nat)
+    (tr : Spec.Transcript (underlyingSpec R deg n)) (i : Fin n) :
+    Spec.Transcript (underlyingRoundSpec R deg) :=
   match n with
   | 0 => i.elim0
   | n + 1 =>
-      let split := Spec.RoleChain.splitTranscript n (fullRoleChain R deg (n + 1)) tr
+      let split := Spec.RoleChain.splitTranscript n (underlyingRoleChain R deg (n + 1)) tr
       Fin.cases split.1
-        (fun i => roundTranscript n split.2 i)
+        (fun i => underlyingRoundTranscript n split.2 i)
         i
 
 /-- Extract the prefix of verifier challenges from an `n`-round replicated
 transcript. -/
-def challengePrefix (n : Nat) (tr : Spec.Transcript (fullSpec R deg n)) :
+def challengePrefix (n : Nat) (tr : Spec.Transcript (underlyingSpec R deg n)) :
     Fin n → R :=
-  fun i => roundChallenge R deg (roundTranscript R deg n tr i)
+  fun i => underlyingRoundChallenge R deg (underlyingRoundTranscript R deg n tr i)
 
 /-- Advance the public claim after one round: evaluate the sent polynomial at the challenge.
 This is the state chain `advance` function. The new target is `poly.eval(challenge)`. -/
 def advance
-    (_ : Nat) (_ : RoundClaim R) (tr : Spec.Transcript (roundSpec R deg)) :
+    (_ : Nat) (_ : RoundClaim R) (tr : Spec.Transcript (underlyingRoundSpec R deg)) :
     RoundClaim R :=
-  CPolynomial.eval (roundChallenge R deg tr) (roundPoly R deg tr).1
+  CPolynomial.eval (underlyingRoundChallenge R deg tr) (underlyingRoundPoly R deg tr).1
 
 /-! ## Per-round sum check -/
 
@@ -155,11 +156,12 @@ def fullSum {n : ℕ} {m_dom : ℕ} (D : Fin m_dom → R) (poly : PolyStmt R deg
 /-- Replay the verifier's current claim across an `n`-round replicated
 sum-check transcript. Later rounds are ignored once a check fails. -/
 def statementResult {m_dom : Nat} (D : Fin m_dom → R) :
-    (n : Nat) → RoundClaim R → Spec.Transcript (fullSpec R deg n) → Option (RoundClaim R)
+    (n : Nat) → RoundClaim R → Spec.Transcript (underlyingSpec R deg n) → Option (RoundClaim R)
 | 0, target, _ => some target
 | n + 1, target, tr =>
-    let ⟨tr₁, trRest⟩ := Spec.RoleChain.splitTranscript n (fullRoleChain R deg (n + 1)) tr
-    if roundCheck R deg D target (roundPoly R deg tr₁) then
+    let ⟨tr₁, trRest⟩ := Spec.RoleChain.splitTranscript n
+      (underlyingRoleChain R deg (n + 1)) tr
+    if roundCheck R deg D target (underlyingRoundPoly R deg tr₁) then
       statementResult D n (advance R deg 0 target tr₁) trRest
     else
       none

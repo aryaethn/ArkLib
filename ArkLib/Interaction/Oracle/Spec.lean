@@ -616,6 +616,55 @@ def QueryHandle.routeRight :
   | .oracle _ rest, s₂, ⟨_, odRest⟩, od₂, pt, q =>
       .inr (routeRight rest s₂ odRest od₂ pt q)
 
+/-- The oracle spec at a routed left query handle in the appended spec matches
+the first phase's oracle spec.
+
+This is the transcript-indexed analogue of `toOracleSpec_appendLeft`, for
+callers that have an already-combined public transcript and route through
+`QueryHandle.routeLeft`. -/
+theorem toOracleSpec_routeLeft :
+    (s₁ : Oracle.Spec) → (s₂ : PublicTranscript s₁ → Oracle.Spec) →
+    (od₁ : OracleDeco s₁) → (od₂ : (pt₁ : PublicTranscript s₁) → OracleDeco (s₂ pt₁)) →
+    (pt : PublicTranscript (s₁.append s₂)) →
+    (q : QueryHandle s₁ od₁ (PublicTranscript.split s₁ s₂ pt).1) →
+    toOracleSpec (s₁.append s₂) (OracleDeco.append s₁ s₂ od₁ od₂) pt
+      (QueryHandle.routeLeft s₁ s₂ od₁ od₂ pt q) =
+    toOracleSpec s₁ od₁ (PublicTranscript.split s₁ s₂ pt).1 q
+  | .done, _, _, _, _, q => q.elim
+  | .«public» _ rest, s₂, od₁, od₂, ⟨x, ptRest⟩, q =>
+      toOracleSpec_routeLeft (rest x) (fun pt => s₂ ⟨x, pt⟩)
+        (od₁ x) (fun pt => od₂ ⟨x, pt⟩) ptRest q
+  | .oracle _ _, _, ⟨_, _⟩, _, _, .inl _ => rfl
+  | .oracle _ rest, s₂, ⟨_, odRest⟩, od₂, pt, .inr h =>
+      toOracleSpec_routeLeft rest s₂ odRest od₂ pt h
+
+/-- The oracle spec at a routed right query handle in the appended spec matches
+the second phase's oracle spec.
+
+This is the transcript-indexed analogue of `toOracleSpec_appendRight`, for
+callers that have an already-combined public transcript and route through
+`QueryHandle.routeRight`. -/
+theorem toOracleSpec_routeRight :
+    (s₁ : Oracle.Spec) → (s₂ : PublicTranscript s₁ → Oracle.Spec) →
+    (od₁ : OracleDeco s₁) → (od₂ : (pt₁ : PublicTranscript s₁) → OracleDeco (s₂ pt₁)) →
+    (pt : PublicTranscript (s₁.append s₂)) →
+    (q :
+      QueryHandle (s₂ (PublicTranscript.split s₁ s₂ pt).1)
+        (od₂ (PublicTranscript.split s₁ s₂ pt).1)
+        (PublicTranscript.split s₁ s₂ pt).2) →
+    toOracleSpec (s₁.append s₂) (OracleDeco.append s₁ s₂ od₁ od₂) pt
+      (QueryHandle.routeRight s₁ s₂ od₁ od₂ pt q) =
+    toOracleSpec
+      (s₂ (PublicTranscript.split s₁ s₂ pt).1)
+      (od₂ (PublicTranscript.split s₁ s₂ pt).1)
+      (PublicTranscript.split s₁ s₂ pt).2 q
+  | .done, _, _, _, _, _ => rfl
+  | .«public» _ rest, s₂, od₁, od₂, ⟨x, ptRest⟩, q =>
+      toOracleSpec_routeRight (rest x) (fun pt => s₂ ⟨x, pt⟩)
+        (od₁ x) (fun pt => od₂ ⟨x, pt⟩) ptRest q
+  | .oracle _ rest, s₂, ⟨_, odRest⟩, od₂, pt, q =>
+      toOracleSpec_routeRight rest s₂ odRest od₂ pt q
+
 /-- The oracle spec at a left query handle in the appended spec matches the
 first phase's oracle spec. -/
 theorem toOracleSpec_appendLeft :

@@ -7,9 +7,9 @@ import ArkLib.ProofSystem.Fri.Interaction.Core
 import ArkLib.Interaction.Oracle.Execution
 
 /-!
-# Interaction-Native FRI: Native Final Fold
+# FRI Interaction: Final Fold
 
-This module packages the terminal FRI fold round as a native
+This module packages the terminal FRI fold round as an
 `Interaction.Oracle.Reduction`.
 -/
 
@@ -17,7 +17,7 @@ open Interaction CompPoly CPoly OracleComp OracleSpec
 
 namespace Fri
 
-namespace NativeOracle
+namespace OracleLayer
 
 section
 
@@ -27,7 +27,7 @@ variable [DIsCyclicC : IsCyclicWithGen D] [DSmooth : SmoothPowerOfTwo n D]
 variable (x : Fˣ)
 variable {k : ℕ} (s : Fin (k + 1) → ℕ+) (d : ℕ)
 
-/-- Native reduction for the terminal FRI fold round. The incoming local
+/-- Reduction for the terminal FRI fold round. The incoming local
 statement only needs to expose the collected non-final challenges. -/
 def finalFoldReduction {SharedIn : Type} {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
     {StatementIn : SharedIn → Type}
@@ -39,12 +39,12 @@ def finalFoldReduction {SharedIn : Type} {ι : Type} {oSpec : OracleSpec.{0, 0} 
       (fun _ => finalFoldRoles (F := F) (d := d))
       (fun _ => finalFoldOD (F := F) (d := d))
       StatementIn
-      (ιₛᵢ := fun _ => Fin (k + 1))
-      (fun _ => FoldCodewordOracleFamily (F := F) (n := n) D x s)
+      (ιₛᵢ := fun _ => Unit)
+      (fun _ => FoldCodewordTraceOracleFamily (F := F) (n := n) D x s)
       (fun _ => HonestPoly (F := F) s d k)
       (fun _ _ => FinalStatement (F := F) (k := k) (d := d))
-      (ιₛₒ := fun _ _ => Fin (k + 1))
-      (fun _ _ => FoldCodewordOracleFamily (F := F) (n := n) D x s)
+      (ιₛₒ := fun _ _ => Unit)
+      (fun _ _ => FoldCodewordTraceOracleFamily (F := F) (n := n) D x s)
       (fun _ _ => PUnit) where
   prover shared sWithOracles witness := do
     let proverStep :
@@ -56,7 +56,7 @@ def finalFoldReduction {SharedIn : Type} {ι : Type} {oSpec : OracleSpec.{0, 0} 
             HonestProverOutput
               (StatementWithOracles
                 (fun _ => FinalStatement (F := F) (k := k) (d := d))
-                (fun _ => FoldCodewordOracleFamily (F := F) (n := n) D x s)
+                (fun _ => FoldCodewordTraceOracleFamily (F := F) (n := n) D x s)
                 shared)
               PUnit) := by
       intro α
@@ -68,7 +68,7 @@ def finalFoldReduction {SharedIn : Type} {ι : Type} {oSpec : OracleSpec.{0, 0} 
           HonestProverOutput
             (StatementWithOracles
               (fun _ => FinalStatement (F := F) (k := k) (d := d))
-              (fun _ => FoldCodewordOracleFamily (F := F) (n := n) D x s)
+              (fun _ => FoldCodewordTraceOracleFamily (F := F) (n := n) D x s)
               shared)
             PUnit :=
         ⟨⟨stmtOut, sWithOracles.oracleStmt⟩, PUnit.unit⟩
@@ -79,7 +79,7 @@ def finalFoldReduction {SharedIn : Type} {ι : Type} {oSpec : OracleSpec.{0, 0} 
                 HonestProverOutput
                   (StatementWithOracles
                     (fun _ => FinalStatement (F := F) (k := k) (d := d))
-                    (fun _ => FoldCodewordOracleFamily (F := F) (n := n) D x s)
+                    (fun _ => FoldCodewordTraceOracleFamily (F := F) (n := n) D x s)
                     shared)
                   PUnit from
               ⟨finalPoly, nextOutput⟩)) :
@@ -89,20 +89,25 @@ def finalFoldReduction {SharedIn : Type} {ι : Type} {oSpec : OracleSpec.{0, 0} 
                 HonestProverOutput
                   (StatementWithOracles
                     (fun _ => FinalStatement (F := F) (k := k) (d := d))
-                    (fun _ => FoldCodewordOracleFamily (F := F) (n := n) D x s)
+                    (fun _ => FoldCodewordTraceOracleFamily (F := F) (n := n) D x s)
                     shared)
                   PUnit)))
-    pure proverStep
+    pure <|
+      Interaction.Spec.Strategy.withRolesAndMonads.ofWithRolesConstant
+        (finalFoldSpec (F := F) (d := d)).toInteractionSpec
+        ((finalFoldSpec (F := F) (d := d)).toSpecRoles
+          (finalFoldRoles (F := F) (d := d)))
+        proverStep
   verifier := {
     toFun := fun shared stmt => do
       let α ← sampleChallenge shared
       pure ⟨α, fun finalPoly => ⟨toFoldChallenges shared stmt, α, finalPoly⟩⟩
     simulate := fun _ _ q =>
-      liftM <| ([FoldCodewordOracleFamily (F := F) (n := n) D x s]ₒ).query q
+      liftM <| ([FoldCodewordTraceOracleFamily (F := F) (n := n) D x s]ₒ).query q
   }
 
 end
 
-end NativeOracle
+end OracleLayer
 
 end Fri

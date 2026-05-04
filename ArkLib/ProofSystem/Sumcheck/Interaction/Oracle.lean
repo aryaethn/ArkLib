@@ -7,67 +7,64 @@ import ArkLib.ProofSystem.Sumcheck.Interaction.Defs
 import ArkLib.Interaction.Oracle.Core
 
 /-!
-# Interaction-Native Sum-Check: Native Oracle Round Primitives
+# Sum-Check Oracle Round Primitives
 
-This module rebuilds the one-round sum-check oracle surface on the native
+This module defines the one-round sum-check oracle surface on the
 `Interaction.Oracle.Spec` API.
 
-The round polynomial is a native `.oracle` node, so it is omitted from the
-verifier's `PublicTranscript` and is accessed only through
-`Oracle.Spec.QueryHandle`. The verifier's challenge is a `.public` receiver
-node.
+The round polynomial is an `.oracle` node, so it is omitted from the verifier's
+`PublicTranscript` and is accessed only through `Oracle.Spec.QueryHandle`. The
+verifier's challenge is a `.public` receiver node.
 -/
 
 namespace Sumcheck
 
 open Interaction CompPoly CPoly OracleComp OracleSpec
 
-namespace NativeOracle
-
 section
 
 variable (R : Type) [BEq R] [CommSemiring R] [LawfulBEq R]
 variable (deg : ℕ)
 
-/-- Native oracle-spec shape for one round: the prover provides the round
+/-- Oracle-spec shape for one round: the prover provides the round
 polynomial as an oracle message, then the verifier samples a public challenge. -/
 def roundSpec : Interaction.Oracle.Spec :=
   .oracle (CDegreeLE R deg) <|
     .public R fun _ =>
       .done
 
-/-- Native role decoration for one sum-check round. The oracle polynomial node
-is implicitly prover-owned; the only public node is the verifier challenge. -/
+/-- Role decoration for one sum-check round. The oracle polynomial node is
+implicitly prover-owned; the only public node is the verifier challenge. -/
 def roundRoles : Interaction.Oracle.Spec.RoleDeco (roundSpec R deg) :=
   ⟨.receiver, fun _ => ⟨⟩⟩
 
-/-- Native oracle decoration for one round: the prover's univariate round
-polynomial is queryable via its evaluation oracle interface. -/
+/-- Oracle decoration for one round: the prover's univariate round polynomial is
+queryable via its evaluation oracle interface. -/
 def roundOracleDeco : Interaction.Oracle.Spec.OracleDeco (roundSpec R deg) :=
   ⟨instOracleInterfaceCDegreeLE, fun _ => ⟨⟩⟩
 
-/-- Forgetting the native oracle round recovers the legacy interaction shape. -/
+/-- Forgetting oracle handles recovers the plain interaction projection. -/
 @[simp]
 theorem roundSpec_toInteractionSpec :
-    (roundSpec R deg).toInteractionSpec = Sumcheck.roundSpec R deg :=
+    (roundSpec R deg).toInteractionSpec = underlyingRoundSpec R deg :=
   rfl
 
-/-- Forgetting native oracle roles recovers the legacy role decoration. -/
+/-- Forgetting oracle handles recovers the plain role projection. -/
 @[simp]
 theorem roundRoles_toSpecRoles :
-    (roundSpec R deg).toSpecRoles (roundRoles R deg) = Sumcheck.roundRoles R deg :=
+    (roundSpec R deg).toSpecRoles (roundRoles R deg) = underlyingRoundRoles R deg :=
   rfl
 
-/-- Public transcript of a native oracle round. It contains the verifier
-challenge but not the prover's oracle polynomial message. -/
+/-- Public transcript of an oracle round. It contains the verifier challenge but
+not the prover's oracle polynomial message. -/
 abbrev RoundPublicTranscript :=
   Interaction.Oracle.Spec.PublicTranscript (roundSpec R deg)
 
-/-- Extract the verifier challenge from a native oracle round public transcript. -/
+/-- Extract the verifier challenge from an oracle round public transcript. -/
 abbrev roundChallenge (pt : RoundPublicTranscript R deg) : R :=
   pt.1
 
-/-- The verifier counterpart type for one native oracle sum-check round. -/
+/-- The verifier counterpart type for one oracle sum-check round. -/
 abbrev RoundCounterpart
     {ι : Type} (oSpec : OracleSpec.{0, 0} ι)
     {ιₛᵢ : Type} (OStmtIn : ιₛᵢ → Type)
@@ -81,7 +78,7 @@ abbrev RoundCounterpart
       (roundRoles R deg) (roundOracleDeco R deg) accSpec)
     Output
 
-/-- The live-claim oracle verifier for one native sum-check round.
+/-- The live-claim oracle verifier for one sum-check round.
 
 The verifier observes only the oracle handle for the prover's round polynomial,
 queries it on the domain, checks the sum against the current target, samples a
@@ -112,7 +109,7 @@ noncomputable def verifierStep
           pure ⟨chal, none⟩
     receiverStep
 
-/-- The chained verifier step for one native sum-check round.
+/-- The chained verifier step for one sum-check round.
 
 Once a previous round has rejected, later rounds keep the same interaction shape
 but preserve the rejecting `none` state. -/
@@ -140,7 +137,5 @@ noncomputable def verifierStepOption
       verifierStep (R := R) (deg := deg) OStmtIn accSpec D target sampleChallenge
 
 end
-
-end NativeOracle
 
 end Sumcheck

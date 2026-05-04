@@ -7,17 +7,15 @@ import ArkLib.ProofSystem.Sumcheck.Interaction.Oracle
 import ArkLib.Interaction.Oracle.Execution
 
 /-!
-# Interaction-Native Sum-Check: Native Single Round
+# Sum-Check Single Round
 
-This module ports the single-round sum-check oracle reduction to the native
-`Interaction.Oracle.Spec` layer.
+This module defines the single-round sum-check oracle reduction on
+`Interaction.Oracle.Spec`.
 -/
 
 namespace Sumcheck
 
 open Interaction CompPoly CPoly OracleComp OracleSpec
-
-namespace NativeOracle
 
 section
 
@@ -40,9 +38,9 @@ def honestRoundPoly {m_dom : ℕ} (D : Fin m_dom → R)
     CMvPolynomial.roundPoly_natDegree_le D poly.1 (fun mono hmono =>
       poly.2 ⟨0, by omega⟩ mono hmono)⟩
 
-/-- The honest prover step for one native oracle round, specialized to a private
+/-- The honest prover step for one oracle round, specialized to a private
 residual polynomial witness that is threaded across rounds. -/
-def roundProverStepStateful (m : Type → Type) [Monad m]
+def roundProverStep (m : Type → Type) [Monad m]
     {NextState : Type}
     {m_dom : ℕ} (D : Fin m_dom → R)
     {numVars : ℕ}
@@ -55,11 +53,11 @@ def roundProverStepStateful (m : Type → Type) [Monad m]
   let sentPoly := honestRoundPoly (R := R) (deg := deg) D poly
   pure ⟨sentPoly, fun chal => pure (computeNext chal)⟩
 
-/-- Native one-round sum-check oracle reduction with a private residual
-polynomial witness. The public oracle statement stays fixed as the original
-polynomial, while the witness shrinks from `numVars + 1` variables to
-`numVars` after the sampled challenge. -/
-noncomputable def roundReductionStateful
+/-- One-round sum-check oracle reduction with a private residual polynomial
+witness. The public oracle statement stays fixed as the original polynomial,
+while the witness shrinks from `numVars + 1` variables to `numVars` after the
+sampled challenge. -/
+noncomputable def roundReduction
     {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
     {m_dom : ℕ} (D : Fin m_dom → R)
     (numVars : ℕ)
@@ -78,7 +76,7 @@ noncomputable def roundReductionStateful
   prover target sWithOracles witness := do
     let sentPoly := honestRoundPoly (R := R) (deg := deg) D witness
     pure <|
-      roundProverStepStateful (m := OracleComp oSpec) (R := R) (deg := deg) D witness
+      roundProverStep (m := OracleComp oSpec) (R := R) (deg := deg) D witness
         (fun chal =>
           let nextClaim : Option (RoundClaim R) := some (CPolynomial.eval chal sentPoly.1)
           (⟨⟨nextClaim, sWithOracles.oracleStmt⟩,
@@ -96,7 +94,5 @@ noncomputable def roundReductionStateful
   }
 
 end
-
-end NativeOracle
 
 end Sumcheck

@@ -186,13 +186,7 @@ import ArkLib.ProofSystem.Fri.Interaction.Core
 import ArkLib.ProofSystem.Fri.Interaction.FinalFold
 import ArkLib.ProofSystem.Fri.Interaction.FoldPhase
 import ArkLib.ProofSystem.Fri.Interaction.FoldRound
-import ArkLib.ProofSystem.Fri.Interaction.Legacy.Core
-import ArkLib.ProofSystem.Fri.Interaction.Legacy.FinalFold
-import ArkLib.ProofSystem.Fri.Interaction.Legacy.FoldPhase
-import ArkLib.ProofSystem.Fri.Interaction.Legacy.FoldRound
-import ArkLib.ProofSystem.Fri.Interaction.Legacy.General
-import ArkLib.ProofSystem.Fri.Interaction.Legacy.Protocol
-import ArkLib.ProofSystem.Fri.Interaction.Legacy.QueryRound
+import ArkLib.ProofSystem.Fri.Interaction.General
 import ArkLib.ProofSystem.Fri.Interaction.QueryRound
 import ArkLib.ProofSystem.Fri.RoundConsistency
 import ArkLib.ProofSystem.Fri.Spec.General
@@ -211,9 +205,6 @@ import ArkLib.ProofSystem.Sumcheck.Impl.Basic
 import ArkLib.ProofSystem.Sumcheck.Interaction.CompPoly
 import ArkLib.ProofSystem.Sumcheck.Interaction.Defs
 import ArkLib.ProofSystem.Sumcheck.Interaction.General
-import ArkLib.ProofSystem.Sumcheck.Interaction.Legacy.General
-import ArkLib.ProofSystem.Sumcheck.Interaction.Legacy.Oracle
-import ArkLib.ProofSystem.Sumcheck.Interaction.Legacy.SingleRound
 import ArkLib.ProofSystem.Sumcheck.Interaction.Oracle
 import ArkLib.ProofSystem.Sumcheck.Interaction.SingleRound
 import ArkLib.ProofSystem.Sumcheck.Spec.General

@@ -3,13 +3,13 @@ Copyright (c) 2026 ArkLib Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Quang Dao
 -/
-import ArkLib.ProofSystem.Fri.Interaction.FoldRound
+import ArkLib.ProofSystem.Fri.Interaction.Core
 import ArkLib.Interaction.Oracle.Chain
 
 /-!
-# Interaction-Native FRI: Native Fold Phase
+# FRI Interaction: Fold Phase
 
-This module composes the `k` non-final FRI fold rounds over the native
+This module composes the `k` non-final FRI fold rounds over the
 terminal-indexed `Interaction.Oracle.Spec.PathChain` layer.
 -/
 
@@ -17,7 +17,7 @@ open Interaction CompPoly CPoly OracleComp OracleSpec
 
 namespace Fri
 
-namespace NativeOracle
+namespace OracleLayer
 
 section
 
@@ -55,7 +55,7 @@ def recordChallenge
     FoldChallenges (F := F) (k := k) :=
   Function.update challenges round α
 
-/-- Terminal-indexed native chain of the remaining non-final fold rounds.
+/-- Terminal-indexed chain of the remaining non-final fold rounds.
 
 The current round and terminal round `k` are both part of the chain type. That
 extra endpoint is what lets final result code recover an `IndexedProverState k`
@@ -77,36 +77,40 @@ def foldPhasePathChainFrom :
           foldPhasePathChainFrom remaining round.succ
             (nextStateEq (k := k) h))
 
-/-- Terminal-indexed native chain for all non-final fold rounds. -/
+/-- Terminal-indexed chain for all non-final fold rounds. -/
 def foldPhasePathChain :
     Interaction.Oracle.Spec.PathChain Nat k 0 k :=
   foldPhasePathChainFrom (D := D) (n := n) (x := x) (s := s) (k := k)
     k 0 (initialRoundEq (k := k))
 
-/-- Native oracle context for the full terminal-indexed non-final fold phase. -/
+/-- Oracle context for the full terminal-indexed non-final fold phase. -/
 abbrev foldPhasePathContext : Interaction.Oracle.Spec :=
   Interaction.Oracle.Spec.PathChain.toSpec k
     (foldPhasePathChain (D := D) (n := n) (x := x) (s := s))
 
-/-- Native role decoration for the full terminal-indexed non-final fold phase. -/
+/-- Role decoration for the full terminal-indexed non-final fold phase. -/
 abbrev foldPhasePathRoles :
     Interaction.Oracle.Spec.RoleDeco
       (foldPhasePathContext (D := D) (n := n) (x := x) (s := s) (k := k)) :=
   Interaction.Oracle.Spec.PathChain.toRoles k
     (foldPhasePathChain (D := D) (n := n) (x := x) (s := s))
 
-/-- Native oracle decoration for the full terminal-indexed non-final fold phase. -/
+/-- Oracle decoration for the full terminal-indexed non-final fold phase. -/
 abbrev foldPhasePathOD :
     Interaction.Oracle.Spec.OracleDeco
       (foldPhasePathContext (D := D) (n := n) (x := x) (s := s) (k := k)) :=
   Interaction.Oracle.Spec.PathChain.toOracleDeco k
     (foldPhasePathChain (D := D) (n := n) (x := x) (s := s))
 
+/-- Codeword trace accumulated by the indexed fold-phase prover. -/
+private structure IndexedCodewordTrace (round : Nat) where
+  initial : Codeword (F := F) s n 0
+  messages : MessageTrace (F := F) (n := n) s round 0 round
+
 /-- Honest prover state indexed directly by the absolute fold round. -/
 private structure IndexedProverState (round : Nat) where
   challenges : FoldChallenges (F := F) (k := k)
-  codewords :
-    OracleStatement (FoldCodewordPrefix (F := F) (n := n) D x s round)
+  codewords : IndexedCodewordTrace (F := F) (n := n) (s := s) round
   poly : HonestPoly (F := F) s d round
 
 /-- Initial honest prover state for the indexed fold phase. -/
@@ -117,43 +121,38 @@ private def indexedProverInit
       StatementWithOracles (fun _ : SharedIn => PUnit)
         (fun _ => InputOracleFamily (F := F) (n := n) D x s) shared)
     (witness : HonestPoly (F := F) s d 0) :
-    IndexedProverState (D := D) (n := n) (x := x) (s := s) (d := d) 0 :=
+    IndexedProverState (F := F) (n := n) (s := s) (d := d) 0 :=
   let initialCodeword :
       Codeword (F := F) s n 0 :=
     sWithOracles.oracleStmt ()
   { challenges := initialFoldChallenges (F := F) (k := k)
     codewords :=
-      initialCodewords (F := F) (D := D) (n := n) (x := x) (s := s)
-        initialCodeword
+      { initial := initialCodeword
+        messages := .nil }
     poly := witness }
 
 /-- Pure cast-free honest prover transition for a non-final fold round. -/
 private def indexedProverNext
     (round : Nat) (hround : round < k)
-    (state : IndexedProverState (D := D) (n := n) (x := x) (s := s) (d := d) round)
+    (state : IndexedProverState (F := F) (n := n) (s := s) (d := d) round)
     (α : F) :
     Codeword (F := F) s n round.succ ×
       IndexedProverState
-        (D := D) (n := n) (x := x) (s := s) (d := d) round.succ :=
+        (F := F) (n := n) (s := s) (d := d) round.succ :=
   let i : Fin k := ⟨round, hround⟩
   let nextPoly : HonestPoly (F := F) s d round.succ :=
     honestFoldPoly (F := F) (s := s) (d := d) (i := i) state.poly α
   let nextCodeword : Codeword (F := F) s n round.succ :=
     honestCodeword (F := F) (D := D) (x := x) (s := s) (d := d)
       round.succ nextPoly
-  let nextCodewordLast :
-      FoldCodewordPrefix (F := F) (n := n) D x s round.succ
-        (Fin.last round.succ) :=
-    nextCodeword
   let nextChallenges : FoldChallenges (F := F) (k := k) :=
     recordChallenge (F := F) i state.challenges α
-  let nextCodewords :
-      OracleStatement
-        (FoldCodewordPrefix (F := F) (n := n) D x s round.succ) :=
-    Fin.snoc state.codewords nextCodewordLast
+  let nextCodewords : IndexedCodewordTrace (F := F) (n := n) (s := s) round.succ :=
+    { initial := state.codewords.initial
+      messages := MessageTrace.snoc (F := F) (n := n) s state.codewords.messages nextCodeword }
   let nextState :
       IndexedProverState
-        (D := D) (n := n) (x := x) (s := s) (d := d) round.succ :=
+        (F := F) (n := n) (s := s) (d := d) round.succ :=
     { challenges := nextChallenges
       codewords := nextCodewords
       poly := nextPoly }
@@ -181,7 +180,7 @@ private def indexedVerifierNext
 private def indexedProverStepAux {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
     {remaining round : Nat}
     (hround : round + (remaining + 1) = k)
-    (state : IndexedProverState (D := D) (n := n) (x := x) (s := s) (d := d) round) :
+    (state : IndexedProverState (F := F) (n := n) (s := s) (d := d) round) :
     OracleComp oSpec
       (Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
         (foldRoundSpec (F := F) (n := n) D x s
@@ -191,7 +190,7 @@ private def indexedProverStepAux {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
             (foldRoundRoles (F := F) (n := n) D x s
               ⟨round, stateRound_lt (k := k) hround⟩))
         (fun _ => IndexedProverState
-          (D := D) (n := n) (x := x) (s := s) (d := d) round.succ)) := do
+          (F := F) (n := n) (s := s) (d := d) round.succ)) := do
   let roundIdx : Fin k := ⟨round, stateRound_lt (k := k) hround⟩
   pure <| fun α => do
     let next := indexedProverNext
@@ -200,13 +199,13 @@ private def indexedProverStepAux {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
     let roundOutput :
         (_cw : Codeword (F := F) s n round.succ) ×
           IndexedProverState
-            (D := D) (n := n) (x := x) (s := s) (d := d) round.succ :=
+            (F := F) (n := n) (s := s) (d := d) round.succ :=
       ⟨next.1, next.2⟩
     pure <|
       (show OracleComp oSpec
           ((_cw : Codeword (F := F) s n round.succ) ×
             IndexedProverState
-              (D := D) (n := n) (x := x) (s := s) (d := d) round.succ) from
+              (F := F) (n := n) (s := s) (d := d) round.succ) from
         pure roundOutput)
 
 /-- One indexed verifier fold-round handler. -/
@@ -242,7 +241,7 @@ private def pathProverSteps {ι : Type} {oSpec : OracleSpec.{0, 0} ι} :
     (remaining round : Nat) → (h : round + remaining = k) →
       Interaction.Oracle.Spec.PathChain.Prover.RoundSteps
         (m := OracleComp oSpec)
-        (IndexedProverState (D := D) (n := n) (x := x) (s := s) (d := d))
+        (IndexedProverState (F := F) (n := n) (s := s) (d := d))
         remaining
         (foldPhasePathChainFrom
           (D := D) (n := n) (x := x) (s := s) (k := k)
@@ -288,13 +287,13 @@ private def pathTerminalProverState
         (foldPhasePathContext (D := D) (n := n) (x := x) (s := s) (k := k)))
     (state :
       Interaction.Oracle.Spec.PathChain.outputFamily
-        (IndexedProverState (D := D) (n := n) (x := x) (s := s) (d := d))
+        (IndexedProverState (F := F) (n := n) (s := s) (d := d))
         k
         (foldPhasePathChain (D := D) (n := n) (x := x) (s := s))
         pt) :
-    IndexedProverState (D := D) (n := n) (x := x) (s := s) (d := d) k :=
+    IndexedProverState (F := F) (n := n) (s := s) (d := d) k :=
   Interaction.Oracle.Spec.PathChain.terminalOutput
-    (IndexedProverState (D := D) (n := n) (x := x) (s := s) (d := d))
+    (IndexedProverState (F := F) (n := n) (s := s) (d := d))
     k
     (foldPhasePathChain (D := D) (n := n) (x := x) (s := s))
     pt state
@@ -324,7 +323,7 @@ private def pathProverStatementResult
         (foldPhasePathContext (D := D) (n := n) (x := x) (s := s) (k := k)))
     (state :
       Interaction.Oracle.Spec.PathChain.outputFamily
-        (IndexedProverState (D := D) (n := n) (x := x) (s := s) (d := d))
+        (IndexedProverState (F := F) (n := n) (s := s) (d := d))
         k
         (foldPhasePathChain (D := D) (n := n) (x := x) (s := s))
         pt) :
@@ -356,14 +355,20 @@ private def pathOracleStatementResult
         (foldPhasePathContext (D := D) (n := n) (x := x) (s := s) (k := k)))
     (state :
       Interaction.Oracle.Spec.PathChain.outputFamily
-        (IndexedProverState (D := D) (n := n) (x := x) (s := s) (d := d))
+        (IndexedProverState (F := F) (n := n) (s := s) (d := d))
         k
         (foldPhasePathChain (D := D) (n := n) (x := x) (s := s))
         pt) :
-    OracleStatement (FoldCodewordOracleFamily (F := F) (n := n) D x s) :=
-  (pathTerminalProverState
-    (F := F) (D := D) (n := n) (x := x) (s := s) (d := d) (k := k)
-    pt state).codewords
+    OracleStatement (FoldCodewordTraceOracleFamily (F := F) (n := n) D x s) :=
+  fun _ =>
+    { initial :=
+        (pathTerminalProverState
+          (F := F) (D := D) (n := n) (x := x) (s := s) (d := d) (k := k)
+          pt state).codewords.initial
+      messages :=
+        (pathTerminalProverState
+          (F := F) (D := D) (n := n) (x := x) (s := s) (d := d) (k := k)
+          pt state).codewords.messages }
 
 /-- Honest witness extracted from the terminal prover state. -/
 private def pathWitnessResult
@@ -372,7 +377,7 @@ private def pathWitnessResult
         (foldPhasePathContext (D := D) (n := n) (x := x) (s := s) (k := k)))
     (state :
       Interaction.Oracle.Spec.PathChain.outputFamily
-        (IndexedProverState (D := D) (n := n) (x := x) (s := s) (d := d))
+        (IndexedProverState (F := F) (n := n) (s := s) (d := d))
         k
         (foldPhasePathChain (D := D) (n := n) (x := x) (s := s))
         pt) :
@@ -381,8 +386,244 @@ private def pathWitnessResult
     (F := F) (D := D) (n := n) (x := x) (s := s) (d := d) (k := k)
     pt state).poly
 
+/-- Route a query to a carried trace message into the corresponding
+oracle message of the terminal-indexed fold path. -/
+@[reducible] private def pathMessageTraceQueryHandleFrom :
+    (remaining round : Nat) → (h : round + remaining = k) →
+      (pt :
+        Interaction.Oracle.Spec.PublicTranscript
+          (Interaction.Oracle.Spec.PathChain.toSpec remaining
+            (foldPhasePathChainFrom
+              (D := D) (n := n) (x := x) (s := s) (k := k)
+              remaining round h))) →
+      MessageTrace.Query (n := n) s remaining round k →
+      Interaction.Oracle.Spec.QueryHandle
+        (Interaction.Oracle.Spec.PathChain.toSpec remaining
+          (foldPhasePathChainFrom
+            (D := D) (n := n) (x := x) (s := s) (k := k)
+            remaining round h))
+        (Interaction.Oracle.Spec.PathChain.toOracleDeco remaining
+          (foldPhasePathChainFrom
+            (D := D) (n := n) (x := x) (s := s) (k := k)
+            remaining round h))
+        pt
+  | 0, _, _, _, query => nomatch query
+  | remaining + 1, round, h, pt, .here idx =>
+      let i : Fin k := ⟨round, stateRound_lt (k := k) h⟩
+      let spec := foldRoundSpec (F := F) (n := n) D x s i
+      let rest :=
+        fun _ =>
+          Interaction.Oracle.Spec.PathChain.toSpec remaining
+            (foldPhasePathChainFrom
+              (D := D) (n := n) (x := x) (s := s) (k := k)
+              remaining round.succ (nextStateEq (k := k) h))
+      let odRest :=
+        fun _ =>
+          Interaction.Oracle.Spec.PathChain.toOracleDeco remaining
+            (foldPhasePathChainFrom
+              (D := D) (n := n) (x := x) (s := s) (k := k)
+              remaining round.succ (nextStateEq (k := k) h))
+      Interaction.Oracle.Spec.QueryHandle.routeLeft
+        spec rest
+        (foldRoundOD (F := F) (n := n) D x s i)
+        odRest pt (.inl idx)
+  | remaining + 1, round, h, pt, .later query =>
+      let i : Fin k := ⟨round, stateRound_lt (k := k) h⟩
+      let spec := foldRoundSpec (F := F) (n := n) D x s i
+      let rest :=
+        fun _ =>
+          Interaction.Oracle.Spec.PathChain.toSpec remaining
+            (foldPhasePathChainFrom
+              (D := D) (n := n) (x := x) (s := s) (k := k)
+              remaining round.succ (nextStateEq (k := k) h))
+      let odRest :=
+        fun _ =>
+          Interaction.Oracle.Spec.PathChain.toOracleDeco remaining
+            (foldPhasePathChainFrom
+              (D := D) (n := n) (x := x) (s := s) (k := k)
+              remaining round.succ (nextStateEq (k := k) h))
+      let split := Interaction.Oracle.Spec.PublicTranscript.split spec rest pt
+      Interaction.Oracle.Spec.QueryHandle.routeRight
+        spec rest
+        (foldRoundOD (F := F) (n := n) D x s i)
+        odRest pt
+        (pathMessageTraceQueryHandleFrom
+          remaining round.succ (nextStateEq (k := k) h) split.2 query)
+
+/-- Route a trace-message query directly through a query implementation for the
+current path segment. This is the simulator-facing version of
+`pathMessageTraceQueryHandleFrom`: the recursion restricts the implementation to
+the current round or the remaining suffix, so the result type is `F` at the
+branch where the codeword is queried. -/
+private def pathMessageTraceQueryImplFrom {ιTarget : Type}
+    (targetSpec : OracleSpec.{0, 0} ιTarget) :
+    (remaining round : Nat) → (h : round + remaining = k) →
+      (pt :
+        Interaction.Oracle.Spec.PublicTranscript
+          (Interaction.Oracle.Spec.PathChain.toSpec remaining
+            (foldPhasePathChainFrom
+              (D := D) (n := n) (x := x) (s := s) (k := k)
+              remaining round h))) →
+      QueryImpl
+        (Interaction.Oracle.Spec.toOracleSpec
+          (Interaction.Oracle.Spec.PathChain.toSpec remaining
+            (foldPhasePathChainFrom
+              (D := D) (n := n) (x := x) (s := s) (k := k)
+              remaining round h))
+          (Interaction.Oracle.Spec.PathChain.toOracleDeco remaining
+            (foldPhasePathChainFrom
+              (D := D) (n := n) (x := x) (s := s) (k := k)
+              remaining round h))
+          pt)
+        (OracleComp targetSpec) →
+      MessageTrace.Query (n := n) s remaining round k →
+      OracleComp targetSpec F
+  | 0, _, _, _, _, query => nomatch query
+  | remaining + 1, round, h, pt, embed, .here idx =>
+      let i : Fin k := ⟨round, stateRound_lt (k := k) h⟩
+      let spec := foldRoundSpec (F := F) (n := n) D x s i
+      let rest :=
+        fun _ =>
+          Interaction.Oracle.Spec.PathChain.toSpec remaining
+            (foldPhasePathChainFrom
+              (D := D) (n := n) (x := x) (s := s) (k := k)
+              remaining round.succ (nextStateEq (k := k) h))
+      let odRest :=
+        fun _ =>
+          Interaction.Oracle.Spec.PathChain.toOracleDeco remaining
+            (foldPhasePathChainFrom
+              (D := D) (n := n) (x := x) (s := s) (k := k)
+              remaining round.succ (nextStateEq (k := k) h))
+      let currentImpl :=
+        Interaction.Oracle.Spec.restrictLeft spec rest
+          (foldRoundOD (F := F) (n := n) D x s i)
+          odRest pt embed
+      currentImpl (.inl idx)
+  | remaining + 1, round, h, pt, embed, .later query =>
+      let i : Fin k := ⟨round, stateRound_lt (k := k) h⟩
+      let spec := foldRoundSpec (F := F) (n := n) D x s i
+      let rest :=
+        fun _ =>
+          Interaction.Oracle.Spec.PathChain.toSpec remaining
+            (foldPhasePathChainFrom
+              (D := D) (n := n) (x := x) (s := s) (k := k)
+              remaining round.succ (nextStateEq (k := k) h))
+      let odRest :=
+        fun _ =>
+          Interaction.Oracle.Spec.PathChain.toOracleDeco remaining
+            (foldPhasePathChainFrom
+              (D := D) (n := n) (x := x) (s := s) (k := k)
+              remaining round.succ (nextStateEq (k := k) h))
+      let split := Interaction.Oracle.Spec.PublicTranscript.split spec rest pt
+      let restImpl :=
+        Interaction.Oracle.Spec.restrictRight spec rest
+          (foldRoundOD (F := F) (n := n) D x s i)
+          odRest pt embed
+      pathMessageTraceQueryImplFrom targetSpec
+        remaining round.succ (nextStateEq (k := k) h) split.2 restImpl query
+
+/-- Simulate fold-codeword trace oracle queries from the initial codeword oracle
+and the queryable oracle messages accumulated along the fold path. -/
+private def pathSimulateCodewordQuery
+    (pt :
+      Interaction.Oracle.Spec.PublicTranscript
+        (foldPhasePathContext (D := D) (n := n) (x := x) (s := s) (k := k))) :
+    QueryImpl [FoldCodewordTraceOracleFamily (F := F) (n := n) D x s]ₒ
+      (OracleComp
+        ([InputOracleFamily (F := F) (n := n) D x s]ₒ +
+          Interaction.Oracle.Spec.toOracleSpec
+            (foldPhasePathContext (D := D) (n := n) (x := x) (s := s) (k := k))
+            (foldPhasePathOD (D := D) (n := n) (x := x) (s := s) (k := k))
+            pt))
+  | ⟨(), .inl idx⟩ =>
+      liftM <| ([InputOracleFamily (F := F) (n := n) D x s]ₒ).query ⟨(), idx⟩
+  | ⟨(), .inr query⟩ =>
+      let pathSpec :=
+        Interaction.Oracle.Spec.toOracleSpec
+          (foldPhasePathContext (D := D) (n := n) (x := x) (s := s) (k := k))
+          (foldPhasePathOD (D := D) (n := n) (x := x) (s := s) (k := k))
+          pt
+      let fullSpec :=
+        ([InputOracleFamily (F := F) (n := n) D x s]ₒ +
+          pathSpec)
+      let embedPath : QueryImpl pathSpec (OracleComp fullSpec) :=
+        fun q => liftM <| fullSpec.query (.inr q)
+      pathMessageTraceQueryImplFrom
+        (F := F) (D := D) (n := n) (x := x) (s := s) (k := k)
+        fullSpec k 0 (initialRoundEq (k := k)) pt embedPath query
+
+/-- Continuation for all non-final FRI fold rounds, composed through the
+terminal-indexed path-chain layer. -/
+def foldPhaseContinuation {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
+    (sampleChallenge : (i : Fin k) → OracleComp oSpec F) :
+    Interaction.Oracle.Reduction (ι := ι) oSpec PUnit
+      (fun _ => foldPhasePathContext (D := D) (n := n) (x := x) (s := s) (k := k))
+      (fun _ => foldPhasePathRoles (D := D) (n := n) (x := x) (s := s) (k := k))
+      (fun _ => foldPhasePathOD (D := D) (n := n) (x := x) (s := s) (k := k))
+      (fun _ => PUnit)
+      (ιₛᵢ := fun _ => Unit)
+      (fun _ => InputOracleFamily (F := F) (n := n) D x s)
+      (fun _ => HonestPoly (F := F) s d 0)
+      (fun _ _ => FoldChallenges (F := F) (k := k))
+      (ιₛₒ := fun _ _ => Unit)
+      (fun _ _ => FoldCodewordTraceOracleFamily (F := F) (n := n) D x s)
+      (fun _ _ => HonestPoly (F := F) s d k) :=
+  Interaction.Oracle.Reduction.ofPathChain
+    (Idx := Nat)
+    (ι := ι) (oSpec := oSpec)
+    (SharedIn := PUnit)
+    (StatementIn := fun _ => PUnit)
+    (WitnessIn := fun _ => HonestPoly (F := F) s d 0)
+    (ιₛᵢ := fun _ => Unit)
+    (OStatementIn := fun _ => InputOracleFamily (F := F) (n := n) D x s)
+    (n := k)
+    (idx := fun _ => 0)
+    (finish := fun _ => k)
+    (c := fun _ => foldPhasePathChain (D := D) (n := n) (x := x) (s := s))
+    (StatementOut := fun _ _ => FoldChallenges (F := F) (k := k))
+    (ιₛₒ := fun _ _ => Unit)
+    (OStatementOut := fun _ _ => FoldCodewordTraceOracleFamily (F := F) (n := n) D x s)
+    (WitnessOut := fun _ _ => HonestPoly (F := F) s d k)
+    (ProverState := fun _ round =>
+      IndexedProverState (F := F) (n := n) (s := s) (d := d) round)
+    (VerifierState := fun _ round =>
+      IndexedVerifierState (F := F) (k := k) round)
+    (proverInit := fun shared sWithOracles witness =>
+      indexedProverInit
+        (F := F) (D := D) (n := n) (x := x) (s := s) (d := d)
+        shared sWithOracles witness)
+    (verifierInit := fun _ _ =>
+      indexedVerifierInit (F := F) (k := k))
+    (proverSteps := fun _ =>
+      pathProverSteps
+        (F := F) (D := D) (n := n) (x := x) (s := s) (d := d) (k := k)
+        (oSpec := oSpec) k 0 (initialRoundEq (k := k)))
+    (verifierSteps := fun _ =>
+      pathVerifierSteps
+        (F := F) (D := D) (n := n) (x := x) (s := s) (k := k)
+        (oSpec := oSpec) sampleChallenge k 0 (initialRoundEq (k := k)))
+    (proverStmtResult := fun _ pt state =>
+      pathProverStatementResult
+        (F := F) (D := D) (n := n) (x := x) (s := s) (d := d) (k := k)
+        pt state)
+    (verifierStmtResult := fun _ pt state =>
+      pathVerifierStatementResult
+        (F := F) (D := D) (n := n) (x := x) (s := s) (k := k)
+        pt state)
+    (oStmtResult := fun _ pt state =>
+      pathOracleStatementResult
+        (F := F) (D := D) (n := n) (x := x) (s := s) (d := d) (k := k)
+        pt state)
+    (witResult := fun _ pt state =>
+      pathWitnessResult
+        (F := F) (D := D) (n := n) (x := x) (s := s) (d := d) (k := k)
+        pt state)
+    (simulate := fun _ pt =>
+      pathSimulateCodewordQuery
+        (F := F) (D := D) (n := n) (x := x) (s := s) (k := k) pt)
+
 end
 
-end NativeOracle
+end OracleLayer
 
 end Fri

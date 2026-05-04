@@ -60,6 +60,34 @@ section
 
 variable {R : Type} [BEq R] [CommSemiring R] [LawfulBEq R] [Nontrivial R] {deg : ℕ}
 
+/-- Stateful prover action monad used by the challenge-log examples. -/
+abbrev ChallengeLogM {ι : Type} (oSpec : OracleSpec.{0, 0} ι) (R : Type) :=
+  StateT (List R) (OracleComp oSpec)
+
+/-- Constant node decoration whose prover nodes can update the challenge log. -/
+abbrev challengeLogMonadDecoration
+    {ι : Type} (oSpec : OracleSpec.{0, 0} ι) (s : Interaction.Oracle.Spec) :
+    Interaction.Spec.MonadDecoration s.toInteractionSpec :=
+  Interaction.Spec.MonadDecoration.constant
+    ⟨ChallengeLogM oSpec R, inferInstance⟩ s.toInteractionSpec
+
+/-- Lift construction in `OracleComp` into stateful challenge-log node effects.
+
+This is the concrete `setupLift` bridge: building the suffix strategy does not
+touch the challenge log, but the prefix nodes into which that build is spliced
+run in `StateT (List R) (OracleComp oSpec)`. -/
+def oracleCompToChallengeLogHom
+    {ι : Type} (oSpec : OracleSpec.{0, 0} ι) (s : Interaction.Oracle.Spec) :
+    Interaction.Spec.MonadDecoration.Hom s.toInteractionSpec
+      (Interaction.Spec.MonadDecoration.constant
+        ⟨OracleComp oSpec, inferInstance⟩ s.toInteractionSpec)
+      (challengeLogMonadDecoration (R := R) oSpec s) :=
+  Interaction.Spec.MonadDecoration.Hom.constant
+    (fun {α} (mx : OracleComp oSpec α) (log : List R) => do
+      let x ← mx
+      pure (x, log))
+    s.toInteractionSpec
+
 /-- One native sum-check round where the prover records the verifier challenge
 in its monadic state.
 
@@ -68,7 +96,7 @@ strategy action monad, and the terminal strategy output is just `PUnit`. -/
 def challengeLogRoundStrategy
     {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
     (poly : CDegreeLE R deg) :
-    Interaction.Spec.Strategy.withRoles (StateT (List R) (OracleComp oSpec))
+    Interaction.Spec.Strategy.withRoles (ChallengeLogM oSpec R)
       (roundSpec R deg).toInteractionSpec
       ((roundSpec R deg).toSpecRoles (roundRoles R deg))
       (fun _ => PUnit) := by
@@ -79,6 +107,20 @@ def challengeLogRoundStrategy
     let respond : R → StateT (List R) (OracleComp oSpec) PUnit :=
       fun chal log' => pure (PUnit.unit, log' ++ [chal])
     pure (Sigma.mk poly respond, log)
+
+/-- Monad-decorated view of `challengeLogRoundStrategy`. -/
+def challengeLogRoundStrategyWithMonads
+    {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
+    (poly : CDegreeLE R deg) :
+    Interaction.Spec.Strategy.withRolesAndMonads
+      (roundSpec R deg).toInteractionSpec
+      ((roundSpec R deg).toSpecRoles (roundRoles R deg))
+      (challengeLogMonadDecoration (R := R) oSpec (roundSpec R deg))
+      (fun _ => PUnit) :=
+  Interaction.Spec.Strategy.withRolesAndMonads.ofWithRolesConstant
+    (roundSpec R deg).toInteractionSpec
+    ((roundSpec R deg).toSpecRoles (roundRoles R deg))
+    (challengeLogRoundStrategy (oSpec := oSpec) poly)
 
 /-- One-round prover setup for `challengeLogRoundStrategy`.
 
@@ -93,6 +135,38 @@ def challengeLogRoundProver
         ((roundSpec R deg).toSpecRoles (roundRoles R deg))
         (fun _ => PUnit)) :=
   pure (challengeLogRoundStrategy (oSpec := oSpec) poly)
+
+/-- Two native sum-check rounds composed through the monad-decorated oracle
+composition API.
+
+Here the build monad `m` is plain `OracleComp oSpec`: selecting the suffix
+strategy may use oracle effects, but it does not itself update the challenge
+log. The runtime node monads are `StateT (List R) (OracleComp oSpec)`, so
+`oracleCompToChallengeLogHom` is the nontrivial `setupLift` from build effects
+into stateful node effects. -/
+def challengeLogTwoRoundStrategyWithMonads
+    {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
+    (poly₁ poly₂ : CDegreeLE R deg) :
+    OracleComp oSpec
+      (Interaction.Spec.Strategy.withRolesAndMonads
+        ((roundSpec R deg).append (fun _ => roundSpec R deg)).toInteractionSpec
+        (((roundSpec R deg).append (fun _ => roundSpec R deg)).toSpecRoles
+          (Interaction.Oracle.Spec.RoleDeco.append
+            (roundSpec R deg) (fun _ => roundSpec R deg)
+            (roundRoles R deg) (fun _ => roundRoles R deg)))
+        (Interaction.Oracle.Spec.MonadDecoration.appendPublic
+          (roundSpec R deg) (fun _ => roundSpec R deg)
+          (challengeLogMonadDecoration (R := R) oSpec (roundSpec R deg))
+          (fun _ => challengeLogMonadDecoration (R := R) oSpec (roundSpec R deg)))
+        (fun _ => PUnit)) :=
+  Interaction.Oracle.Prover.compAuxWithMonads
+    (roundSpec R deg) (fun _ => roundSpec R deg)
+    (roundRoles R deg) (fun _ => roundRoles R deg)
+    (md₂ := fun _ => challengeLogMonadDecoration (R := R) oSpec (roundSpec R deg))
+    (oracleCompToChallengeLogHom (R := R) oSpec (roundSpec R deg))
+    (OutType := fun _ _ => PUnit)
+    (challengeLogRoundStrategyWithMonads (oSpec := oSpec) poly₁)
+    (fun _ _ => pure (challengeLogRoundStrategyWithMonads (oSpec := oSpec) poly₂))
 
 end
 

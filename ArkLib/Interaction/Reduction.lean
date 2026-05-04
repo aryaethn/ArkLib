@@ -108,6 +108,14 @@ def id :
   | .node _ rest, ⟨_, mdRest⟩ =>
       ⟨fun x => x, fun x => id (rest x) (mdRest x)⟩
 
+/-- Constant homomorphism induced by a single monad lift. -/
+def constant {bm₁ bm₂ : BundledMonad.{u, u}}
+    (lift : ∀ {α : Type u}, bm₁.M α → bm₂.M α) :
+    (spec : Spec.{u}) →
+      Hom spec (MonadDecoration.constant bm₁ spec) (MonadDecoration.constant bm₂ spec)
+  | .done => PUnit.unit
+  | .node _ rest => ⟨lift, fun x => constant lift (rest x)⟩
+
 end Hom
 
 end MonadDecoration

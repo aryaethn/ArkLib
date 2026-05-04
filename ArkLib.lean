@@ -105,6 +105,7 @@ import ArkLib.Interaction.Oracle.Execution
 import ArkLib.Interaction.Oracle.Reification
 import ArkLib.Interaction.Oracle.Security
 import ArkLib.Interaction.Oracle.Spec
+import ArkLib.Interaction.Oracle.Telescope
 import ArkLib.Interaction.Reduction
 import ArkLib.Interaction.RoleChain
 import ArkLib.Interaction.Security

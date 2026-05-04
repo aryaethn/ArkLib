@@ -234,12 +234,12 @@ def compAuxWithMonads
           Spec.PublicTranscript.liftAppend s₁ s₂ OutType
             ((s₁.append s₂).projectPublic tr)))
   | .done, _, _, _, _, _, _, _, _, strat₁, cont => cont ⟨⟩ strat₁
-  | .oracle _X rest, s₂, r₁, r₂, _, md₂, ⟨liftSetup, liftRest⟩, _, OutType, strat₁,
+  | .«oracle» _X cont', s₂, r₁, r₂, _, md₂, ⟨liftSetup, liftRest⟩, _, OutType, strat₁,
       cont =>
       pure <| do
         let ⟨x, next⟩ ← strat₁
         let result ← liftSetup <|
-          compAuxWithMonads rest s₂ r₁ r₂ (md₂ := md₂) (liftRest x)
+          compAuxWithMonads (cont' ⟨⟩) s₂ r₁ r₂ (md₂ := md₂) (liftRest x)
             (OutType := fun pt₁ pt₂ => OutType pt₁ pt₂) next
             (fun tr₁ mid => cont ⟨x, tr₁⟩ mid)
         pure ⟨x, result⟩
@@ -382,9 +382,9 @@ def compAux
         Spec.PublicTranscript.liftAppend s₁ s₂ OutType
           ((s₁.append s₂).projectPublic tr))
   | .done, _, _, _, _, _, _, accSpec, _, _, cpt, cont => cont accSpec ⟨⟩ cpt
-  | .oracle _X rest, s₂, r₁, r₂, ⟨oi, odRest⟩, od₂, _, accSpec, _, OutType,
+  | .«oracle» _X cont', s₂, r₁, r₂, ⟨oi, odRest⟩, od₂, _, accSpec, _, OutType,
       cpt, cont =>
-      fun x => compAux rest s₂ r₁ r₂ odRest od₂
+      fun x => compAux (cont' ⟨⟩) s₂ r₁ r₂ odRest od₂
         (accSpec + @OracleInterface.spec _ oi)
         (OutType := fun pt₁ pt₂ => OutType pt₁ pt₂) (cpt x)
         (fun accSpec' tr₁ mid => cont accSpec' ⟨x, tr₁⟩ mid)
@@ -432,20 +432,18 @@ building `reroute` from their respective narrow data. -/
 def mapOraclesHom
     {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
     {ιₛ₁ : Type} {OStmt₁ : ιₛ₁ → Type} [∀ i, OracleInterface (OStmt₁ i)]
-    {ιₛ₂ : Type} {OStmt₂ : ιₛ₂ → Type} [∀ i, OracleInterface (OStmt₂ i)]
-    (s : Oracle.Spec) (roles : Spec.RoleDeco s) (od : Spec.OracleDeco s)
-    {ιₐ₁ : Type} (accSpec₁ : OracleSpec.{0, 0} ιₐ₁)
-    {ιₐ₂ : Type} (accSpec₂ : OracleSpec.{0, 0} ιₐ₂)
+    {ιₛ₂ : Type} {OStmt₂ : ιₛ₂ → Type} [∀ i, OracleInterface (OStmt₂ i)] :
+    (s : Oracle.Spec) → (roles : Spec.RoleDeco s) → (od : Spec.OracleDeco s) →
+    {ιₐ₁ : Type} → (accSpec₁ : OracleSpec.{0, 0} ιₐ₁) →
+    {ιₐ₂ : Type} → (accSpec₂ : OracleSpec.{0, 0} ιₐ₂) →
     (reroute : QueryImpl (oSpec + [OStmt₁]ₒ + accSpec₁)
-      (OracleComp (oSpec + [OStmt₂]ₒ + accSpec₂))) :
+      (OracleComp (oSpec + [OStmt₂]ₒ + accSpec₂))) →
     Interaction.Spec.MonadDecoration.Hom s.toInteractionSpec
       (s.toMonadDecoration oSpec OStmt₁ roles od accSpec₁)
-      (s.toMonadDecoration oSpec OStmt₂ roles od accSpec₂) := by
-  cases s with
-  | done =>
-      exact PUnit.unit
-  | oracle _ rest =>
-      rcases od with ⟨oi, odRest⟩
+      (s.toMonadDecoration oSpec OStmt₂ roles od accSpec₂)
+  | .done, _, _, _, _, _, _, _ => PUnit.unit
+  | .«oracle» _ cont, roles, ⟨oi, odRest⟩,
+      _, accSpec₁, _, accSpec₂, reroute =>
       let oiSpec := @OracleInterface.spec _ oi
       let routeAcc : QueryImpl (accSpec₁ + oiSpec)
           (OracleComp (oSpec + [OStmt₂]ₒ + (accSpec₂ + oiSpec))) :=
@@ -457,18 +455,17 @@ def mapOraclesHom
         QueryImpl.add
           (fun q => (reroute (.inl q)).liftComp _)
           routeAcc
-      exact Prod.mk id (fun _ =>
-        mapOraclesHom rest roles odRest
+      Prod.mk id (fun _ =>
+        mapOraclesHom (cont ⟨⟩) roles odRest
           (accSpec₁ + oiSpec) (accSpec₂ + oiSpec) newReroute)
-  | «public» _ rest =>
-      rcases roles with ⟨role, rRest⟩
-      cases role with
-      | sender =>
-          exact Prod.mk id (fun x =>
-            mapOraclesHom (rest x) (rRest x) (od x) accSpec₁ accSpec₂ reroute)
-      | receiver =>
-          exact Prod.mk (fun mx => simulateQ reroute mx) (fun x =>
-            mapOraclesHom (rest x) (rRest x) (od x) accSpec₁ accSpec₂ reroute)
+  | .«public» _ rest, ⟨.sender, rRest⟩, od,
+      _, accSpec₁, _, accSpec₂, reroute =>
+      Prod.mk id (fun x =>
+        mapOraclesHom (rest x) (rRest x) (od x) accSpec₁ accSpec₂ reroute)
+  | .«public» _ rest, ⟨.receiver, rRest⟩, od,
+      _, accSpec₁, _, accSpec₂, reroute =>
+      Prod.mk (fun mx => simulateQ reroute mx) (fun x =>
+        mapOraclesHom (rest x) (rRest x) (od x) accSpec₁ accSpec₂ reroute)
 
 /-- Rewrite the receiver-node oracle effects of a counterpart by constructing
 an oracle-specific monad-decoration hom and using the generic

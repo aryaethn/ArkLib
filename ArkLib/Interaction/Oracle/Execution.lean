@@ -64,13 +64,13 @@ def Spec.runWithOracleCounterpart
       let z ← runWithOracleCounterpart inputImpl
         (rest x) (rRest x) (odRest x) accSpec accImpl next dualRest
       return ⟨⟨x, z.1⟩, z.2.1, z.2.2⟩
-  | .oracle _ rest, roles, ⟨oi, odRest⟩, _, accSpec, accImpl, _, _,
+  | .«oracle» _ cont, roles, ⟨oi, odRest⟩, _, accSpec, accImpl, _, _,
       send, dualFn => do
       let ⟨x, next⟩ ← send
       let implX : QueryImpl (@OracleInterface.spec _ oi) Id :=
         fun q => (oi.toOC.impl q).run x
       let z ← runWithOracleCounterpart inputImpl
-        rest roles odRest (accSpec + @OracleInterface.spec _ oi)
+        (cont ⟨⟩) roles odRest (accSpec + @OracleInterface.spec _ oi)
         (QueryImpl.add accImpl implX) next (dualFn x)
       return ⟨⟨x, z.1⟩, z.2.1, z.2.2⟩
 
@@ -672,7 +672,7 @@ theorem Spec.runWithOracleCounterpart_mapOutputWithRoles
           (runWithOracleCounterpart_mapOutputWithRoles inputImpl
             (rest x) (rRest x) (odRest x) accSpec accImpl
             (fun tr => fP ⟨x, tr⟩) next cptRest)
-  | .oracle _X rest, roles, ⟨oi, odRest⟩, _, accSpec, accImpl,
+  | .«oracle» _X cont, roles, ⟨oi, odRest⟩, _, accSpec, accImpl,
       OutputP, OutputP', OutputC, fP, strat, cptFn => by
       simp only [toInteractionSpec, toSpecRoles,
         Interaction.Spec.Strategy.mapOutputWithRoles,
@@ -681,16 +681,16 @@ theorem Spec.runWithOracleCounterpart_mapOutputWithRoles
       refine congrArg (fun k => strat >>= k) ?_
       funext ⟨x, next⟩
       let addPrefix :
-          ((tr : Interaction.Spec.Transcript rest.toInteractionSpec) ×
+          ((tr : Interaction.Spec.Transcript (cont ⟨⟩).toInteractionSpec) ×
             OutputP' ⟨x, tr⟩ × OutputC ⟨x, tr⟩) →
           ((tr : Interaction.Spec.Transcript
-            (Oracle.Spec.oracle _X rest).toInteractionSpec) ×
+            (Oracle.Spec.oracle _X cont).toInteractionSpec) ×
             OutputP' tr × OutputC tr) :=
         fun a => ⟨⟨x, a.1⟩, a.2.1, a.2.2⟩
       simpa [bind_assoc, addPrefix] using
         congrArg (fun z => addPrefix <$> z)
           (runWithOracleCounterpart_mapOutputWithRoles inputImpl
-            rest roles odRest
+            (cont ⟨⟩) roles odRest
             (accSpec + @OracleInterface.spec _ oi)
             (QueryImpl.add accImpl (fun q => (oi.toOC.impl q).run x))
             (fun tr => fP ⟨x, tr⟩) next (cptFn x))

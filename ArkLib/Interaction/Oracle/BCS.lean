@@ -81,7 +81,7 @@ clear). `.public` nodes just recurse, indexed by the message value. -/
 def CommitDeco (m : Type → Type) : Oracle.Spec → Type 1
   | .done => PUnit
   | .«public» _ rest => (x : _) → CommitDeco m (rest x)
-  | .oracle X rest => Option (NodeCommitment m X) × CommitDeco m rest
+  | .«oracle» X cont => Option (NodeCommitment m X) × CommitDeco m (cont ⟨⟩)
 
 /-! ## Shared transcript -/
 
@@ -92,8 +92,8 @@ def SharedTranscript {m : Type → Type} :
     (s : Oracle.Spec) → CommitDeco m s → Type
   | .done, _ => PUnit
   | .«public» X rest, cdRest => (x : X) × SharedTranscript (rest x) (cdRest x)
-  | .oracle _ _, ⟨some _, cdRest⟩ => SharedTranscript _ cdRest
-  | .oracle X _, ⟨none, cdRest⟩ => X × SharedTranscript _ cdRest
+  | .«oracle» _ _, ⟨some _, cdRest⟩ => SharedTranscript _ cdRest
+  | .«oracle» X _, ⟨none, cdRest⟩ => X × SharedTranscript _ cdRest
 
 /-- Project an original transcript to the shared transcript. -/
 def projectShared {m : Type → Type} :
@@ -102,10 +102,10 @@ def projectShared {m : Type → Type} :
   | .done, _, _ => ⟨⟩
   | .«public» _ rest, cdRest, ⟨x, tr⟩ =>
       ⟨x, projectShared (rest x) (cdRest x) tr⟩
-  | .oracle _ rest, ⟨some _, cdRest⟩, ⟨_, tr⟩ =>
-      projectShared rest cdRest tr
-  | .oracle _ rest, ⟨none, cdRest⟩, ⟨x, tr⟩ =>
-      ⟨x, projectShared rest cdRest tr⟩
+  | .«oracle» _ cont, ⟨some _, cdRest⟩, ⟨_, tr⟩ =>
+      projectShared (cont ⟨⟩) cdRest tr
+  | .«oracle» _ cont, ⟨none, cdRest⟩, ⟨x, tr⟩ =>
+      ⟨x, projectShared (cont ⟨⟩) cdRest tr⟩
 
 /-! ## BCS-transformed spec -/
 
@@ -121,10 +121,10 @@ def bcsSpec :
   | .done, _ => .done
   | .«public» X rest, cdRest =>
       .«public» X (fun x => bcsSpec (rest x) (cdRest x))
-  | .oracle _ _, ⟨some nc, cdRest⟩ =>
-      .«public» nc.CommType (fun _ => bcsSpec _ cdRest)
-  | .oracle X _, ⟨none, cdRest⟩ =>
-      .oracle X (bcsSpec _ cdRest)
+  | .«oracle» _ cont, ⟨some nc, cdRest⟩ =>
+      .«public» nc.CommType (fun _ => bcsSpec (cont ⟨⟩) cdRest)
+  | .«oracle» X cont, ⟨none, cdRest⟩ =>
+      .«oracle» X (fun _ => bcsSpec (cont ⟨⟩) cdRest)
 
 /-- Role decoration for the BCS spec. Committed nodes become `.sender`
 (the commitment is a prover message). -/
@@ -134,10 +134,10 @@ def bcsRoleDeco :
   | .done, _, _ => ⟨⟩
   | .«public» _ rest, ⟨role, rRest⟩, cdRest =>
       ⟨role, fun x => bcsRoleDeco (rest x) (rRest x) (cdRest x)⟩
-  | .oracle _ rest, roles, ⟨some _, cdRest⟩ =>
-      ⟨.sender, fun _ => bcsRoleDeco rest roles cdRest⟩
-  | .oracle _ rest, roles, ⟨none, cdRest⟩ =>
-      bcsRoleDeco rest roles cdRest
+  | .«oracle» _ cont, roles, ⟨some _, cdRest⟩ =>
+      ⟨.sender, fun _ => bcsRoleDeco (cont ⟨⟩) roles cdRest⟩
+  | .«oracle» _ cont, roles, ⟨none, cdRest⟩ =>
+      bcsRoleDeco (cont ⟨⟩) roles cdRest
 
 /-- Oracle decoration for the BCS spec. Committed nodes become `.public` in
 the BCS spec, so they carry no oracle decoration. Non-committed `.oracle`
@@ -148,10 +148,10 @@ def bcsOracleDeco :
   | .done, _, _ => ⟨⟩
   | .«public» _ rest, odRest, cdRest =>
       fun x => bcsOracleDeco (rest x) (odRest x) (cdRest x)
-  | .oracle _ rest, ⟨_oi, odRest⟩, ⟨some _, cdRest⟩ =>
-      fun _ => bcsOracleDeco rest odRest cdRest
-  | .oracle _ rest, ⟨oi, odRest⟩, ⟨none, cdRest⟩ =>
-      ⟨oi, bcsOracleDeco rest odRest cdRest⟩
+  | .«oracle» _ cont, ⟨_oi, odRest⟩, ⟨some _, cdRest⟩ =>
+      fun _ => bcsOracleDeco (cont ⟨⟩) odRest cdRest
+  | .«oracle» _ cont, ⟨oi, odRest⟩, ⟨none, cdRest⟩ =>
+      ⟨oi, bcsOracleDeco (cont ⟨⟩) odRest cdRest⟩
 
 /-- Project a full BCS transcript to the shared transcript. Uses the full
 `Interaction.Spec.Transcript` (not `PublicTranscript`) because non-committed
@@ -163,10 +163,10 @@ def bcsProjectShared :
   | .done, _, _ => ⟨⟩
   | .«public» _ rest, cdRest, ⟨x, tr⟩ =>
       ⟨x, bcsProjectShared (rest x) (cdRest x) tr⟩
-  | .oracle _ rest, ⟨some _, cdRest⟩, ⟨_, tr⟩ =>
-      bcsProjectShared rest cdRest tr
-  | .oracle _ rest, ⟨none, cdRest⟩, ⟨x, tr⟩ =>
-      ⟨x, bcsProjectShared rest cdRest tr⟩
+  | .«oracle» _ cont, ⟨some _, cdRest⟩, ⟨_, tr⟩ =>
+      bcsProjectShared (cont ⟨⟩) cdRest tr
+  | .«oracle» _ cont, ⟨none, cdRest⟩, ⟨x, tr⟩ =>
+      ⟨x, bcsProjectShared (cont ⟨⟩) cdRest tr⟩
 
 /-! ## Prover wrapping -/
 
@@ -182,9 +182,9 @@ def OracleWitness :
   | .done, _, _ => PUnit
   | .«public» _ rest, cdRest, ⟨x, st⟩ =>
       OracleWitness (rest x) (cdRest x) st
-  | .oracle X _, ⟨some nc, cdRest⟩, st =>
+  | .«oracle» X _, ⟨some nc, cdRest⟩, st =>
       X × nc.WitnessType × OracleWitness _ cdRest st
-  | .oracle _ _, ⟨none, cdRest⟩, ⟨_, st⟩ =>
+  | .«oracle» _ _, ⟨none, cdRest⟩, ⟨_, st⟩ =>
       OracleWitness _ cdRest st
 
 /-- BCS prover wrapping: transform a prover strategy on the original
@@ -214,13 +214,13 @@ def wrapWithCommitments :
         let restStrategy ← strategy x
         return (wrapWithCommitments (rest x) (rRest x) (cdRest x)
           (fun st => OutType ⟨x, st⟩) restStrategy)
-  | .oracle _ rest, roles, ⟨some nc, cdRest⟩, OutType, strategy => do
+  | .«oracle» _ cont, roles, ⟨some nc, cdRest⟩, OutType, strategy => do
       let ⟨x, restStrategy⟩ ← strategy
       let ⟨cm, _⟩ ← nc.commit x
-      return ⟨cm, wrapWithCommitments rest roles cdRest OutType restStrategy⟩
-  | .oracle _ rest, roles, ⟨none, cdRest⟩, OutType, strategy => do
+      return ⟨cm, wrapWithCommitments (cont ⟨⟩) roles cdRest OutType restStrategy⟩
+  | .«oracle» _ cont, roles, ⟨none, cdRest⟩, OutType, strategy => do
       let ⟨x, restStrategy⟩ ← strategy
-      return ⟨x, wrapWithCommitments rest roles cdRest
+      return ⟨x, wrapWithCommitments (cont ⟨⟩) roles cdRest
         (fun st => OutType ⟨x, st⟩) restStrategy⟩
 
 /-- Extended BCS prover wrapping that also extracts committed oracle messages
@@ -249,15 +249,15 @@ def wrapWithCommitmentsExt :
         let restStrategy ← strategy x
         return (wrapWithCommitmentsExt (rest x) (rRest x) (cdRest x)
           (fun st => OutType ⟨x, st⟩) restStrategy)
-  | .oracle _ rest, roles, ⟨some nc, cdRest⟩, OutType, strategy => do
+  | .«oracle» _ cont, roles, ⟨some nc, cdRest⟩, OutType, strategy => do
       let ⟨x, restStrategy⟩ ← strategy
       let ⟨cm, cwit⟩ ← nc.commit x
-      let bcsRest := wrapWithCommitmentsExt rest roles cdRest OutType restStrategy
+      let bcsRest := wrapWithCommitmentsExt (cont ⟨⟩) roles cdRest OutType restStrategy
       return ⟨cm, Interaction.Spec.Strategy.mapOutputWithRoles
         (fun _ ⟨out, owit⟩ => (out, x, cwit, owit)) bcsRest⟩
-  | .oracle _ rest, roles, ⟨none, cdRest⟩, OutType, strategy => do
+  | .«oracle» _ cont, roles, ⟨none, cdRest⟩, OutType, strategy => do
       let ⟨x, restStrategy⟩ ← strategy
-      return ⟨x, wrapWithCommitmentsExt rest roles cdRest
+      return ⟨x, wrapWithCommitmentsExt (cont ⟨⟩) roles cdRest
         (fun st => OutType ⟨x, st⟩) restStrategy⟩
 
 end BCS
@@ -284,9 +284,9 @@ def OracleQueryDeco :
   | .done, _, _, _ => PUnit
   | .«public» _ rest, odRest, cdRest, ⟨x, st⟩ =>
       OracleQueryDeco (rest x) (odRest x) (cdRest x) st
-  | .oracle _ _, ⟨oi, odRest⟩, ⟨some _, cdRest⟩, st =>
+  | .«oracle» _ _, ⟨oi, odRest⟩, ⟨some _, cdRest⟩, st =>
       QueryBundle oi × OracleQueryDeco _ odRest cdRest st
-  | .oracle _ _, ⟨_, odRest⟩, ⟨none, cdRest⟩, ⟨_, st⟩ =>
+  | .«oracle» _ _, ⟨_, odRest⟩, ⟨none, cdRest⟩, ⟨_, st⟩ =>
       OracleQueryDeco _ odRest cdRest st
 
 /-- Oracle response decoration: for each committed `.oracle` node, a function
@@ -401,11 +401,11 @@ def answerCommittedQueries :
   | .done, _, _, _, _, _ => ⟨⟩
   | .«public» _ rest, odRest, _, cdRest, ⟨x, tr⟩, qd =>
       answerCommittedQueries (rest x) (odRest x) (cdRest x) tr qd
-  | .oracle _ rest, ⟨_oi, odRest⟩, _, ⟨some _, cdRest⟩, ⟨x, tr⟩, ⟨qb, qdRest⟩ =>
+  | .«oracle» _ cont, ⟨_oi, odRest⟩, _, ⟨some _, cdRest⟩, ⟨x, tr⟩, ⟨qb, qdRest⟩ =>
       (fun i => OracleInterface.answer x (qb.queries i),
-       answerCommittedQueries rest odRest cdRest tr qdRest)
-  | .oracle _ rest, ⟨_, odRest⟩, _, ⟨none, cdRest⟩, ⟨_x, tr⟩, qd =>
-      answerCommittedQueries rest odRest cdRest tr qd
+       answerCommittedQueries (cont ⟨⟩) odRest cdRest tr qdRest)
+  | .«oracle» _ cont, ⟨_, odRest⟩, _, ⟨none, cdRest⟩, ⟨_x, tr⟩, qd =>
+      answerCommittedQueries (cont ⟨⟩) odRest cdRest tr qd
 
 variable {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
 variable {ιₛᵢ : Type} {OStmtIn : ιₛᵢ → Type} [∀ i, OracleInterface.{0, 0} (OStmtIn i)]
@@ -454,10 +454,10 @@ def OpeningDeco {m : Type → Type}
   | .done, _, _ => PUnit
   | .«public» _ rest, odRest, cdRest =>
       (x : _) → OpeningDeco OpeningProof (rest x) (odRest x) (cdRest x)
-  | .oracle _X rest, ⟨oi, odRest⟩, ⟨some nc, cdRest⟩ =>
-      @OpeningProof _ oi nc × OpeningDeco OpeningProof rest odRest cdRest
-  | .oracle _ rest, ⟨_, odRest⟩, ⟨none, cdRest⟩ =>
-      OpeningDeco OpeningProof rest odRest cdRest
+  | .«oracle» _X cont, ⟨oi, odRest⟩, ⟨some nc, cdRest⟩ =>
+      @OpeningProof _ oi nc × OpeningDeco OpeningProof (cont ⟨⟩) odRest cdRest
+  | .«oracle» _ cont, ⟨_, odRest⟩, ⟨none, cdRest⟩ =>
+      OpeningDeco OpeningProof (cont ⟨⟩) odRest cdRest
 
 end Opening
 

@@ -902,11 +902,11 @@ def pullbackCounterpart
             (fun tr out => f ⟨x, tr⟩ out)
             accSpec
             cptRest⟩
-  | .oracle _ rest, roles, ⟨oi, odRest⟩ =>
+  | .«oracle» _ cont, roles, ⟨oi, odRest⟩ =>
       fun x =>
         pullbackCounterpart
           (simulateIn := simulateIn)
-          rest
+          (cont ⟨⟩)
           roles
           odRest
           (fun tr out => f ⟨x, tr⟩ out)

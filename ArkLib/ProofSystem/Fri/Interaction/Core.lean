@@ -285,7 +285,7 @@ def foldRoundSpec
     (_D : Subgroup Fˣ) (_x : Fˣ) (_s : Fin (k + 1) → ℕ+) (i : Fin k) :
     Interaction.Oracle.Spec :=
   .public F fun _ =>
-    .oracle (Codeword (F := F) _s n i.1.succ) .done
+    .oracle (Codeword (F := F) _s n i.1.succ) fun _ => .done
 
 /-- Role decoration for a non-final fold round. -/
 def foldRoundRoles
@@ -321,7 +321,7 @@ abbrev foldRoundCodeword
 degree-bounded polynomial. -/
 def finalFoldSpec : Interaction.Oracle.Spec :=
   .public F fun _ =>
-    .oracle (CDegreeLE F d) .done
+    .oracle (CDegreeLE F d) fun _ => .done
 
 /-- Role decoration for the final fold round. -/
 def finalFoldRoles : Interaction.Oracle.Spec.RoleDeco (finalFoldSpec (F := F) (d := d)) :=

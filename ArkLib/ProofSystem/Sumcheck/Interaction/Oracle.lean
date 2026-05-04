@@ -29,7 +29,7 @@ variable (deg : ℕ)
 /-- Oracle-spec shape for one round: the prover provides the round
 polynomial as an oracle message, then the verifier samples a public challenge. -/
 def roundSpec : Interaction.Oracle.Spec :=
-  .oracle (CDegreeLE R deg) <|
+  .oracle (CDegreeLE R deg) fun _ =>
     .public R fun _ =>
       .done
 

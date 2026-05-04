@@ -281,6 +281,106 @@ private def pathVerifierSteps {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
           pathVerifierSteps (oSpec := oSpec) sampleChallenge
             remaining round.succ (nextStateEq (k := k) h)⟩
 
+/-- Terminal prover state selected by a full terminal-indexed fold transcript. -/
+private def pathTerminalProverState
+    (pt :
+      Interaction.Oracle.Spec.PublicTranscript
+        (foldPhasePathContext (D := D) (n := n) (x := x) (s := s) (k := k)))
+    (state :
+      Interaction.Oracle.Spec.PathChain.outputFamily
+        (IndexedProverState (D := D) (n := n) (x := x) (s := s) (d := d))
+        k
+        (foldPhasePathChain (D := D) (n := n) (x := x) (s := s))
+        pt) :
+    IndexedProverState (D := D) (n := n) (x := x) (s := s) (d := d) k :=
+  Interaction.Oracle.Spec.PathChain.terminalOutput
+    (IndexedProverState (D := D) (n := n) (x := x) (s := s) (d := d))
+    k
+    (foldPhasePathChain (D := D) (n := n) (x := x) (s := s))
+    pt state
+
+/-- Terminal verifier state selected by a full terminal-indexed fold transcript. -/
+private def pathTerminalVerifierState
+    (pt :
+      Interaction.Oracle.Spec.PublicTranscript
+        (foldPhasePathContext (D := D) (n := n) (x := x) (s := s) (k := k)))
+    (state :
+      Interaction.Oracle.Spec.PathChain.outputFamily
+        (IndexedVerifierState (F := F) (k := k))
+        k
+        (foldPhasePathChain (D := D) (n := n) (x := x) (s := s))
+        pt) :
+    IndexedVerifierState (F := F) (k := k) k :=
+  Interaction.Oracle.Spec.PathChain.terminalOutput
+    (IndexedVerifierState (F := F) (k := k))
+    k
+    (foldPhasePathChain (D := D) (n := n) (x := x) (s := s))
+    pt state
+
+/-- Plain output statement extracted from the terminal prover state. -/
+private def pathProverStatementResult
+    (pt :
+      Interaction.Oracle.Spec.PublicTranscript
+        (foldPhasePathContext (D := D) (n := n) (x := x) (s := s) (k := k)))
+    (state :
+      Interaction.Oracle.Spec.PathChain.outputFamily
+        (IndexedProverState (D := D) (n := n) (x := x) (s := s) (d := d))
+        k
+        (foldPhasePathChain (D := D) (n := n) (x := x) (s := s))
+        pt) :
+    FoldChallenges (F := F) (k := k) :=
+  (pathTerminalProverState
+    (F := F) (D := D) (n := n) (x := x) (s := s) (d := d) (k := k)
+    pt state).challenges
+
+/-- Plain output statement extracted from the terminal verifier state. -/
+private def pathVerifierStatementResult
+    (pt :
+      Interaction.Oracle.Spec.PublicTranscript
+        (foldPhasePathContext (D := D) (n := n) (x := x) (s := s) (k := k)))
+    (state :
+      Interaction.Oracle.Spec.PathChain.outputFamily
+        (IndexedVerifierState (F := F) (k := k))
+        k
+        (foldPhasePathChain (D := D) (n := n) (x := x) (s := s))
+        pt) :
+    FoldChallenges (F := F) (k := k) :=
+  (pathTerminalVerifierState
+    (F := F) (D := D) (n := n) (x := x) (s := s) (k := k)
+    pt state).challenges
+
+/-- Output oracle statements extracted from the terminal prover state. -/
+private def pathOracleStatementResult
+    (pt :
+      Interaction.Oracle.Spec.PublicTranscript
+        (foldPhasePathContext (D := D) (n := n) (x := x) (s := s) (k := k)))
+    (state :
+      Interaction.Oracle.Spec.PathChain.outputFamily
+        (IndexedProverState (D := D) (n := n) (x := x) (s := s) (d := d))
+        k
+        (foldPhasePathChain (D := D) (n := n) (x := x) (s := s))
+        pt) :
+    OracleStatement (FoldCodewordOracleFamily (F := F) (n := n) D x s) :=
+  (pathTerminalProverState
+    (F := F) (D := D) (n := n) (x := x) (s := s) (d := d) (k := k)
+    pt state).codewords
+
+/-- Honest witness extracted from the terminal prover state. -/
+private def pathWitnessResult
+    (pt :
+      Interaction.Oracle.Spec.PublicTranscript
+        (foldPhasePathContext (D := D) (n := n) (x := x) (s := s) (k := k)))
+    (state :
+      Interaction.Oracle.Spec.PathChain.outputFamily
+        (IndexedProverState (D := D) (n := n) (x := x) (s := s) (d := d))
+        k
+        (foldPhasePathChain (D := D) (n := n) (x := x) (s := s))
+        pt) :
+    HonestPoly (F := F) s d k :=
+  (pathTerminalProverState
+    (F := F) (D := D) (n := n) (x := x) (s := s) (d := d) (k := k)
+    pt state).poly
+
 end
 
 end NativeOracle

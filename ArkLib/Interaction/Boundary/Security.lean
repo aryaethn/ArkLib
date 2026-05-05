@@ -1,5 +1,5 @@
 import ArkLib.Interaction.Boundary.Compatibility
-import ArkLib.Interaction.Security
+import ArkLib.Interaction.Security.Completeness
 
 /-!
 # Interaction-Native Boundaries: Plain Security Transport

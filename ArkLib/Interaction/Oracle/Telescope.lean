@@ -58,28 +58,42 @@ universe v
 namespace Interaction.Oracle
 namespace Spec
 
-/-- Initial-algebra presentation of a state-machine telescope of
-`Oracle.Spec`s.
+/-- State-machine telescopes of `Oracle.Spec`s observed through public
+transcripts.
 
 At each state `s : St`, an inhabitant either terminates (`.done s`) or
 extends by running the round `round s : Oracle.Spec` and recursing into
 `Telescope round step (step s pt)` for every public transcript
 `pt : PublicTranscript (round s)`. As an inductive type, every inhabitant
 is finite, so the existence of a `Telescope` term is a proof that the
-underlying state machine terminates. -/
-inductive Telescope {St : Type v}
+underlying state machine terminates.
+
+This is the oracle-specialized alias of `PFunctor.FreeM.TelescopeWith`; the
+observation family is `PublicTranscript`, which is itself `FreeM.PathWith`
+observed through `publicPathView`. -/
+abbrev Telescope {St : Type v}
     (round : St → Oracle.Spec)
-    (step : (s : St) → PublicTranscript (round s) → St) : St → Type (max 1 v)
-  | done (s : St) : Telescope round step s
-  | extend (s : St)
-      (cont :
-        (pt : PublicTranscript (round s)) → Telescope round step (step s pt)) :
-      Telescope round step s
+    (step : (s : St) → PublicTranscript (round s) → St) : St → Type v :=
+  PFunctor.FreeM.TelescopeWith (P := basePFunctor)
+    round (fun s => PublicTranscript (round s)) step
 
 namespace Telescope
 
 variable {St : Type v} {round : St → Oracle.Spec}
     {step : (s : St) → PublicTranscript (round s) → St}
+
+/-- Constructor wrapper for terminating an oracle-spec telescope. -/
+abbrev done (s : St) : Telescope round step s :=
+  PFunctor.FreeM.TelescopeWith.done
+    (round := round) (Obs := fun s => PublicTranscript (round s)) (step := step) s
+
+/-- Constructor wrapper for extending an oracle-spec telescope. -/
+abbrev extend (s : St)
+    (cont :
+      (pt : PublicTranscript (round s)) → Telescope round step (step s pt)) :
+    Telescope round step s :=
+  PFunctor.FreeM.TelescopeWith.extend
+    (round := round) (Obs := fun s => PublicTranscript (round s)) (step := step) s cont
 
 /-- Flatten a `Telescope` into a concrete `Oracle.Spec` by iterated
 `Spec.append`. Each `extend` step contributes its round spec to the head,

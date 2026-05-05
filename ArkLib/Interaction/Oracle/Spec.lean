@@ -243,13 +243,36 @@ def toSpecRoles : (s : Spec) → RoleDeco s → RoleDecoration s.toInteractionSp
 
 /-! ## Public transcript -/
 
+set_option linter.unusedVariables false in
+/-- Path view for oracle specs that keeps `.public` choices and compacts away
+the singleton directions at `.oracle` nodes. -/
+def publicPathView : PFunctor.FreeM.PathView basePFunctor where
+  Step a K :=
+    match a with
+    | .public X => (x : X) × K x
+    | .oracle _ => K ⟨⟩
+  pack {a} {K} path :=
+    match a with
+    | .public _ => path
+    | .oracle _ =>
+        match path with
+        | ⟨punit, tail⟩ =>
+            match punit with
+            | ⟨⟩ => tail
+  unpack {a} {K} path :=
+    match a with
+    | .public _ => path
+    | .oracle _ => ⟨⟨⟩, path⟩
+
 /-- The *public transcript* contains only `.public` node messages (challenges
 and plain sender messages). All `.oracle` messages are dropped. This is the
-verifier's direct view of the interaction, without oracle queries. -/
-def PublicTranscript : Spec → Type
-  | .done => PUnit
-  | .«public» X rest => (x : X) × PublicTranscript (rest x)
-  | .«oracle» _ cont => PublicTranscript (cont ⟨⟩)
+verifier's direct view of the interaction, without oracle queries.
+
+Definitionally, this is the `FreeM` path through `Oracle.Spec` observed through
+`publicPathView`, which keeps public choices and compacts away the singleton
+directions at oracle nodes. -/
+abbrev PublicTranscript (s : Spec) : Type :=
+  PFunctor.FreeM.PathWith publicPathView s
 
 /-- Project a full `Interaction.Spec.Transcript` to the `PublicTranscript`. -/
 def projectPublic :

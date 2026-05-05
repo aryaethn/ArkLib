@@ -323,20 +323,21 @@ def answerQuery :
     | .inr handle => answerQuery (cont ⟨⟩) odRest tr handle
 
 /-- Extend an accumulated oracle spec by the oracle messages encountered along
-a concrete public-transcript path.
+a concrete transcript.
 
 This follows the same accumulator order as verifier execution: at an `.oracle`
 node the current oracle is appended to the accumulator before recurring. That
 shape is more useful for execution theorems than reassociating through
 `accSpec + s.toOracleSpec od pt`. -/
 def accumulatedSpec :
-    (s : Spec) → (od : OracleDeco s) → PublicTranscript s →
+    (s : Spec) → (od : OracleDeco s) →
+    Interaction.Spec.Transcript s.toInteractionSpec →
     {ιₐ : Type} → OracleSpec.{0, 0} ιₐ → Σ ιₐ', OracleSpec.{0, 0} ιₐ'
   | .done, _, _, _, accSpec => ⟨_, accSpec⟩
-  | .«public» _ rest, odRest, ⟨x, pt⟩, _, accSpec =>
-      accumulatedSpec (rest x) (odRest x) pt accSpec
-  | .«oracle» _ cont, ⟨oi, odRest⟩, pt, _, accSpec =>
-      accumulatedSpec (cont ⟨⟩) odRest pt
+  | .«public» _ rest, odRest, ⟨x, tr⟩, _, accSpec =>
+      accumulatedSpec (rest x) (odRest x) tr accSpec
+  | .«oracle» _ cont, ⟨oi, odRest⟩, ⟨_, tr⟩, _, accSpec =>
+      accumulatedSpec (cont ⟨⟩) odRest tr
         (accSpec + @OracleInterface.spec _ oi)
 
 /-- Answer queries for `accumulatedSpec`, extending an existing
@@ -345,7 +346,7 @@ def accumulatedImpl :
     (s : Spec) → (od : OracleDeco s) →
     (tr : Interaction.Spec.Transcript s.toInteractionSpec) →
     {ιₐ : Type} → (accSpec : OracleSpec.{0, 0} ιₐ) → QueryImpl accSpec Id →
-    QueryImpl (accumulatedSpec s od (s.projectPublic tr) accSpec).2 Id
+    QueryImpl (accumulatedSpec s od tr accSpec).2 Id
   | .done, _, _, _, _, accImpl => accImpl
   | .«public» _ rest, odRest, ⟨x, tr⟩, _, accSpec, accImpl =>
       accumulatedImpl (rest x) (odRest x) tr accSpec accImpl

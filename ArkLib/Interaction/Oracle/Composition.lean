@@ -300,19 +300,21 @@ def compAux
           Spec.PublicTranscript.liftAppend s₁ s₂ OutType
             ((s₁.append s₂).projectPublic tr)))
   | .done, _, _, _, _, _, strat₁, cont => cont ⟨⟩ strat₁
-  | .«oracle» _X cont', s₂, r₁, r₂, _, OutType, strat₁, cont => do
-      let ⟨x, next⟩ ← strat₁
-      let result ← compAux (cont' ⟨⟩) s₂ r₁ r₂
-        (OutType := fun pt₁ pt₂ => OutType pt₁ pt₂) next
-        (fun tr₁ mid => cont ⟨x, tr₁⟩ mid)
-      pure ⟨x, result⟩
-  | .«public» _X rest, s₂, ⟨.sender, rRest⟩, r₂, _, OutType, strat₁, cont => do
-      let ⟨x, next⟩ ← strat₁
-      let result ← compAux (rest x) (fun pt => s₂ ⟨x, pt⟩)
-        (rRest x) (fun pt => r₂ ⟨x, pt⟩)
-        (OutType := fun pt₁ pt₂ => OutType ⟨x, pt₁⟩ pt₂) next
-        (fun tr₁ mid => cont ⟨x, tr₁⟩ mid)
-      pure ⟨x, result⟩
+  | .«oracle» _X cont', s₂, r₁, r₂, _, OutType, strat₁, cont =>
+      pure <| do
+        let ⟨x, next⟩ ← strat₁
+        let result ← compAux (cont' ⟨⟩) s₂ r₁ r₂
+          (OutType := fun pt₁ pt₂ => OutType pt₁ pt₂) next
+          (fun tr₁ mid => cont ⟨x, tr₁⟩ mid)
+        pure ⟨x, result⟩
+  | .«public» _X rest, s₂, ⟨.sender, rRest⟩, r₂, _, OutType, strat₁, cont =>
+      pure <| do
+        let ⟨x, next⟩ ← strat₁
+        let result ← compAux (rest x) (fun pt => s₂ ⟨x, pt⟩)
+          (rRest x) (fun pt => r₂ ⟨x, pt⟩)
+          (OutType := fun pt₁ pt₂ => OutType ⟨x, pt₁⟩ pt₂) next
+          (fun tr₁ mid => cont ⟨x, tr₁⟩ mid)
+        pure ⟨x, result⟩
   | .«public» _X rest, s₂, ⟨.receiver, rRest⟩, r₂, _, OutType, strat₁, cont =>
       pure fun x => do
         let next ← strat₁ x
@@ -333,10 +335,10 @@ receives a value and recurses. At `.public .receiver` nodes the monad is
 `OracleComp`, so the counterpart sends a value monodically and recurses via
 `Functor.map`.
 
-The continuation is universally quantified over `accSpec'` so that the
-oracle-spec accumulation through `.oracle` nodes is handled: at each such node
-`accSpec` grows by `OracleInterface.spec`, and the continuation sees the final
-accumulated spec when the first phase reaches `.done`. -/
+The continuation receives the concrete accumulated oracle spec determined by
+the first-phase transcript. This makes the bridge explicit: after running
+`tr₁`, the suffix verifier is allowed to query exactly
+`(Spec.accumulatedSpec s₁ od₁ tr₁ accSpec).2`. -/
 def compAux
     {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
     {ιₛᵢ : Type} {OStmtIn : ιₛᵢ → Type} [∀ i, OracleInterface (OStmtIn i)] :
@@ -352,13 +354,13 @@ def compAux
     Interaction.Spec.Counterpart.withMonads s₁.toInteractionSpec
       (s₁.toSpecRoles r₁)
       (s₁.toMonadDecoration oSpec OStmtIn r₁ od₁ accSpec) Mid →
-    (∀ {ιₐ' : Type} (accSpec' : OracleSpec.{0, 0} ιₐ'),
-      (tr₁ : Interaction.Spec.Transcript s₁.toInteractionSpec) → Mid tr₁ →
+    ((tr₁ : Interaction.Spec.Transcript s₁.toInteractionSpec) → Mid tr₁ →
       Interaction.Spec.Counterpart.withMonads
         ((s₂ (s₁.projectPublic tr₁)).toInteractionSpec)
         ((s₂ (s₁.projectPublic tr₁)).toSpecRoles (r₂ (s₁.projectPublic tr₁)))
         ((s₂ (s₁.projectPublic tr₁)).toMonadDecoration oSpec OStmtIn
-          (r₂ (s₁.projectPublic tr₁)) (od₂ (s₁.projectPublic tr₁)) accSpec')
+          (r₂ (s₁.projectPublic tr₁)) (od₂ (s₁.projectPublic tr₁))
+          (Spec.accumulatedSpec s₁ od₁ tr₁ accSpec).2)
         (fun tr₂ => OutType (s₁.projectPublic tr₁)
           ((s₂ (s₁.projectPublic tr₁)).projectPublic tr₂))) →
     Interaction.Spec.Counterpart.withMonads
@@ -370,20 +372,20 @@ def compAux
       (fun tr =>
         Spec.PublicTranscript.liftAppend s₁ s₂ OutType
           ((s₁.append s₂).projectPublic tr))
-  | .done, _, _, _, _, _, _, accSpec, _, _, cpt, cont => cont accSpec ⟨⟩ cpt
+  | .done, _, _, _, _, _, _, _, _, _, cpt, cont => cont ⟨⟩ cpt
   | .«oracle» _X cont', s₂, r₁, r₂, ⟨oi, odRest⟩, od₂, _, accSpec, _, OutType,
       cpt, cont =>
       fun x => compAux (cont' ⟨⟩) s₂ r₁ r₂ odRest od₂
         (accSpec + @OracleInterface.spec _ oi)
         (OutType := fun pt₁ pt₂ => OutType pt₁ pt₂) (cpt x)
-        (fun accSpec' tr₁ mid => cont accSpec' ⟨x, tr₁⟩ mid)
+        (fun tr₁ mid => cont ⟨x, tr₁⟩ mid)
   | .«public» _X rest, s₂, ⟨.sender, rRest⟩, r₂, odRest, od₂, _,
       accSpec, _, OutType, cpt, cont =>
       fun x => compAux (rest x) (fun pt => s₂ ⟨x, pt⟩)
         (rRest x) (fun pt => r₂ ⟨x, pt⟩) (odRest x) (fun pt => od₂ ⟨x, pt⟩)
         accSpec
         (OutType := fun pt₁ pt₂ => OutType ⟨x, pt₁⟩ pt₂) (cpt x)
-        (fun accSpec' tr₁ mid => cont accSpec' ⟨x, tr₁⟩ mid)
+        (fun tr₁ mid => cont ⟨x, tr₁⟩ mid)
   | .«public» _X rest, s₂, ⟨.receiver, rRest⟩, r₂, odRest, od₂, _,
       accSpec, _, OutType, cpt, cont =>
       (fun ⟨x, cptRest⟩ =>
@@ -391,7 +393,7 @@ def compAux
           (rRest x) (fun pt => r₂ ⟨x, pt⟩) (odRest x) (fun pt => od₂ ⟨x, pt⟩)
           accSpec
           (OutType := fun pt₁ pt₂ => OutType ⟨x, pt₁⟩ pt₂) cptRest
-          (fun accSpec' tr₁ mid => cont accSpec' ⟨x, tr₁⟩ mid)⟩) <$> cpt
+          (fun tr₁ mid => cont ⟨x, tr₁⟩ mid)⟩) <$> cpt
 
 end Verifier
 
@@ -730,8 +732,10 @@ def Reduction.comp
           []ₒ
           (OutType := fun pt₁ pt₂ => StatementOut shared pt₁ pt₂)
           (r₁.verifier.toFun shared stmtIn)
-          (fun accSpec' tr₁ midStmt =>
+          (fun tr₁ midStmt =>
             let pt₁ := (Context₁ shared).projectPublic tr₁
+            let accSpec' :=
+              (Spec.accumulatedSpec (Context₁ shared) (OracleDeco₁ shared) tr₁ []ₒ).2
             Counterpart.liftAcc
               (Context₂ shared pt₁) (Roles₂ shared pt₁) (OracleDeco₂ shared pt₁)
               []ₒ accSpec' (fun q => nomatch q)

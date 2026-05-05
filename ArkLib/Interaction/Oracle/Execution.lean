@@ -28,7 +28,7 @@ def Spec.runWithOracleCounterpart
     {ιₛᵢ : Type} {OStmtIn : ιₛᵢ → Type} [∀ i, OracleInterface (OStmtIn i)]
     (inputImpl : QueryImpl [OStmtIn]ₒ Id) :
     (s : Spec) → (roles : Spec.RoleDeco s) → (od : Spec.OracleDeco s) →
-    {ιₐ : Type} → (accSpec : OracleSpec.{0, 0} ιₐ) → QueryImpl accSpec Id →
+    {ιₐ : Type} → (accSpec : OracleSpec.{0, 0} ιₐ) → (accImpl : QueryImpl accSpec Id) →
     {OutputP OutputC : Interaction.Spec.Transcript s.toInteractionSpec → Type} →
     Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
       s.toInteractionSpec (s.toSpecRoles roles) OutputP →
@@ -87,58 +87,102 @@ queries. -/
 def Spec.runWithOracleCounterpartStaged
     {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
     {ιₛᵢ : Type} {OStmtIn : ιₛᵢ → Type} [∀ i, OracleInterface (OStmtIn i)]
-    (inputImpl : QueryImpl [OStmtIn]ₒ Id)
-    (s₁ : Spec) (s₂ : Spec.PublicTranscript s₁ → Spec)
-    (r₁ : Spec.RoleDeco s₁)
-    (r₂ : (pt₁ : Spec.PublicTranscript s₁) → Spec.RoleDeco (s₂ pt₁))
-    (od₁ : Spec.OracleDeco s₁)
-    (od₂ : (pt₁ : Spec.PublicTranscript s₁) → Spec.OracleDeco (s₂ pt₁))
-    {ιₐ : Type} (accSpec : OracleSpec.{0, 0} ιₐ) (accImpl : QueryImpl accSpec Id)
-    {MidP MidC : Interaction.Spec.Transcript s₁.toInteractionSpec → Type}
+    (inputImpl : QueryImpl [OStmtIn]ₒ Id) :
+    (s₁ : Spec) → (s₂ : Spec.PublicTranscript s₁ → Spec) →
+    (r₁ : Spec.RoleDeco s₁) →
+    (r₂ : (pt₁ : Spec.PublicTranscript s₁) → Spec.RoleDeco (s₂ pt₁)) →
+    (od₁ : Spec.OracleDeco s₁) →
+    (od₂ : (pt₁ : Spec.PublicTranscript s₁) → Spec.OracleDeco (s₂ pt₁)) →
+    {ιₐ : Type} → (accSpec : OracleSpec.{0, 0} ιₐ) → QueryImpl accSpec Id →
+    {MidP MidC : Interaction.Spec.Transcript s₁.toInteractionSpec → Type} →
     {OutP OutC :
-      (pt₁ : Spec.PublicTranscript s₁) → Spec.PublicTranscript (s₂ pt₁) → Type}
-    (strat₁ : Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
-      s₁.toInteractionSpec (s₁.toSpecRoles r₁) MidP)
-    (cpt₁ : Interaction.Spec.Counterpart.withMonads s₁.toInteractionSpec
+      (pt₁ : Spec.PublicTranscript s₁) → Spec.PublicTranscript (s₂ pt₁) → Type} →
+    Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
+      s₁.toInteractionSpec (s₁.toSpecRoles r₁) MidP →
+    Interaction.Spec.Counterpart.withMonads s₁.toInteractionSpec
       (s₁.toSpecRoles r₁)
-      (s₁.toMonadDecoration oSpec OStmtIn r₁ od₁ accSpec) MidC)
-    (contP :
-      (tr₁ : Interaction.Spec.Transcript s₁.toInteractionSpec) → MidP tr₁ →
-        OracleComp oSpec
-          (Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
-            ((s₂ (s₁.projectPublic tr₁)).toInteractionSpec)
-            ((s₂ (s₁.projectPublic tr₁)).toSpecRoles (r₂ (s₁.projectPublic tr₁)))
-            (fun tr₂ => OutP (s₁.projectPublic tr₁)
-              ((s₂ (s₁.projectPublic tr₁)).projectPublic tr₂))))
-    (contC :
-      (tr₁ : Interaction.Spec.Transcript s₁.toInteractionSpec) → MidC tr₁ →
-        Interaction.Spec.Counterpart.withMonads
+      (s₁.toMonadDecoration oSpec OStmtIn r₁ od₁ accSpec) MidC →
+    ((tr₁ : Interaction.Spec.Transcript s₁.toInteractionSpec) → MidP tr₁ →
+      OracleComp oSpec
+        (Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
           ((s₂ (s₁.projectPublic tr₁)).toInteractionSpec)
           ((s₂ (s₁.projectPublic tr₁)).toSpecRoles (r₂ (s₁.projectPublic tr₁)))
-          ((s₂ (s₁.projectPublic tr₁)).toMonadDecoration oSpec OStmtIn
-            (r₂ (s₁.projectPublic tr₁)) (od₂ (s₁.projectPublic tr₁))
-            (Spec.accumulatedSpec s₁ od₁ tr₁ accSpec).2)
-          (fun tr₂ => OutC (s₁.projectPublic tr₁)
-            ((s₂ (s₁.projectPublic tr₁)).projectPublic tr₂))) :
+          (fun tr₂ => OutP (s₁.projectPublic tr₁)
+            ((s₂ (s₁.projectPublic tr₁)).projectPublic tr₂)))) →
+    ((tr₁ : Interaction.Spec.Transcript s₁.toInteractionSpec) → MidC tr₁ →
+      Interaction.Spec.Counterpart.withMonads
+        ((s₂ (s₁.projectPublic tr₁)).toInteractionSpec)
+        ((s₂ (s₁.projectPublic tr₁)).toSpecRoles (r₂ (s₁.projectPublic tr₁)))
+        ((s₂ (s₁.projectPublic tr₁)).toMonadDecoration oSpec OStmtIn
+          (r₂ (s₁.projectPublic tr₁)) (od₂ (s₁.projectPublic tr₁))
+          (Spec.accumulatedSpec s₁ od₁ tr₁ accSpec).2)
+        (fun tr₂ => OutC (s₁.projectPublic tr₁)
+          ((s₂ (s₁.projectPublic tr₁)).projectPublic tr₂))) →
     OracleComp oSpec
       ((tr : Interaction.Spec.Transcript (s₁.append s₂).toInteractionSpec) ×
         Spec.PublicTranscript.liftAppend s₁ s₂ OutP ((s₁.append s₂).projectPublic tr) ×
-        Spec.PublicTranscript.liftAppend s₁ s₂ OutC ((s₁.append s₂).projectPublic tr)) := do
-  let ⟨tr₁, midP, midC⟩ ←
-    Spec.runWithOracleCounterpart inputImpl s₁ r₁ od₁ accSpec accImpl strat₁ cpt₁
-  let strat₂ ← contP tr₁ midP
-  let ⟨tr₂, outP, outC⟩ ←
-    Spec.runWithOracleCounterpart inputImpl
-      (s₂ (s₁.projectPublic tr₁))
-      (r₂ (s₁.projectPublic tr₁))
-      (od₂ (s₁.projectPublic tr₁))
-      (Spec.accumulatedSpec s₁ od₁ tr₁ accSpec).2
-      (Spec.accumulatedImpl s₁ od₁ tr₁ accSpec accImpl)
-      strat₂ (contC tr₁ midC)
-  pure
-    ⟨Spec.transcriptAppend s₁ s₂ tr₁ tr₂,
-      Spec.PublicTranscript.packTranscriptAppend s₁ s₂ OutP tr₁ tr₂ outP,
-      Spec.PublicTranscript.packTranscriptAppend s₁ s₂ OutC tr₁ tr₂ outC⟩
+        Spec.PublicTranscript.liftAppend s₁ s₂ OutC ((s₁.append s₂).projectPublic tr))
+  | .done, s₂, _, r₂, _, od₂, _, accSpec, accImpl, _, _, _, _, strat₁, cpt₁,
+      contP, contC => do
+      let strat₂ ← contP ⟨⟩ strat₁
+      Spec.runWithOracleCounterpart inputImpl
+        (s₂ ⟨⟩) (r₂ ⟨⟩) (od₂ ⟨⟩) accSpec accImpl strat₂ (contC ⟨⟩ cpt₁)
+  | .«public» _ rest, s₂, ⟨.sender, rRest⟩, r₂, od₁, od₂, _, accSpec, accImpl,
+      _, _, OutP, OutC, strat₁, cpt₁, contP, contC => do
+      let ⟨x, next⟩ ← strat₁
+      let z ← runWithOracleCounterpartStaged inputImpl
+        (rest x) (fun pt => s₂ ⟨x, pt⟩)
+        (rRest x) (fun pt => r₂ ⟨x, pt⟩)
+        (od₁ x) (fun pt => od₂ ⟨x, pt⟩)
+        (OutP := fun pt₁ pt₂ => OutP ⟨x, pt₁⟩ pt₂)
+        (OutC := fun pt₁ pt₂ => OutC ⟨x, pt₁⟩ pt₂)
+        accSpec accImpl next (cpt₁ x)
+        (fun tr₁ mid => contP ⟨x, tr₁⟩ mid)
+        (fun tr₁ mid => contC ⟨x, tr₁⟩ mid)
+      pure ⟨⟨x, z.1⟩, z.2.1, z.2.2⟩
+  | .«public» _ rest, s₂, ⟨.receiver, rRest⟩, r₂, od₁, od₂, _, accSpec, accImpl,
+      _, MidC, OutP, OutC, strat₁, cpt₁, contP, contC => do
+      let routeImpl : QueryImpl ((oSpec + [OStmtIn]ₒ) + accSpec) (OracleComp oSpec) :=
+        fun
+        | .inl (.inl q) => liftM (oSpec.query q)
+        | .inl (.inr q) => liftM (inputImpl q)
+        | .inr q => liftM (accImpl q)
+      have cpt₁' : OracleComp ((oSpec + [OStmtIn]ₒ) + accSpec) _ := by
+        simpa using cpt₁
+      let z' : Sigma (fun x =>
+          Interaction.Spec.Counterpart.withMonads (rest x).toInteractionSpec
+            ((rest x).toSpecRoles (rRest x))
+            ((rest x).toMonadDecoration oSpec OStmtIn (rRest x) (od₁ x) accSpec)
+            (fun p => MidC ⟨x, p⟩)) ←
+        simulateQ routeImpl cpt₁'
+      let x := z'.1
+      let cptRest := z'.2
+      let next ← strat₁ x
+      let z ← runWithOracleCounterpartStaged inputImpl
+        (rest x) (fun pt => s₂ ⟨x, pt⟩)
+        (rRest x) (fun pt => r₂ ⟨x, pt⟩)
+        (od₁ x) (fun pt => od₂ ⟨x, pt⟩)
+        (OutP := fun pt₁ pt₂ => OutP ⟨x, pt₁⟩ pt₂)
+        (OutC := fun pt₁ pt₂ => OutC ⟨x, pt₁⟩ pt₂)
+        accSpec accImpl next cptRest
+        (fun tr₁ mid => contP ⟨x, tr₁⟩ mid)
+        (fun tr₁ mid => contC ⟨x, tr₁⟩ mid)
+      pure ⟨⟨x, z.1⟩, z.2.1, z.2.2⟩
+  | .«oracle» _ cont, s₂, r₁, r₂, ⟨oi, odRest⟩, od₂, _, accSpec, accImpl, _, _,
+      OutP, OutC, strat₁, cpt₁, contP, contC => do
+      let ⟨x, next⟩ ← strat₁
+      let implX : QueryImpl (@OracleInterface.spec _ oi) Id :=
+        fun q => (oi.toOC.impl q).run x
+      let z ← runWithOracleCounterpartStaged inputImpl
+        (cont ⟨⟩) s₂ r₁ r₂ odRest od₂
+        (OutP := fun pt₁ pt₂ => OutP pt₁ pt₂)
+        (OutC := fun pt₁ pt₂ => OutC pt₁ pt₂)
+        (accSpec + @OracleInterface.spec _ oi)
+        (QueryImpl.add accImpl implX)
+        next (cpt₁ x)
+        (fun tr₁ mid => contP ⟨x, tr₁⟩ mid)
+        (fun tr₁ mid => contC ⟨x, tr₁⟩ mid)
+      pure ⟨⟨x, z.1⟩, z.2.1, z.2.2⟩
 
 /-- Execute an `Oracle.Reduction` against concrete oracle input statements.
 Produces the realized transcript, prover output (statement + oracle statements +

@@ -254,8 +254,9 @@ def comp
         []ₒ
         (OutType := fun pt₁ pt₂ => outputFamily State n (cont pt₁) pt₂)
         (steps.1 state)
-        (fun accSpec' tr₁ state' =>
+        (fun tr₁ state' =>
           let pt₁ := spec.projectPublic tr₁
+          let accSpec' := (Spec.accumulatedSpec spec od tr₁ []ₒ).2
           Counterpart.liftAcc
             (toSpec n (cont pt₁)) (toRoles n (cont pt₁)) (toOracleDeco n (cont pt₁))
             []ₒ accSpec' (fun q => q.elim)
@@ -522,8 +523,9 @@ def comp {Idx : Type}
         []ₒ
         (OutType := fun pt₁ pt₂ => outputFamily State n (cont pt₁).2 pt₂)
         (steps.1 state)
-        (fun accSpec' tr₁ state' =>
+        (fun tr₁ state' =>
           let pt₁ := spec.projectPublic tr₁
+          let accSpec' := (Spec.accumulatedSpec spec od tr₁ []ₒ).2
           Counterpart.liftAcc
             (toSpec n (cont pt₁).2) (toRoles n (cont pt₁).2) (toOracleDeco n (cont pt₁).2)
             []ₒ accSpec' (fun q => q.elim)
@@ -679,8 +681,9 @@ def comp {Idx : Type}
         []ₒ
         (OutType := fun pt₁ pt₂ => outputFamily State n (cont pt₁) pt₂)
         (steps.1 state)
-        (fun accSpec' tr₁ state' =>
+        (fun tr₁ state' =>
           let pt₁ := spec.projectPublic tr₁
+          let accSpec' := (Spec.accumulatedSpec spec od tr₁ []ₒ).2
           Counterpart.liftAcc
             (toSpec n (cont pt₁)) (toRoles n (cont pt₁)) (toOracleDeco n (cont pt₁))
             []ₒ accSpec' (fun q => q.elim)

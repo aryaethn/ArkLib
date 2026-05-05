@@ -75,6 +75,71 @@ def Spec.runWithOracleCounterpart
         (QueryImpl.add accImpl implX) next (dualFn x)
       return ⟨⟨x, z.1⟩, z.2.1, z.2.2⟩
 
+/-- Run a two-phase oracle interaction in staged form.
+
+This is the semantic counterpart of sequential composition before proving it
+equal to the single appended interaction. It first runs the prefix strategy and
+counterpart, then runs the suffix at the prefix public transcript. The suffix
+verifier receives the accumulator obtained from the full prefix transcript:
+`Spec.accumulatedSpec` gives the oracle spec and `Spec.accumulatedImpl` gives
+the concrete implementation answering those accumulated oracle-message
+queries. -/
+def Spec.runWithOracleCounterpartStaged
+    {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
+    {ιₛᵢ : Type} {OStmtIn : ιₛᵢ → Type} [∀ i, OracleInterface (OStmtIn i)]
+    (inputImpl : QueryImpl [OStmtIn]ₒ Id)
+    (s₁ : Spec) (s₂ : Spec.PublicTranscript s₁ → Spec)
+    (r₁ : Spec.RoleDeco s₁)
+    (r₂ : (pt₁ : Spec.PublicTranscript s₁) → Spec.RoleDeco (s₂ pt₁))
+    (od₁ : Spec.OracleDeco s₁)
+    (od₂ : (pt₁ : Spec.PublicTranscript s₁) → Spec.OracleDeco (s₂ pt₁))
+    {ιₐ : Type} (accSpec : OracleSpec.{0, 0} ιₐ) (accImpl : QueryImpl accSpec Id)
+    {MidP MidC : Interaction.Spec.Transcript s₁.toInteractionSpec → Type}
+    {OutP OutC :
+      (pt₁ : Spec.PublicTranscript s₁) → Spec.PublicTranscript (s₂ pt₁) → Type}
+    (strat₁ : Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
+      s₁.toInteractionSpec (s₁.toSpecRoles r₁) MidP)
+    (cpt₁ : Interaction.Spec.Counterpart.withMonads s₁.toInteractionSpec
+      (s₁.toSpecRoles r₁)
+      (s₁.toMonadDecoration oSpec OStmtIn r₁ od₁ accSpec) MidC)
+    (contP :
+      (tr₁ : Interaction.Spec.Transcript s₁.toInteractionSpec) → MidP tr₁ →
+        OracleComp oSpec
+          (Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
+            ((s₂ (s₁.projectPublic tr₁)).toInteractionSpec)
+            ((s₂ (s₁.projectPublic tr₁)).toSpecRoles (r₂ (s₁.projectPublic tr₁)))
+            (fun tr₂ => OutP (s₁.projectPublic tr₁)
+              ((s₂ (s₁.projectPublic tr₁)).projectPublic tr₂))))
+    (contC :
+      (tr₁ : Interaction.Spec.Transcript s₁.toInteractionSpec) → MidC tr₁ →
+        Interaction.Spec.Counterpart.withMonads
+          ((s₂ (s₁.projectPublic tr₁)).toInteractionSpec)
+          ((s₂ (s₁.projectPublic tr₁)).toSpecRoles (r₂ (s₁.projectPublic tr₁)))
+          ((s₂ (s₁.projectPublic tr₁)).toMonadDecoration oSpec OStmtIn
+            (r₂ (s₁.projectPublic tr₁)) (od₂ (s₁.projectPublic tr₁))
+            (Spec.accumulatedSpec s₁ od₁ tr₁ accSpec).2)
+          (fun tr₂ => OutC (s₁.projectPublic tr₁)
+            ((s₂ (s₁.projectPublic tr₁)).projectPublic tr₂))) :
+    OracleComp oSpec
+      ((tr : Interaction.Spec.Transcript (s₁.append s₂).toInteractionSpec) ×
+        Spec.PublicTranscript.liftAppend s₁ s₂ OutP ((s₁.append s₂).projectPublic tr) ×
+        Spec.PublicTranscript.liftAppend s₁ s₂ OutC ((s₁.append s₂).projectPublic tr)) := do
+  let ⟨tr₁, midP, midC⟩ ←
+    Spec.runWithOracleCounterpart inputImpl s₁ r₁ od₁ accSpec accImpl strat₁ cpt₁
+  let strat₂ ← contP tr₁ midP
+  let ⟨tr₂, outP, outC⟩ ←
+    Spec.runWithOracleCounterpart inputImpl
+      (s₂ (s₁.projectPublic tr₁))
+      (r₂ (s₁.projectPublic tr₁))
+      (od₂ (s₁.projectPublic tr₁))
+      (Spec.accumulatedSpec s₁ od₁ tr₁ accSpec).2
+      (Spec.accumulatedImpl s₁ od₁ tr₁ accSpec accImpl)
+      strat₂ (contC tr₁ midC)
+  pure
+    ⟨Spec.transcriptAppend s₁ s₂ tr₁ tr₂,
+      Spec.PublicTranscript.packTranscriptAppend s₁ s₂ OutP tr₁ tr₂ outP,
+      Spec.PublicTranscript.packTranscriptAppend s₁ s₂ OutC tr₁ tr₂ outC⟩
+
 /-- Execute an `Oracle.Reduction` against concrete oracle input statements.
 Produces the realized transcript, prover output (statement + oracle statements +
 witness), and verifier output (statement + output oracle simulation). -/

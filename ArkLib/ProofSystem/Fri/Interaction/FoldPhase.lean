@@ -6,6 +6,8 @@ Authors: Quang Dao
 import ArkLib.ProofSystem.Fri.Interaction.Core
 import ArkLib.Interaction.Oracle.Chain
 
+open Interaction.Spec.TwoParty
+
 /-!
 # FRI Interaction: Fold Phase
 
@@ -182,7 +184,7 @@ private def indexedProverStepAux {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
     (hround : round + (remaining + 1) = k)
     (state : IndexedProverState (F := F) (n := n) (s := s) (d := d) round) :
     OracleComp oSpec
-      (Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec)) Interaction.TwoParty.Participant.focal
+      (Interaction.Spec.StrategyOver (pairedSyntax (OracleComp oSpec)) Interaction.TwoParty.Participant.focal
         (foldRoundSpec (F := F) (n := n) D x s
           ⟨round, stateRound_lt (k := k) hround⟩).toInteractionSpec
         ((foldRoundSpec (F := F) (n := n) D x s
@@ -214,10 +216,10 @@ private def indexedVerifierStepAux {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
     {remaining round : Nat}
     (hround : round + (remaining + 1) = k)
     (state : IndexedVerifierState (F := F) (k := k) round) :
-    Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+    Interaction.Spec.StrategyOver counterpartMonadicSyntax PUnit.unit
       (foldRoundSpec (F := F) (n := n) D x s
         ⟨round, stateRound_lt (k := k) hround⟩).toInteractionSpec
-      (Interaction.RoleDecoration.withMonads
+      (RoleDecoration.withMonads
         ((foldRoundSpec (F := F) (n := n) D x s
           ⟨round, stateRound_lt (k := k) hround⟩).toSpecRoles
             (foldRoundRoles (F := F) (n := n) D x s
@@ -628,3 +630,4 @@ end
 end OracleLayer
 
 end Fri
+

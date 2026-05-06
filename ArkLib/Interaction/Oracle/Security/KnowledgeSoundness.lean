@@ -5,6 +5,8 @@ Authors: Quang Dao
 -/
 import ArkLib.Interaction.Oracle.Security.Soundness
 
+open Interaction.Spec.TwoParty
+
 /-!
 # Oracle Knowledge Soundness
 
@@ -68,7 +70,7 @@ def knowledgeSoundness
       StatementOut OStatementOut WitnessOut,
   ∀ (shared : SharedIn) (stmt : StatementIn shared)
       (inputImpl : InputImpl OStatementIn shared)
-      (prover : Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec))
+      (prover : Interaction.Spec.StrategyOver (pairedSyntax (OracleComp oSpec))
         Interaction.TwoParty.Participant.focal
         (Context shared).toInteractionSpec
         ((Context shared).toSpecRoles (Roles shared))
@@ -236,8 +238,8 @@ The caller supplies:
 
 The proof constructs a KS adversary from the soundness adversary by mapping
 its output through `acceptWitness`. Since `acceptWitness` depends only on the
-full transcript, this is a valid `Strategy.mapOutputWithRoles` map. The
-`Verifier.run_mapOutputWithRoles` lemma guarantees this does
+full transcript, this is a valid `Spec.TwoParty.Focal.mapOutput` map. The
+`Verifier.run_mapOutput` lemma guarantees this does
 not change the transcript or verifier-side output distribution. -/
 theorem knowledgeSoundness_implies_soundness
     {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
@@ -299,19 +301,19 @@ theorem knowledgeSoundness_implies_soundness
   rcases hKS with ⟨extractor, hKS⟩
   intro shared stmt inputImpl OutputP prover hs
   let proverKS :
-      Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec))
+      Interaction.Spec.StrategyOver (pairedSyntax (OracleComp oSpec))
         Interaction.TwoParty.Participant.focal
         (Context shared).toInteractionSpec
         ((Context shared).toSpecRoles (Roles shared))
         (fun tr => WitnessOut shared ((Context shared).projectPublic tr)) :=
-    Interaction.Spec.Strategy.mapOutputWithRoles
+    Interaction.Spec.TwoParty.Focal.mapOutput
       (fun tr _ => acceptWitness shared tr) prover
   have hrun :
       verifier.run shared stmt inputImpl proverKS =
         (fun z => ⟨z.1, acceptWitness shared z.1, z.2.2⟩) <$>
           verifier.run shared stmt inputImpl prover := by
     simp only [proverKS]
-    rw [Verifier.run_mapOutputWithRoles]
+    rw [Verifier.run_mapOutput]
   have hKS' := hKS shared stmt inputImpl proverKS
   rw [hrun, probEvent_map] at hKS'
   refine le_trans ?_ hKS'
@@ -326,3 +328,4 @@ theorem knowledgeSoundness_implies_soundness
 end Verifier
 end Oracle
 end Interaction
+

@@ -5,6 +5,8 @@ Authors: Quang Dao
 -/
 import VCVio.Interaction.TwoParty.Strategy
 
+open Interaction.Spec.TwoParty
+
 /-!
 # Fiat-Shamir Basics: Replay Oracles and Messages-Only Proofs
 
@@ -43,7 +45,7 @@ unfolds to:
 - sender node: `(x : X) → ReplayOracle (rest x) (rRest x)` (observe)
 - receiver node: `(x : X) × ReplayOracle (rest x) (rRest x)` (pick challenge) -/
 abbrev ReplayOracle (spec : Spec.{u}) (roles : RoleDecoration spec) : Type u :=
-  Spec.StrategyOver (Spec.pairedSyntax Id) TwoParty.Participant.counterpart
+  Spec.StrategyOver (pairedSyntax Id) TwoParty.Participant.counterpart
     spec roles (fun _ => PUnit)
 
 namespace ReplayOracle
@@ -104,3 +106,4 @@ def deriveTranscript :
 end MessagesOnly
 
 end Interaction
+

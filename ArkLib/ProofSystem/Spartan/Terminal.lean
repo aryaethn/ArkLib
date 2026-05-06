@@ -5,6 +5,8 @@ Authors: Quang Dao
 -/
 import ArkLib.ProofSystem.Spartan.SecondSumcheck
 
+open Interaction.Spec.TwoParty
+
 open MvPolynomial Matrix
 open Interaction OracleComp OracleSpec
 open scoped BigOperators
@@ -140,7 +142,7 @@ def terminalCheckReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι} :
       (fun _ _ => PUnit) where
   prover _ sWithOracles _ := do
     let proverStep :
-        Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec)) Interaction.TwoParty.Participant.focal
+        Interaction.Spec.StrategyOver (pairedSyntax (OracleComp oSpec)) Interaction.TwoParty.Participant.focal
           (terminalCheckSpec R pp).toInteractionSpec
           ((terminalCheckSpec R pp).toSpecRoles (terminalCheckRoles R pp))
           (fun _ =>
@@ -155,7 +157,7 @@ def terminalCheckReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι} :
           terminalCheckFromOracleStmt R pp sWithOracles.stmt sWithOracles.oracleStmt
         pure ⟨⟨out, sWithOracles.oracleStmt⟩, PUnit.unit⟩
     pure <|
-      Interaction.Spec.Strategy.withRolesToConstantMonads
+      Interaction.Spec.TwoParty.Focal.toConstantMonads
         (terminalCheckSpec R pp).toInteractionSpec
         ((terminalCheckSpec R pp).toSpecRoles (terminalCheckRoles R pp))
         proverStep
@@ -174,3 +176,4 @@ end
 end OracleLayer
 
 end Spartan
+

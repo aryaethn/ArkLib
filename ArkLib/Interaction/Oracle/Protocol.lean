@@ -23,7 +23,7 @@ interface decorations needed to execute it. -/
 structure Protocol where
   /-- The underlying oracle-spec interaction tree. -/
   spec : Oracle.Spec
-  /-- Role decoration for public nodes of `spec`. -/
+  /-- Interaction.TwoParty.Role decoration for public nodes of `spec`. -/
   roles : Spec.RoleDeco spec
   /-- Oracle-interface decoration for oracle nodes of `spec`. -/
   oracleDeco : Spec.OracleDeco spec
@@ -37,7 +37,7 @@ def done : Protocol where
   oracleDeco := ⟨⟩
 
 /-- Public-message node with an explicit role. -/
-def «public» (role : Role) (X : Type) (rest : X → Protocol) : Protocol where
+def «public» (role : Interaction.TwoParty.Role) (X : Type) (rest : X → Protocol) : Protocol where
   spec := .public X (fun x => (rest x).spec)
   roles := ⟨role, fun x => (rest x).roles⟩
   oracleDeco := fun x => (rest x).oracleDeco
@@ -70,15 +70,15 @@ theorem done_roles : done.roles = ⟨⟩ := rfl
 theorem done_oracleDeco : done.oracleDeco = ⟨⟩ := rfl
 
 @[simp]
-theorem public_spec (role : Role) (X : Type) (rest : X → Protocol) :
+theorem public_spec (role : Interaction.TwoParty.Role) (X : Type) (rest : X → Protocol) :
     («public» role X rest).spec = .public X (fun x => (rest x).spec) := rfl
 
 @[simp]
-theorem public_roles (role : Role) (X : Type) (rest : X → Protocol) :
+theorem public_roles (role : Interaction.TwoParty.Role) (X : Type) (rest : X → Protocol) :
     («public» role X rest).roles = ⟨role, fun x => (rest x).roles⟩ := rfl
 
 @[simp]
-theorem public_oracleDeco (role : Role) (X : Type) (rest : X → Protocol) :
+theorem public_oracleDeco (role : Interaction.TwoParty.Role) (X : Type) (rest : X → Protocol) :
     («public» role X rest).oracleDeco = (fun x => (rest x).oracleDeco) := rfl
 
 @[simp]

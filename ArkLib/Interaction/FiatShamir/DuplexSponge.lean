@@ -6,6 +6,8 @@ Authors: Quang Dao
 import ArkLib.Data.Hash.DuplexSponge
 import ArkLib.Interaction.FiatShamir.Transform
 
+open Interaction.Spec.TwoParty
+
 /-!
 # Duplex Sponge Fiat-Shamir
 
@@ -221,3 +223,4 @@ def PublicCoinReduction.duplexSpongeFiatShamir
 end DuplexSpongeFiatShamir
 
 end Interaction
+

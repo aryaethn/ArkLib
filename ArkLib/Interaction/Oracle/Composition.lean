@@ -5,6 +5,8 @@ Authors: Quang Dao
 -/
 import ArkLib.Interaction.Oracle.Core
 
+open Interaction.Spec.TwoParty
+
 /-!
 # Oracle.Spec Composition Infrastructure
 
@@ -110,10 +112,10 @@ def Reduction.freezeSharedToPUnit
           (WitnessOut shared ((Context shared).projectPublic tr))
       | _, ⟨stmtOut, witOut⟩ => ⟨⟨stmtOut.stmt, stmtOut.oracleStmt⟩, witOut⟩
     let strat ← reduction.prover shared input' w
-    pure <| Interaction.Spec.ShapeOver.mapOutput Interaction.Spec.focalMonadicShape
+    pure <| Interaction.Spec.ShapeOver.mapOutput focalMonadicShape
       (agent := PUnit.unit)
       (spec := (Context shared).toInteractionSpec)
-      (ctxs := Interaction.RoleDecoration.withMonads
+      (ctxs := RoleDecoration.withMonads
         ((Context shared).toSpecRoles (Roles shared))
         ((Context shared).toProverMonadDecoration oSpec))
       remapOutput strat
@@ -177,10 +179,10 @@ def Reduction.pullbackShared
           (WitnessOut (f shared) ((Context (f shared)).projectPublic tr))
       | _, ⟨stmtOut, witOut⟩ => ⟨⟨stmtOut.stmt, stmtOut.oracleStmt⟩, witOut⟩
     let strat ← reduction.prover (f shared) input' w
-    pure <| Interaction.Spec.ShapeOver.mapOutput Interaction.Spec.focalMonadicShape
+    pure <| Interaction.Spec.ShapeOver.mapOutput focalMonadicShape
       (agent := PUnit.unit)
       (spec := (Context (f shared)).toInteractionSpec)
-      (ctxs := Interaction.RoleDecoration.withMonads
+      (ctxs := RoleDecoration.withMonads
         ((Context (f shared)).toSpecRoles (Roles (f shared)))
         ((Context (f shared)).toProverMonadDecoration oSpec))
       remapOutput strat
@@ -219,23 +221,23 @@ def compAuxWithMonads
     {Mid : Interaction.Spec.Transcript s₁.toInteractionSpec → Type} →
     {OutType : (pt₁ : Spec.PublicTranscript s₁) →
       Spec.PublicTranscript (s₂ pt₁) → Type} →
-    Interaction.Spec.StrategyOver Interaction.Spec.focalMonadicSyntax PUnit.unit
+    Interaction.Spec.StrategyOver focalMonadicSyntax PUnit.unit
       s₁.toInteractionSpec
-      (Interaction.RoleDecoration.withMonads (s₁.toSpecRoles r₁) md₁)
+      (RoleDecoration.withMonads (s₁.toSpecRoles r₁) md₁)
       Mid →
     ((tr₁ : Interaction.Spec.Transcript s₁.toInteractionSpec) → Mid tr₁ →
       m
-        (Interaction.Spec.StrategyOver Interaction.Spec.focalMonadicSyntax PUnit.unit
+        (Interaction.Spec.StrategyOver focalMonadicSyntax PUnit.unit
           ((s₂ (s₁.projectPublic tr₁)).toInteractionSpec)
-          (Interaction.RoleDecoration.withMonads
+          (RoleDecoration.withMonads
             ((s₂ (s₁.projectPublic tr₁)).toSpecRoles (r₂ (s₁.projectPublic tr₁)))
             (md₂ (s₁.projectPublic tr₁)))
           (fun tr₂ => OutType (s₁.projectPublic tr₁)
             ((s₂ (s₁.projectPublic tr₁)).projectPublic tr₂)))) →
     m
-      (Interaction.Spec.StrategyOver Interaction.Spec.focalMonadicSyntax PUnit.unit
+      (Interaction.Spec.StrategyOver focalMonadicSyntax PUnit.unit
         ((s₁.append s₂).toInteractionSpec)
-        (Interaction.RoleDecoration.withMonads
+        (RoleDecoration.withMonads
           ((s₁.append s₂).toSpecRoles (Spec.RoleDeco.append s₁ s₂ r₁ r₂))
           (Spec.MonadDecoration.appendPublic s₁ s₂ md₁ md₂))
         (fun tr =>
@@ -279,7 +281,7 @@ def compAuxWithMonads
 At `.oracle` and `.public .sender` nodes, binds the first-phase strategy and
 recurses. At `.public .receiver` nodes, produces a function and recurses.
 
-This is the `Oracle.Spec` analog of `Interaction.Spec.Strategy.compWithRolesFlat`,
+This is the `Oracle.Spec` analog of `Interaction.Spec.TwoParty.Focal.compFlat`,
 with the crucial advantage that `toInteractionSpec`, `toSpecRoles`, and
 `projectPublic` all reduce definitionally at each step, so no casts are needed.
 
@@ -293,19 +295,19 @@ def compAux
     {Mid : Interaction.Spec.Transcript s₁.toInteractionSpec → Type} →
     {OutType : (pt₁ : Spec.PublicTranscript s₁) →
       Spec.PublicTranscript (s₂ pt₁) → Type} →
-    Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax m)
+    Interaction.Spec.StrategyOver (pairedSyntax m)
       Interaction.TwoParty.Participant.focal
       s₁.toInteractionSpec (s₁.toSpecRoles r₁) Mid →
     ((tr₁ : Interaction.Spec.Transcript s₁.toInteractionSpec) → Mid tr₁ →
       m
-        (Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax m)
+        (Interaction.Spec.StrategyOver (pairedSyntax m)
           Interaction.TwoParty.Participant.focal
           ((s₂ (s₁.projectPublic tr₁)).toInteractionSpec)
           ((s₂ (s₁.projectPublic tr₁)).toSpecRoles (r₂ (s₁.projectPublic tr₁)))
           (fun tr₂ => OutType (s₁.projectPublic tr₁)
             ((s₂ (s₁.projectPublic tr₁)).projectPublic tr₂)))) →
     m
-      (Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax m)
+      (Interaction.Spec.StrategyOver (pairedSyntax m)
         Interaction.TwoParty.Participant.focal
         ((s₁.append s₂).toInteractionSpec)
         ((s₁.append s₂).toSpecRoles (Spec.RoleDeco.append s₁ s₂ r₁ r₂))
@@ -365,24 +367,24 @@ def compAux
     {Mid : Interaction.Spec.Transcript s₁.toInteractionSpec → Type} →
     {OutType : (pt₁ : Spec.PublicTranscript s₁) →
       Spec.PublicTranscript (s₂ pt₁) → Type} →
-    Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+    Interaction.Spec.StrategyOver counterpartMonadicSyntax PUnit.unit
       s₁.toInteractionSpec
-      (Interaction.RoleDecoration.withMonads (s₁.toSpecRoles r₁)
+      (RoleDecoration.withMonads (s₁.toSpecRoles r₁)
         (s₁.toMonadDecoration oSpec OStmtIn r₁ od₁ accSpec))
       Mid →
     ((tr₁ : Interaction.Spec.Transcript s₁.toInteractionSpec) → Mid tr₁ →
-      Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+      Interaction.Spec.StrategyOver counterpartMonadicSyntax PUnit.unit
         ((s₂ (s₁.projectPublic tr₁)).toInteractionSpec)
-        (Interaction.RoleDecoration.withMonads
+        (RoleDecoration.withMonads
           ((s₂ (s₁.projectPublic tr₁)).toSpecRoles (r₂ (s₁.projectPublic tr₁)))
           ((s₂ (s₁.projectPublic tr₁)).toMonadDecoration oSpec OStmtIn
             (r₂ (s₁.projectPublic tr₁)) (od₂ (s₁.projectPublic tr₁))
             (Spec.accumulatedSpec s₁ od₁ tr₁ accSpec).2))
         (fun tr₂ => OutType (s₁.projectPublic tr₁)
           ((s₂ (s₁.projectPublic tr₁)).projectPublic tr₂))) →
-    Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+    Interaction.Spec.StrategyOver counterpartMonadicSyntax PUnit.unit
       ((s₁.append s₂).toInteractionSpec)
-      (Interaction.RoleDecoration.withMonads
+      (RoleDecoration.withMonads
         ((s₁.append s₂).toSpecRoles (Spec.RoleDeco.append s₁ s₂ r₁ r₂))
         ((s₁.append s₂).toMonadDecoration oSpec OStmtIn
           (Spec.RoleDeco.append s₁ s₂ r₁ r₂)
@@ -490,17 +492,17 @@ def mapOracles
     (reroute : QueryImpl (oSpec + [OStmt₁]ₒ + accSpec₁)
       (OracleComp (oSpec + [OStmt₂]ₒ + accSpec₂)))
     {Output : Interaction.Spec.Transcript s.toInteractionSpec → Type}
-    (cpt : Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+    (cpt : Interaction.Spec.StrategyOver counterpartMonadicSyntax PUnit.unit
       s.toInteractionSpec
-      (Interaction.RoleDecoration.withMonads (s.toSpecRoles roles)
+      (RoleDecoration.withMonads (s.toSpecRoles roles)
         (s.toMonadDecoration oSpec OStmt₁ roles od accSpec₁))
       Output) :
-    Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+    Interaction.Spec.StrategyOver counterpartMonadicSyntax PUnit.unit
       s.toInteractionSpec
-      (Interaction.RoleDecoration.withMonads (s.toSpecRoles roles)
+      (RoleDecoration.withMonads (s.toSpecRoles roles)
         (s.toMonadDecoration oSpec OStmt₂ roles od accSpec₂))
       Output :=
-  Interaction.Spec.Counterpart.mapMonadDecoration s.toInteractionSpec
+  Interaction.Spec.TwoParty.Counterpart.mapMonadDecoration s.toInteractionSpec
     (s.toSpecRoles roles)
     (mapOraclesHom s roles od accSpec₁ accSpec₂ reroute)
     cpt
@@ -524,14 +526,14 @@ def liftAcc
     {ιₐ₂ : Type} (accSpec₂ : OracleSpec.{0, 0} ιₐ₂)
     (routeAcc : QueryImpl accSpec₁ (OracleComp ((oSpec + [OStmtIn]ₒ) + accSpec₂)))
     {Output : Interaction.Spec.Transcript s.toInteractionSpec → Type}
-    (cpt : Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+    (cpt : Interaction.Spec.StrategyOver counterpartMonadicSyntax PUnit.unit
       s.toInteractionSpec
-      (Interaction.RoleDecoration.withMonads (s.toSpecRoles roles)
+      (RoleDecoration.withMonads (s.toSpecRoles roles)
         (s.toMonadDecoration oSpec OStmtIn roles od accSpec₁))
       Output) :
-    Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+    Interaction.Spec.StrategyOver counterpartMonadicSyntax PUnit.unit
       s.toInteractionSpec
-      (Interaction.RoleDecoration.withMonads (s.toSpecRoles roles)
+      (RoleDecoration.withMonads (s.toSpecRoles roles)
         (s.toMonadDecoration oSpec OStmtIn roles od accSpec₂))
       Output :=
   mapOracles s roles od accSpec₁ accSpec₂
@@ -564,14 +566,14 @@ def retargetMonads
     (s₂ : Oracle.Spec) (roles₂ : Spec.RoleDeco s₂) (od₂ : Spec.OracleDeco s₂)
     {ιₐ : Type} (accSpec : OracleSpec.{0, 0} ιₐ)
     {Output : Interaction.Spec.Transcript s₂.toInteractionSpec → Type}
-    (cpt : Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+    (cpt : Interaction.Spec.StrategyOver counterpartMonadicSyntax PUnit.unit
       s₂.toInteractionSpec
-      (Interaction.RoleDecoration.withMonads (s₂.toSpecRoles roles₂)
+      (RoleDecoration.withMonads (s₂.toSpecRoles roles₂)
         (s₂.toMonadDecoration oSpec OStmtMid roles₂ od₂ accSpec))
       Output) :
-    Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+    Interaction.Spec.StrategyOver counterpartMonadicSyntax PUnit.unit
       s₂.toInteractionSpec
-      (Interaction.RoleDecoration.withMonads (s₂.toSpecRoles roles₂)
+      (RoleDecoration.withMonads (s₂.toSpecRoles roles₂)
         (s₂.toMonadDecoration oSpec OStmtIn roles₂ od₂ accSpec))
       Output :=
   let liftRoute : QueryImpl ([OStmtIn]ₒ + s₁.toOracleSpec od₁ pt₁)
@@ -699,10 +701,10 @@ def Reduction.comp
             ⟨midOut.stmt.stmt, midOut.stmt.oracleStmt⟩
           let strat₂ ← (r₂ shared pt₁).prover PUnit.unit midStmt midOut.wit
           let strat₂' :=
-            Interaction.Spec.ShapeOver.mapOutput Interaction.Spec.focalMonadicShape
+            Interaction.Spec.ShapeOver.mapOutput focalMonadicShape
               (agent := PUnit.unit)
               (spec := (Context₂ shared pt₁).toInteractionSpec)
-              (ctxs := Interaction.RoleDecoration.withMonads
+              (ctxs := RoleDecoration.withMonads
                 ((Context₂ shared pt₁).toSpecRoles (Roles₂ shared pt₁))
                 ((Context₂ shared pt₁).toProverMonadDecoration oSpec))
               (fun tr₂ out =>
@@ -718,7 +720,7 @@ def Reduction.comp
                       ((Context₂ shared pt₁).projectPublic tr₂)))) strat₂
           pure strat₂'
     let stratConstant :=
-      Interaction.Spec.Strategy.mapMonadDecoration
+      Interaction.Spec.TwoParty.Focal.mapMonadDecoration
         ((Context₁ shared).append (Context₂ shared)).toInteractionSpec
         (((Context₁ shared).append (Context₂ shared)).toSpecRoles
           (Spec.RoleDeco.append (Context₁ shared) (Context₂ shared)
@@ -727,10 +729,10 @@ def Reduction.comp
           (Spec.proverNodeMonad oSpec) (Context₁ shared) (Context₂ shared))
         strat
     let stratSplit :=
-      Interaction.Spec.ShapeOver.mapOutput Interaction.Spec.focalMonadicShape
+      Interaction.Spec.ShapeOver.mapOutput focalMonadicShape
         (agent := PUnit.unit)
         (spec := ((Context₁ shared).append (Context₂ shared)).toInteractionSpec)
-        (ctxs := Interaction.RoleDecoration.withMonads
+        (ctxs := RoleDecoration.withMonads
           (((Context₁ shared).append (Context₂ shared)).toSpecRoles
             (Spec.RoleDeco.append (Context₁ shared) (Context₂ shared)
               (Roles₁ shared) (Roles₂ shared)))
@@ -748,10 +750,10 @@ def Reduction.comp
     pure stratSplit
   verifier := {
     toFun := fun shared stmtIn =>
-      Interaction.Spec.ShapeOver.mapOutput Interaction.Spec.counterpartMonadicShape
+      Interaction.Spec.ShapeOver.mapOutput counterpartMonadicShape
         (agent := PUnit.unit)
         (spec := ((Context₁ shared).append (Context₂ shared)).toInteractionSpec)
-        (ctxs := Interaction.RoleDecoration.withMonads
+        (ctxs := RoleDecoration.withMonads
           (((Context₁ shared).append (Context₂ shared)).toSpecRoles
             (Spec.RoleDeco.append (Context₁ shared) (Context₂ shared)
               (Roles₁ shared) (Roles₂ shared)))
@@ -832,3 +834,4 @@ def Reduction.comp
   }
 
 end Interaction.Oracle
+

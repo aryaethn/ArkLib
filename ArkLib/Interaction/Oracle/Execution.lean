@@ -7,6 +7,8 @@ import ArkLib.Interaction.Oracle.Core
 import ArkLib.Interaction.Oracle.Composition
 import VCVio.OracleComp.SimSemantics.SimulateQ
 
+open Interaction.Spec.TwoParty
+
 /-!
 # Oracle.Spec Execution
 
@@ -30,14 +32,14 @@ def Spec.runWithOracleCounterpart
     (s : Spec) → (roles : Spec.RoleDeco s) → (od : Spec.OracleDeco s) →
     {ιₐ : Type} → (accSpec : OracleSpec.{0, 0} ιₐ) → (accImpl : QueryImpl accSpec Id) →
     {OutputP OutputC : Interaction.Spec.Transcript s.toInteractionSpec → Type} →
-    Interaction.Spec.StrategyOver Interaction.Spec.focalMonadicSyntax PUnit.unit
+    Interaction.Spec.StrategyOver focalMonadicSyntax PUnit.unit
       s.toInteractionSpec
-      (Interaction.RoleDecoration.withMonads
+      (RoleDecoration.withMonads
         (s.toSpecRoles roles) (s.toProverMonadDecoration oSpec))
       OutputP →
-    Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+    Interaction.Spec.StrategyOver counterpartMonadicSyntax PUnit.unit
       s.toInteractionSpec
-      (Interaction.RoleDecoration.withMonads (s.toSpecRoles roles)
+      (RoleDecoration.withMonads (s.toSpecRoles roles)
         (s.toMonadDecoration oSpec OStmtIn roles od accSpec))
       OutputC →
     OracleComp oSpec ((tr : Interaction.Spec.Transcript s.toInteractionSpec) ×
@@ -60,9 +62,9 @@ def Spec.runWithOracleCounterpart
       have dualSample' : OracleComp ((oSpec + [OStmtIn]ₒ) + accSpec) _ := by
         simpa using dualSample
       let z' : Sigma (fun x =>
-          Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+          Interaction.Spec.StrategyOver counterpartMonadicSyntax PUnit.unit
             (rest x).toInteractionSpec
-            (Interaction.RoleDecoration.withMonads ((rest x).toSpecRoles (rRest x))
+            (RoleDecoration.withMonads ((rest x).toSpecRoles (rRest x))
               ((rest x).toMonadDecoration oSpec OStmtIn (rRest x) (odRest x) accSpec))
             (fun p => OutputC ⟨x, p⟩)) ←
         simulateQ routeImpl dualSample'
@@ -104,26 +106,26 @@ def Spec.runWithOracleCounterpartStaged
     {MidP MidC : Interaction.Spec.Transcript s₁.toInteractionSpec → Type} →
     {OutP OutC :
       (pt₁ : Spec.PublicTranscript s₁) → Spec.PublicTranscript (s₂ pt₁) → Type} →
-    Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec))
+    Interaction.Spec.StrategyOver (pairedSyntax (OracleComp oSpec))
       Interaction.TwoParty.Participant.focal
       s₁.toInteractionSpec (s₁.toSpecRoles r₁) MidP →
-    Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+    Interaction.Spec.StrategyOver counterpartMonadicSyntax PUnit.unit
       s₁.toInteractionSpec
-      (Interaction.RoleDecoration.withMonads (s₁.toSpecRoles r₁)
+      (RoleDecoration.withMonads (s₁.toSpecRoles r₁)
         (s₁.toMonadDecoration oSpec OStmtIn r₁ od₁ accSpec))
       MidC →
     ((tr₁ : Interaction.Spec.Transcript s₁.toInteractionSpec) → MidP tr₁ →
       OracleComp oSpec
-        (Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec))
+        (Interaction.Spec.StrategyOver (pairedSyntax (OracleComp oSpec))
           Interaction.TwoParty.Participant.focal
           ((s₂ (s₁.projectPublic tr₁)).toInteractionSpec)
           ((s₂ (s₁.projectPublic tr₁)).toSpecRoles (r₂ (s₁.projectPublic tr₁)))
           (fun tr₂ => OutP (s₁.projectPublic tr₁)
             ((s₂ (s₁.projectPublic tr₁)).projectPublic tr₂)))) →
     ((tr₁ : Interaction.Spec.Transcript s₁.toInteractionSpec) → MidC tr₁ →
-      Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+      Interaction.Spec.StrategyOver counterpartMonadicSyntax PUnit.unit
         ((s₂ (s₁.projectPublic tr₁)).toInteractionSpec)
-        (Interaction.RoleDecoration.withMonads
+        (RoleDecoration.withMonads
           ((s₂ (s₁.projectPublic tr₁)).toSpecRoles (r₂ (s₁.projectPublic tr₁)))
           ((s₂ (s₁.projectPublic tr₁)).toMonadDecoration oSpec OStmtIn
             (r₂ (s₁.projectPublic tr₁)) (od₂ (s₁.projectPublic tr₁))
@@ -138,7 +140,7 @@ def Spec.runWithOracleCounterpartStaged
       contP, contC => do
       let strat₂ ← contP ⟨⟩ strat₁
       let strat₂' :=
-        Interaction.Spec.Strategy.withRolesToConstantMonads
+        Interaction.Spec.TwoParty.Focal.toConstantMonads
           (s₂ ⟨⟩).toInteractionSpec
           ((s₂ ⟨⟩).toSpecRoles (r₂ ⟨⟩))
           strat₂
@@ -167,9 +169,9 @@ def Spec.runWithOracleCounterpartStaged
       have cpt₁' : OracleComp ((oSpec + [OStmtIn]ₒ) + accSpec) _ := by
         simpa using cpt₁
       let z' : Sigma (fun x =>
-          Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+          Interaction.Spec.StrategyOver counterpartMonadicSyntax PUnit.unit
             (rest x).toInteractionSpec
-            (Interaction.RoleDecoration.withMonads ((rest x).toSpecRoles (rRest x))
+            (RoleDecoration.withMonads ((rest x).toSpecRoles (rRest x))
               ((rest x).toMonadDecoration oSpec OStmtIn (rRest x) (od₁ x) accSpec))
             (fun p => MidC ⟨x, p⟩)) ←
         simulateQ routeImpl cpt₁'
@@ -282,7 +284,7 @@ def Reduction.runConcrete
     (shared : SharedIn)
     (s : StatementWithOracles StatementIn OStatementIn shared)
     {OutputP : Interaction.Spec.Transcript (Context shared).toInteractionSpec → Type}
-    (prover : Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec))
+    (prover : Interaction.Spec.StrategyOver (pairedSyntax (OracleComp oSpec))
       Interaction.TwoParty.Participant.focal
       (Context shared).toInteractionSpec
       ((Context shared).toSpecRoles (Roles shared)) OutputP) :
@@ -297,7 +299,7 @@ def Reduction.runConcrete
                 ((Context shared).projectPublic tr))))) :=
   let inputImpl := OracleInterface.simOracle0 (OStatementIn shared) s.oracleStmt
   let prover' :=
-    Interaction.Spec.Strategy.withRolesToConstantMonads
+    Interaction.Spec.TwoParty.Focal.toConstantMonads
       (Context shared).toInteractionSpec
       ((Context shared).toSpecRoles (Roles shared))
       prover
@@ -715,7 +717,7 @@ def Verifier.run
     (stmt : StatementIn shared)
     (inputImpl : QueryImpl [OStatementIn shared]ₒ Id)
     {OutputP : Interaction.Spec.Transcript (Context shared).toInteractionSpec → Type}
-    (prover : Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec))
+    (prover : Interaction.Spec.StrategyOver (pairedSyntax (OracleComp oSpec))
       Interaction.TwoParty.Participant.focal
       (Context shared).toInteractionSpec
       ((Context shared).toSpecRoles (Roles shared)) OutputP) :
@@ -729,7 +731,7 @@ def Verifier.run
               (Context shared).toOracleSpec (OracleDeco shared)
                 ((Context shared).projectPublic tr))))) := do
   let prover' :=
-    Interaction.Spec.Strategy.withRolesToConstantMonads
+    Interaction.Spec.TwoParty.Focal.toConstantMonads
       (Context shared).toInteractionSpec
       ((Context shared).toSpecRoles (Roles shared))
       prover
@@ -769,7 +771,7 @@ theorem Reduction.runConcrete_eq_verifier_run
     (shared : SharedIn)
     (s : StatementWithOracles StatementIn OStatementIn shared)
     {OutputP : Interaction.Spec.Transcript (Context shared).toInteractionSpec → Type}
-    (prover : Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec))
+    (prover : Interaction.Spec.StrategyOver (pairedSyntax (OracleComp oSpec))
       Interaction.TwoParty.Participant.focal
       (Context shared).toInteractionSpec
       ((Context shared).toSpecRoles (Roles shared)) OutputP) :
@@ -911,21 +913,21 @@ theorem Spec.runWithOracleCounterpart_mapOutputWithMonads
     {ιₐ : Type} → (accSpec : OracleSpec.{0, 0} ιₐ) → (accImpl : QueryImpl accSpec Id) →
     {OutputP OutputP' OutputC : Interaction.Spec.Transcript s.toInteractionSpec → Type} →
     (fP : ∀ tr, OutputP tr → OutputP' tr) →
-    (strat : Interaction.Spec.StrategyOver Interaction.Spec.focalMonadicSyntax PUnit.unit
+    (strat : Interaction.Spec.StrategyOver focalMonadicSyntax PUnit.unit
       s.toInteractionSpec
-      (Interaction.RoleDecoration.withMonads
+      (RoleDecoration.withMonads
         (s.toSpecRoles roles) (s.toProverMonadDecoration oSpec))
       OutputP) →
-    (cpt : Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+    (cpt : Interaction.Spec.StrategyOver counterpartMonadicSyntax PUnit.unit
       s.toInteractionSpec
-      (Interaction.RoleDecoration.withMonads (s.toSpecRoles roles)
+      (RoleDecoration.withMonads (s.toSpecRoles roles)
         (s.toMonadDecoration oSpec OStmtIn roles od accSpec))
       OutputC) →
     Spec.runWithOracleCounterpart inputImpl s roles od accSpec accImpl
-      (Interaction.Spec.ShapeOver.mapOutput Interaction.Spec.focalMonadicShape
+      (Interaction.Spec.ShapeOver.mapOutput focalMonadicShape
         (agent := PUnit.unit)
         (spec := s.toInteractionSpec)
-        (ctxs := Interaction.RoleDecoration.withMonads (s.toSpecRoles roles)
+        (ctxs := RoleDecoration.withMonads (s.toSpecRoles roles)
           (s.toProverMonadDecoration oSpec))
         fP strat) cpt =
       (fun z => ⟨z.1, fP z.1 z.2.1, z.2.2⟩) <$>
@@ -939,9 +941,9 @@ theorem Spec.runWithOracleCounterpart_mapOutputWithMonads
       simp only [toInteractionSpec, toSpecRoles,
         PFunctor.FreeM.mapLens_roll, executionLens,
         toProverMonadDecoration, Interaction.Spec.MonadDecoration.constant,
-        Interaction.RoleDecoration.withMonads, Interaction.RoleDecoration.monadsOver,
+        RoleDecoration.withMonads, RoleDecoration.monadsOver,
         Interaction.Spec.Decoration.ofOver, runWithOracleCounterpart,
-        Interaction.Spec.focalMonadicShape, Interaction.Spec.focalMonadicSyntax,
+        focalMonadicShape, focalMonadicSyntax,
         bind_pure_comp, bind_map_left, map_bind, Functor.map_map]
       refine congrArg (fun k => strat >>= k) ?_
       funext ⟨x, next⟩
@@ -963,10 +965,10 @@ theorem Spec.runWithOracleCounterpart_mapOutputWithMonads
       simp only [toInteractionSpec, toSpecRoles, toMonadDecoration,
         PFunctor.FreeM.mapLens_roll, executionLens,
         toProverMonadDecoration, Interaction.Spec.MonadDecoration.constant,
-        Interaction.RoleDecoration.withMonads, Interaction.RoleDecoration.monadsOver,
+        RoleDecoration.withMonads, RoleDecoration.monadsOver,
         Interaction.Spec.Decoration.ofOver,
         runWithOracleCounterpart,
-        Interaction.Spec.focalMonadicShape, Interaction.Spec.focalMonadicSyntax,
+        focalMonadicShape, focalMonadicSyntax,
         bind_pure_comp, bind_map_left, map_bind, Functor.map_map]
       let routeImpl : QueryImpl ((oSpec + [OStmtIn]ₒ) + accSpec) (OracleComp oSpec) :=
         fun
@@ -1000,9 +1002,9 @@ theorem Spec.runWithOracleCounterpart_mapOutputWithMonads
       simp only [toInteractionSpec, toSpecRoles,
         PFunctor.FreeM.mapLens_roll, executionLens,
         toProverMonadDecoration, Interaction.Spec.MonadDecoration.constant,
-        Interaction.RoleDecoration.withMonads, Interaction.RoleDecoration.monadsOver,
+        RoleDecoration.withMonads, RoleDecoration.monadsOver,
         Interaction.Spec.Decoration.ofOver, runWithOracleCounterpart,
-        Interaction.Spec.focalMonadicShape, Interaction.Spec.focalMonadicSyntax,
+        focalMonadicShape, focalMonadicSyntax,
         bind_pure_comp, bind_map_left, map_bind, Functor.map_map]
       refine congrArg (fun k => strat >>= k) ?_
       funext ⟨x, next⟩
@@ -1024,7 +1026,7 @@ theorem Spec.runWithOracleCounterpart_mapOutputWithMonads
 /-- Mapping the prover-side output of an arbitrary prover strategy before
 running a verifier is equivalent to running first and then mapping the prover
 component of the result. -/
-theorem Verifier.run_mapOutputWithRoles
+theorem Verifier.run_mapOutput
     {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
     {SharedIn : Type}
     {Context : SharedIn → Spec}
@@ -1049,29 +1051,29 @@ theorem Verifier.run_mapOutputWithRoles
     {OutputP OutputP' :
       Interaction.Spec.Transcript (Context shared).toInteractionSpec → Type}
     (fP : ∀ tr, OutputP tr → OutputP' tr)
-    (prover : Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec))
+    (prover : Interaction.Spec.StrategyOver (pairedSyntax (OracleComp oSpec))
       Interaction.TwoParty.Participant.focal
       (Context shared).toInteractionSpec
       ((Context shared).toSpecRoles (Roles shared)) OutputP) :
     verifier.run shared stmt inputImpl
-      (Interaction.Spec.Strategy.mapOutputWithRoles fP prover) =
+      (Interaction.Spec.TwoParty.Focal.mapOutput fP prover) =
       (fun z => ⟨z.1, fP z.1 z.2.1, z.2.2⟩) <$>
         verifier.run shared stmt inputImpl prover := by
   simp only [Verifier.run]
-  rw [Interaction.Spec.Strategy.withRolesToConstantMonads_mapOutputWithRoles]
+  rw [Interaction.Spec.TwoParty.Focal.toConstantMonads_mapOutput]
   have hrun :
       Spec.runWithOracleCounterpart inputImpl
         (Context shared) (Roles shared) (OracleDeco shared) []ₒ (fun q => q.elim)
-        (Interaction.Spec.ShapeOver.mapOutput Interaction.Spec.focalMonadicShape
+        (Interaction.Spec.ShapeOver.mapOutput focalMonadicShape
           (agent := PUnit.unit)
           (spec := (Context shared).toInteractionSpec)
-          (ctxs := Interaction.RoleDecoration.withMonads
+          (ctxs := RoleDecoration.withMonads
             ((Context shared).toSpecRoles (Roles shared))
             (Interaction.Spec.MonadDecoration.constant
               ⟨OracleComp oSpec, inferInstance⟩
               (Context shared).toInteractionSpec))
           fP
-          (Interaction.Spec.Strategy.withRolesToConstantMonads
+          (Interaction.Spec.TwoParty.Focal.toConstantMonads
             (Context shared).toInteractionSpec
             ((Context shared).toSpecRoles (Roles shared))
             prover))
@@ -1079,7 +1081,7 @@ theorem Verifier.run_mapOutputWithRoles
         (fun z => ⟨z.1, fP z.1 z.2.1, z.2.2⟩) <$>
           Spec.runWithOracleCounterpart inputImpl
             (Context shared) (Roles shared) (OracleDeco shared) []ₒ (fun q => q.elim)
-            (Interaction.Spec.Strategy.withRolesToConstantMonads
+            (Interaction.Spec.TwoParty.Focal.toConstantMonads
               (Context shared).toInteractionSpec
               ((Context shared).toSpecRoles (Roles shared))
               prover)
@@ -1088,7 +1090,7 @@ theorem Verifier.run_mapOutputWithRoles
       (Spec.runWithOracleCounterpart_mapOutputWithMonads inputImpl
         (Context shared) (Roles shared) (OracleDeco shared) []ₒ (fun q => q.elim)
         fP
-        (Interaction.Spec.Strategy.withRolesToConstantMonads
+        (Interaction.Spec.TwoParty.Focal.toConstantMonads
           (Context shared).toInteractionSpec
           ((Context shared).toSpecRoles (Roles shared))
           prover)
@@ -1099,3 +1101,4 @@ theorem Verifier.run_mapOutputWithRoles
 end Oracle
 
 end Interaction
+

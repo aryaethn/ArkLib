@@ -6,6 +6,8 @@ Authors: Quang Dao
 import ArkLib.ProofSystem.Fri.Interaction.Core
 import ArkLib.Interaction.Oracle.Execution
 
+open Interaction.Spec.TwoParty
+
 /-!
 # FRI Interaction: Final Fold
 
@@ -48,7 +50,7 @@ def finalFoldReduction {SharedIn : Type} {ι : Type} {oSpec : OracleSpec.{0, 0} 
       (fun _ _ => PUnit) where
   prover shared sWithOracles witness := do
     let proverStep :
-        Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec)) Interaction.TwoParty.Participant.focal
+        Interaction.Spec.StrategyOver (pairedSyntax (OracleComp oSpec)) Interaction.TwoParty.Participant.focal
           (finalFoldSpec (F := F) (d := d)).toInteractionSpec
           ((finalFoldSpec (F := F) (d := d)).toSpecRoles
             (finalFoldRoles (F := F) (d := d)))
@@ -72,7 +74,7 @@ def finalFoldReduction {SharedIn : Type} {ι : Type} {oSpec : OracleSpec.{0, 0} 
               shared)
             PUnit :=
         ⟨⟨stmtOut, sWithOracles.oracleStmt⟩, PUnit.unit⟩
-      simpa [Spec.StrategyOver, Spec.pairedSyntax, TwoParty.Participant.focal] using
+      simpa [Spec.StrategyOver, pairedSyntax, TwoParty.Participant.focal] using
         (pure <|
           (pure <|
               (show (finalPoly : CDegreeLE F d) ×
@@ -93,7 +95,7 @@ def finalFoldReduction {SharedIn : Type} {ι : Type} {oSpec : OracleSpec.{0, 0} 
                     shared)
                   PUnit)))
     pure <|
-      Interaction.Spec.Strategy.withRolesToConstantMonads
+      Interaction.Spec.TwoParty.Focal.toConstantMonads
         (finalFoldSpec (F := F) (d := d)).toInteractionSpec
         ((finalFoldSpec (F := F) (d := d)).toSpecRoles
           (finalFoldRoles (F := F) (d := d)))
@@ -111,3 +113,4 @@ end
 end OracleLayer
 
 end Fri
+

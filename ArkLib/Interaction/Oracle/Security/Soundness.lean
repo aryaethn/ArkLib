@@ -5,6 +5,8 @@ Authors: Quang Dao
 -/
 import ArkLib.Interaction.Oracle.Security.Basic
 
+open Interaction.Spec.TwoParty
+
 /-!
 # Oracle Soundness
 
@@ -85,7 +87,7 @@ def soundness
       (inputImpl : InputImpl OStatementIn shared)
       {OutputP : Interaction.Spec.Transcript
         (Context shared).toInteractionSpec → Type _}
-      (prover : Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec))
+      (prover : Interaction.Spec.StrategyOver (pairedSyntax (OracleComp oSpec))
         Interaction.TwoParty.Participant.focal
         (Context shared).toInteractionSpec
         ((Context shared).toSpecRoles (Roles shared)) OutputP),
@@ -207,3 +209,4 @@ theorem soundness_langOut_mono
 end Verifier
 end Oracle
 end Interaction
+

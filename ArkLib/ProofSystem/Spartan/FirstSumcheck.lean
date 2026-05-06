@@ -8,6 +8,8 @@ import ArkLib.Data.Fin.Basic
 import ArkLib.Data.MvPolynomial.Multilinear
 import ArkLib.Interaction.Boundary.Reification
 
+open Interaction.Spec.TwoParty
+
 open MvPolynomial Matrix
 open Interaction OracleComp OracleSpec
 open scoped BigOperators
@@ -593,10 +595,10 @@ def firstSumcheckContinuationReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι
         ⟨PUnit.unit, sWithOracles.oracleStmt⟩
         witness
     pure <|
-      Interaction.Spec.ShapeOver.mapOutput Interaction.Spec.focalMonadicShape
+      Interaction.Spec.ShapeOver.mapOutput focalMonadicShape
         (agent := PUnit.unit)
         (spec := (firstSumcheckContext R pp).toInteractionSpec)
-        (ctxs := Interaction.RoleDecoration.withMonads
+        (ctxs := RoleDecoration.withMonads
           ((firstSumcheckContext R pp).toSpecRoles (firstSumcheckRoles R pp))
           ((firstSumcheckContext R pp).toProverMonadDecoration oSpec))
         (fun _ out =>
@@ -623,3 +625,4 @@ end
 end OracleLayer
 
 end Spartan
+

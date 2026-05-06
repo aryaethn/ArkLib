@@ -5,6 +5,8 @@ Authors: Quang Dao
 -/
 import ArkLib.Interaction.Security.Basic
 
+open Interaction.Spec.TwoParty
+
 /-!
 # Soundness for Interactive Verifiers
 -/
@@ -43,7 +45,7 @@ def soundness
     (ε : ℝ≥0∞) : Prop :=
   ∀ (shared : SharedIn),
   ∀ {OutputP : Spec.Transcript (Context shared) → Type u},
-  ∀ (prover : Spec.StrategyOver (Spec.pairedSyntax m)
+  ∀ (prover : Spec.StrategyOver (pairedSyntax m)
     Interaction.TwoParty.Participant.focal (Context shared) (Roles shared) OutputP),
   ∀ (stmt : StatementIn shared), stmt ∉ langIn shared →
     Pr[fun z => z.2.2 ∈ langOut shared z.1
@@ -145,7 +147,7 @@ theorem soundness_comp
       (StatementOut := fun shared =>
         Spec.Transcript.liftAppend (ctx₁ shared) (ctx₂ shared) (StmtOut shared))
       (fun shared stmt =>
-        Spec.Counterpart.append
+        Spec.TwoParty.Counterpart.append
           (verifier1 shared stmt)
           (fun tr₁ sMid => verifier2 ⟨shared, stmt, tr₁⟩ sMid))
       langIn
@@ -155,28 +157,28 @@ theorem soundness_comp
       (ε₁ + ε₂) := by
   intro shared OutputP prover stmt hs
   change Spec.Transcript ((ctx₁ shared).append (ctx₂ shared)) → Type u at OutputP
-  change Spec.StrategyOver (Spec.pairedSyntax m) Interaction.TwoParty.Participant.focal
+  change Spec.StrategyOver (pairedSyntax m) Interaction.TwoParty.Participant.focal
     ((ctx₁ shared).append (ctx₂ shared))
     ((roles₁ shared).append (roles₂ shared)) OutputP at prover
   let prefixProver :
-      Spec.StrategyOver (Spec.pairedSyntax m) Interaction.TwoParty.Participant.focal
+      Spec.StrategyOver (pairedSyntax m) Interaction.TwoParty.Participant.focal
         (ctx₁ shared) (roles₁ shared) (fun tr₁ =>
-        Spec.StrategyOver (Spec.pairedSyntax m) Interaction.TwoParty.Participant.focal
+        Spec.StrategyOver (pairedSyntax m) Interaction.TwoParty.Participant.focal
           (ctx₂ shared tr₁) (roles₂ shared tr₁)
           (fun tr₂ => OutputP (Spec.Transcript.append (ctx₁ shared) (ctx₂ shared) tr₁ tr₂))) :=
-    Spec.Strategy.splitPrefixWithRoles
+    Spec.TwoParty.Focal.splitPrefix
       (s₂ := ctx₂ shared) (r₁ := roles₁ shared) (r₂ := roles₂ shared) prover
   let mx :
       m ((tr₁ : Spec.Transcript (ctx₁ shared)) ×
-        Spec.StrategyOver (Spec.pairedSyntax m) Interaction.TwoParty.Participant.focal
+        Spec.StrategyOver (pairedSyntax m) Interaction.TwoParty.Participant.focal
           (ctx₂ shared tr₁) (roles₂ shared tr₁)
           (fun tr₂ => OutputP (Spec.Transcript.append (ctx₁ shared) (ctx₂ shared) tr₁ tr₂)) ×
         StmtMid shared tr₁) :=
-    Spec.Strategy.runWithRoles (ctx₁ shared) (roles₁ shared) prefixProver
+    Spec.TwoParty.run (ctx₁ shared) (roles₁ shared) prefixProver
       (verifier1 shared stmt)
   let my :
       ((tr₁ : Spec.Transcript (ctx₁ shared)) ×
-        Spec.StrategyOver (Spec.pairedSyntax m) Interaction.TwoParty.Participant.focal
+        Spec.StrategyOver (pairedSyntax m) Interaction.TwoParty.Participant.focal
           (ctx₂ shared tr₁) (roles₂ shared tr₁)
           (fun tr₂ =>
             OutputP (Spec.Transcript.append (ctx₁ shared) (ctx₂ shared) tr₁ tr₂)) ×
@@ -195,11 +197,11 @@ theorem soundness_comp
           z₂.2.1,
           Spec.Transcript.packAppend
             (ctx₁ shared) (ctx₂ shared) (StmtOut shared) z₁.1 z₂.1 z₂.2.2⟩
-      packOut <$> Spec.Strategy.runWithRoles (ctx₂ shared z₁.1) (roles₂ shared z₁.1) z₁.2.1
+      packOut <$> Spec.TwoParty.run (ctx₂ shared z₁.1) (roles₂ shared z₁.1) z₁.2.1
         (verifier2 ⟨shared, stmt, z₁.1⟩ z₁.2.2)
   let bad₁ :
       ((tr₁ : Spec.Transcript (ctx₁ shared)) ×
-        Spec.StrategyOver (Spec.pairedSyntax m) Interaction.TwoParty.Participant.focal
+        Spec.StrategyOver (pairedSyntax m) Interaction.TwoParty.Participant.focal
           (ctx₂ shared tr₁) (roles₂ shared tr₁)
           (fun tr₂ =>
             OutputP (Spec.Transcript.append (ctx₁ shared) (ctx₂ shared) tr₁ tr₂)) ×
@@ -223,7 +225,7 @@ theorem soundness_comp
     intro z₁ _ hz₁
     rcases z₁ with ⟨tr₁, strat₂, sMid⟩
     let prover₂ : (sMid' : StmtMid shared tr₁) →
-        Spec.StrategyOver (Spec.pairedSyntax m) Interaction.TwoParty.Participant.focal
+        Spec.StrategyOver (pairedSyntax m) Interaction.TwoParty.Participant.focal
           (ctx₂ shared tr₁) (roles₂ shared tr₁)
           (fun tr₂ =>
             OutputP (Spec.Transcript.append (ctx₁ shared) (ctx₂ shared) tr₁ tr₂)) :=
@@ -251,7 +253,7 @@ theorem soundness_comp
           tr₁ tr₂ sOut PUnit.unit)
     have hmy :
         my ⟨tr₁, strat₂, sMid⟩ =
-          packOut <$> Spec.Strategy.runWithRoles (ctx₂ shared tr₁) (roles₂ shared tr₁) strat₂
+          packOut <$> Spec.TwoParty.run (ctx₂ shared tr₁) (roles₂ shared tr₁) strat₂
             (verifier2 ⟨shared, stmt, tr₁⟩ sMid) := by
       simp [my, packOut]
     simpa [Verifier.soundness, bad₁, hmy, hpack, prover₂, probEvent_map] using
@@ -267,7 +269,7 @@ theorem soundness_comp
         StatementIn
         (fun shared => Spec.Transcript.liftAppend (ctx₁ shared) (ctx₂ shared) (StmtOut shared)) :=
     fun shared stmt =>
-      Spec.Counterpart.append
+      Spec.TwoParty.Counterpart.append
         (verifier1 shared stmt)
         (fun tr₁ sMid => verifier2 ⟨shared, stmt, tr₁⟩ sMid)
   have hrun :
@@ -275,25 +277,25 @@ theorem soundness_comp
         mx >>= my := by
     let mappedStep :
         (tr₁ : Spec.Transcript (ctx₁ shared)) → StmtMid shared tr₁ →
-        Spec.StrategyOver (Spec.pairedSyntax m) Interaction.TwoParty.Participant.counterpart
+        Spec.StrategyOver (pairedSyntax m) Interaction.TwoParty.Participant.counterpart
           (ctx₂ shared tr₁) (roles₂ shared tr₁)
           (fun tr₂ =>
             Spec.Transcript.liftAppend (ctx₁ shared) (ctx₂ shared) (StmtOut shared)
               (Spec.Transcript.append (ctx₁ shared) (ctx₂ shared) tr₁ tr₂)) :=
       fun tr₁ sMid =>
-        Spec.Counterpart.mapOutput
+        Spec.TwoParty.Counterpart.mapOutput
           (fun tr₂ sOut =>
             Spec.Transcript.packAppend (ctx₁ shared) (ctx₂ shared) (StmtOut shared) tr₁ tr₂ sOut)
           (verifier2 ⟨shared, stmt, tr₁⟩ sMid)
     have hverifier :
         verifierAppend shared stmt =
-        Spec.Counterpart.appendFlat (verifier1 shared stmt) mappedStep := by
+        Spec.TwoParty.Counterpart.appendFlat (verifier1 shared stmt) mappedStep := by
       simp only [verifierAppend, mappedStep]
-      exact Spec.Counterpart.append_eq_appendFlat_mapOutput
+      exact Spec.TwoParty.Counterpart.append_eq_appendFlat_mapOutput
         (verifier1 shared stmt) (fun tr₁ sMid => verifier2 ⟨shared, stmt, tr₁⟩ sMid)
     let myMapped :
         ((tr₁ : Spec.Transcript (ctx₁ shared)) ×
-          Spec.StrategyOver (Spec.pairedSyntax m) Interaction.TwoParty.Participant.focal
+          Spec.StrategyOver (pairedSyntax m) Interaction.TwoParty.Participant.focal
             (ctx₂ shared tr₁) (roles₂ shared tr₁)
             (fun tr₂ =>
               OutputP (Spec.Transcript.append (ctx₁ shared) (ctx₂ shared) tr₁ tr₂)) ×
@@ -304,9 +306,9 @@ theorem soundness_comp
       fun z₁ =>
         (fun z₂ =>
           ⟨Spec.Transcript.append (ctx₁ shared) (ctx₂ shared) z₁.1 z₂.1, z₂.2.1, z₂.2.2⟩) <$>
-          Spec.Strategy.runWithRoles (ctx₂ shared z₁.1) (roles₂ shared z₁.1) z₁.2.1
+          Spec.TwoParty.run (ctx₂ shared z₁.1) (roles₂ shared z₁.1) z₁.2.1
             (mappedStep z₁.1 z₁.2.2)
-    have hrun' := Spec.Strategy.runWithRoles_compWithRolesFlat_appendFlat_pure
+    have hrun' := Spec.TwoParty.run_compFlat_appendFlat_pure
       (strat₁ := prefixProver)
       (f := fun _ strat₂ => strat₂)
       (cpt₁ := verifier1 shared stmt)
@@ -322,20 +324,20 @@ theorem soundness_comp
         fun tr₂ sOut =>
           Spec.Transcript.packAppend (ctx₁ shared) (ctx₂ shared) (StmtOut shared) tr₁ tr₂ sOut
       have hrunMap :
-          Spec.Strategy.runWithRoles
+          Spec.TwoParty.run
               (ctx₂ shared tr₁) (roles₂ shared tr₁) strat₂ (mappedStep tr₁ sMid) =
             (fun z => ⟨z.1, z.2.1, packStmt z.1 z.2.2⟩) <$>
-              Spec.Strategy.runWithRoles (ctx₂ shared tr₁) (roles₂ shared tr₁) strat₂
+              Spec.TwoParty.run (ctx₂ shared tr₁) (roles₂ shared tr₁) strat₂
                 (verifier2 ⟨shared, stmt, tr₁⟩ sMid) := by
-        simpa [mappedStep, packStmt, Spec.Strategy.mapOutputWithRoles_id] using
-          (Spec.Strategy.runWithRoles_mapOutputWithRoles_mapOutput
+        simpa [mappedStep, packStmt, Spec.TwoParty.Focal.mapOutput_id] using
+          (Spec.TwoParty.run_mapOutput_mapOutput
             (fP := fun _ outP => outP) (fC := packStmt) strat₂
             (verifier2 ⟨shared, stmt, tr₁⟩ sMid))
       simp [myMapped, my, hrunMap, packStmt]
     calc
       Verifier.run verifierAppend shared stmt prover = mx >>= myMapped := by
         simpa [verifierAppend, Verifier.run, hverifier, prefixProver, mx, myMapped,
-          Spec.Strategy.compWithRolesFlat_splitPrefixWithRoles] using hrun'
+          Spec.TwoParty.Focal.compFlat_splitPrefix] using hrun'
       _ = mx >>= my := by
         refine congrArg (fun k => mx >>= k) hmap
   have hconv : inLangOut = fun z =>
@@ -357,3 +359,4 @@ end Verifier
 end Interaction
 
 end
+

@@ -1,6 +1,8 @@
 import ArkLib.Interaction.Boundary.Core
 import ArkLib.Interaction.Oracle.Execution
 
+open Interaction.Spec.TwoParty
+
 /-!
 # Boundaries for `Interaction.Oracle`
 
@@ -842,7 +844,7 @@ theorem pullbackSimulate_eval
 
 end OracleStatementAccess
 
-/-! ## StrategyOver (pairedSyntax and) TwoParty.Participant.counterpart verifier pullback -/
+/-! ## Counterpart verifier pullback -/
 
 /-- Rewire every receiver-node input-oracle query in a verifier counterpart
 through `simulateIn`, while applying an output map `f`. -/
@@ -863,14 +865,14 @@ def pullbackCounterpart
     {ιₐ : Type}
     (accSpec : OracleSpec ιₐ)
     (cpt :
-      Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+      Interaction.Spec.StrategyOver counterpartMonadicSyntax PUnit.unit
         spec.toInteractionSpec
-        (Interaction.RoleDecoration.withMonads (spec.toSpecRoles roles)
+        (RoleDecoration.withMonads (spec.toSpecRoles roles)
           (spec.toMonadDecoration oSpec InnerOStmtIn roles od accSpec))
         Output₁) :
-    Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+    Interaction.Spec.StrategyOver counterpartMonadicSyntax PUnit.unit
       spec.toInteractionSpec
-      (Interaction.RoleDecoration.withMonads (spec.toSpecRoles roles)
+      (RoleDecoration.withMonads (spec.toSpecRoles roles)
         (spec.toMonadDecoration oSpec OuterOStmtIn roles od accSpec))
       Output₂ :=
   match spec, roles, od with
@@ -1003,3 +1005,4 @@ end Verifier
 end Oracle
 
 end Interaction
+

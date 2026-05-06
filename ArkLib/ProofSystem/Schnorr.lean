@@ -6,6 +6,8 @@ Authors: Quang Dao
 import ArkLib.OracleReduction.Basic
 import ArkLib.Interaction.Reduction
 
+open Interaction.Spec.TwoParty
+
 /-!
 # Schnorr's Σ-Protocol — Two Views
 
@@ -194,7 +196,7 @@ The two `example`s below pin down exactly the iterated-monad shapes asserted in
 the docstrings of `prover` and `verifier`. -/
 
 example :
-    Spec.StrategyOver (Spec.pairedSyntax (OracleComp unifSpec))
+    Spec.StrategyOver (pairedSyntax (OracleComp unifSpec))
       Interaction.TwoParty.Participant.focal (spec F G) (proverRoles F G)
       (fun _ => HonestProverOutput (Option Unit) PUnit) =
       OracleComp unifSpec ((_ : G) ×
@@ -202,7 +204,7 @@ example :
           ((_ : F) × (Option Unit × PUnit))))) := rfl
 
 example :
-    Spec.StrategyOver (Spec.pairedSyntax (OracleComp unifSpec))
+    Spec.StrategyOver (pairedSyntax (OracleComp unifSpec))
       Interaction.TwoParty.Participant.counterpart (spec F G) (proverRoles F G)
       (fun _ => Option Unit) =
       ((_ : G) → OracleComp unifSpec (OracleComp unifSpec ((_ : F) ×
@@ -211,3 +213,4 @@ example :
 end Interactive
 
 end Schnorr
+

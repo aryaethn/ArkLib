@@ -5,6 +5,8 @@ Authors: Quang Dao
 -/
 import ArkLib.ProofSystem.Spartan.EvalClaims
 
+open Interaction.Spec.TwoParty
+
 open MvPolynomial Matrix
 open Interaction OracleComp OracleSpec
 open scoped BigOperators
@@ -523,10 +525,10 @@ def secondSumcheckContinuationReduction {ι : Type} {oSpec : OracleSpec.{0, 0} �
         ⟨PUnit.unit, sWithOracles.oracleStmt⟩
         witness
     pure <|
-      Interaction.Spec.ShapeOver.mapOutput Interaction.Spec.focalMonadicShape
+      Interaction.Spec.ShapeOver.mapOutput focalMonadicShape
         (agent := PUnit.unit)
         (spec := (secondSumcheckContext R pp).toInteractionSpec)
-        (ctxs := Interaction.RoleDecoration.withMonads
+        (ctxs := RoleDecoration.withMonads
           ((secondSumcheckContext R pp).toSpecRoles (secondSumcheckRoles R pp))
           ((secondSumcheckContext R pp).toProverMonadDecoration oSpec))
         (fun _ out =>
@@ -553,3 +555,4 @@ end
 end OracleLayer
 
 end Spartan
+

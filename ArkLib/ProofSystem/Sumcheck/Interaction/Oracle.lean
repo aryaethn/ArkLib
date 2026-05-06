@@ -7,6 +7,8 @@ import ArkLib.ProofSystem.Sumcheck.Interaction.Defs
 import ArkLib.Interaction.Oracle.Core
 import ArkLib.Interaction.Oracle.Protocol
 
+open Interaction.Spec.TwoParty
+
 /-!
 # Sum-Check Oracle Round Primitives
 
@@ -78,9 +80,9 @@ abbrev RoundCounterpart
     [∀ i, OracleInterface (OStmtIn i)]
     {ιₐ : Type} (accSpec : OracleSpec.{0, 0} ιₐ)
     (Output : Interaction.Spec.Transcript (roundSpec R deg).toInteractionSpec → Type) :=
-  Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+  Interaction.Spec.StrategyOver counterpartMonadicSyntax PUnit.unit
     (roundSpec R deg).toInteractionSpec
-    (Interaction.RoleDecoration.withMonads ((roundSpec R deg).toSpecRoles (roundRoles R deg))
+    (RoleDecoration.withMonads ((roundSpec R deg).toSpecRoles (roundRoles R deg))
       ((roundSpec R deg).toMonadDecoration oSpec OStmtIn
         (roundRoles R deg) (roundOracleDeco R deg) accSpec))
     Output
@@ -146,3 +148,4 @@ noncomputable def verifierStepOption
 end
 
 end Sumcheck
+

@@ -5,6 +5,8 @@ Authors: Quang Dao
 -/
 import ArkLib.Interaction.Security.Basic
 
+open Interaction.Spec.TwoParty
+
 /-!
 # Claim Trees for Round-by-Round Soundness
 -/
@@ -139,11 +141,11 @@ theorem IsSound.bound_terminalProb
     (tree : ClaimTree spec roles Claim)
     (hSound : tree.IsSound sample)
     {OutputP : Spec.Transcript spec → Type}
-    (prover : Spec.StrategyOver (Spec.pairedSyntax ProbComp)
+    (prover : Spec.StrategyOver (pairedSyntax ProbComp)
       Interaction.TwoParty.Participant.focal spec roles OutputP)
     {claim : Claim} (hBad : ¬ tree.good claim) :
     Pr[fun z => tree.terminalGood z.1 (tree.follow z.1 claim)
-      | Spec.Strategy.runWithRoles spec roles prover
+      | Spec.TwoParty.run spec roles prover
           (randomChallenger sample spec roles)] ≤ tree.maxPathError := by
   sorry
 /-
@@ -151,11 +153,11 @@ theorem IsSound.bound_terminalProb
   induction tree with
   | done good =>
       simpa [ClaimTree.follow, ClaimTree.terminalGood, ClaimTree.maxPathError,
-        Spec.Strategy.runWithRoles_done] using hBad
+        Spec.TwoParty.run_done] using hBad
   | @sender _ X rest rRest good NextClaim next advance ih =>
       rcases hSound with ⟨hStayBad, hChildrenSound⟩
       let mx :
-          ProbComp ((x : X) × Spec.StrategyOver (Spec.pairedSyntax ProbComp)
+          ProbComp ((x : X) × Spec.StrategyOver (pairedSyntax ProbComp)
             Interaction.TwoParty.Participant.focal (rest x) (rRest x)
             (fun tr => OutputP ⟨x, tr⟩)) := prover
       let event :
@@ -163,7 +165,7 @@ theorem IsSound.bound_terminalProb
         fun z => ClaimTree.terminalGood (.sender good NextClaim next advance) z.1
           (ClaimTree.follow (.sender good NextClaim next advance) z.1 claim)
       let my :
-          ((x : X) × Spec.StrategyOver (Spec.pairedSyntax ProbComp)
+          ((x : X) × Spec.StrategyOver (pairedSyntax ProbComp)
             Interaction.TwoParty.Participant.focal (rest x) (rRest x)
             (fun tr => OutputP ⟨x, tr⟩)) →
             ProbComp ((tr : Spec.Transcript (Spec.node X rest)) × OutputP tr × PUnit) :=
@@ -173,7 +175,7 @@ theorem IsSound.bound_terminalProb
                 ((tr : Spec.Transcript (Spec.node X rest)) × OutputP tr × PUnit) :=
             fun z => ⟨⟨xc.1, z.1⟩, z.2.1, z.2.2⟩
           addPrefix <$>
-            Spec.Strategy.runWithRoles (rest xc.1) (rRest xc.1) xc.2
+            Spec.TwoParty.run (rest xc.1) (rRest xc.1) xc.2
               (randomChallenger sample (rest xc.1) (rRest xc.1))
       have hChild :
           ∀ xc, Pr[event | my xc] ≤ ⨆ x, (next x).maxPathError := by
@@ -210,8 +212,8 @@ theorem IsSound.bound_terminalProb
                 exact mul_le_mul' tsum_probOutput_le_one le_rfl
           _ = ⨆ x, (next x).maxPathError := by simp
       have hrun :
-          Spec.Strategy.runWithRoles _ _ prover (randomChallenger sample _ _) = mx >>= my := by
-        simp [mx, my, randomChallenger, Spec.Strategy.runWithRoles_sender]
+          Spec.TwoParty.run _ _ prover (randomChallenger sample _ _) = mx >>= my := by
+        simp [mx, my, randomChallenger, Spec.TwoParty.run_sender]
       simpa [ClaimTree.maxPathError, hrun]
         using hbind
   | @receiver _ X rest rRest good error NextClaim next advance ih =>
@@ -226,7 +228,7 @@ theorem IsSound.bound_terminalProb
           (x : X) → ProbComp ((tr : Spec.Transcript (Spec.node X rest)) × OutputP tr × PUnit) :=
         fun x =>
           let childRun :
-              Spec.StrategyOver (Spec.pairedSyntax ProbComp)
+              Spec.StrategyOver (pairedSyntax ProbComp)
                 Interaction.TwoParty.Participant.focal (rest x) (rRest x)
                 (fun tr => OutputP ⟨x, tr⟩) →
                 ProbComp ((tr : Spec.Transcript (Spec.node X rest)) × OutputP tr × PUnit) :=
@@ -236,7 +238,7 @@ theorem IsSound.bound_terminalProb
                     ((tr : Spec.Transcript (Spec.node X rest)) × OutputP tr × PUnit) :=
                 fun z => ⟨⟨x, z.1⟩, z.2.1, z.2.2⟩
               addPrefix <$>
-                Spec.Strategy.runWithRoles (rest x) (rRest x) nextProver
+                Spec.TwoParty.run (rest x) (rRest x) nextProver
                   (randomChallenger sample (rest x) (rRest x))
           prover x >>= childRun
       have h₁ : Pr[fun x => ¬ p x | sample _] ≤ error := by
@@ -245,7 +247,7 @@ theorem IsSound.bound_terminalProb
           ∀ x ∈ support (sample _), p x → Pr[event | my x] ≤ ⨆ x, (next x).maxPathError := by
         intro x _ hp
         let childRun :
-            Spec.StrategyOver (Spec.pairedSyntax ProbComp)
+            Spec.StrategyOver (pairedSyntax ProbComp)
               Interaction.TwoParty.Participant.focal (rest x) (rRest x)
               (fun tr => OutputP ⟨x, tr⟩) →
               ProbComp ((tr : Spec.Transcript (Spec.node X rest)) × OutputP tr × PUnit) :=
@@ -255,7 +257,7 @@ theorem IsSound.bound_terminalProb
                   ((tr : Spec.Transcript (Spec.node X rest)) × OutputP tr × PUnit) :=
               fun z => ⟨⟨x, z.1⟩, z.2.1, z.2.2⟩
             addPrefix <$>
-              Spec.Strategy.runWithRoles (rest x) (rRest x) nextProver
+              Spec.TwoParty.run (rest x) (rRest x) nextProver
                 (randomChallenger sample (rest x) (rRest x))
         have hChildRun :
             ∀ nextProver ∈ support (prover x), Pr[event | childRun nextProver] ≤
@@ -298,9 +300,9 @@ theorem IsSound.bound_terminalProb
             (p := p) (q := fun z => ¬ event z) h₁
             (fun x hx hp => by simpa using h₂ x hx hp))
       have hrun :
-          Spec.Strategy.runWithRoles _ _ prover (randomChallenger sample _ _) =
+          Spec.TwoParty.run _ _ prover (randomChallenger sample _ _) =
             sample _ >>= my := by
-        simp [my, randomChallenger, Spec.Strategy.runWithRoles_receiver]
+        simp [my, randomChallenger, Spec.TwoParty.run_receiver]
       simpa [ClaimTree.maxPathError, hrun] using hbind
 -/
 
@@ -309,3 +311,4 @@ end ClaimTree
 end Interaction
 
 end
+

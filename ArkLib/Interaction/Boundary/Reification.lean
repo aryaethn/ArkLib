@@ -1,5 +1,7 @@
 import ArkLib.Interaction.Boundary.Oracle
 
+open Interaction.Spec.TwoParty
+
 /-!
 # Boundary Reification for `Interaction.Oracle`
 
@@ -633,10 +635,10 @@ def pullback
     let innerWit :=
       toContext.wit.proj outerStmt outerWit
     let strat ← reduction.prover innerStmt ⟨PUnit.unit, innerOStmtIn⟩ innerWit
-    pure <| Interaction.Spec.ShapeOver.mapOutput Interaction.Spec.focalMonadicShape
+    pure <| Interaction.Spec.ShapeOver.mapOutput focalMonadicShape
       (agent := PUnit.unit)
       (spec := (InnerContext innerStmt).toInteractionSpec)
-      (ctxs := Interaction.RoleDecoration.withMonads
+      (ctxs := RoleDecoration.withMonads
         ((InnerContext innerStmt).toSpecRoles (InnerRoles innerStmt))
         ((InnerContext innerStmt).toProverMonadDecoration oSpec))
       (fun tr out =>
@@ -669,3 +671,4 @@ end Reduction
 end Oracle
 
 end Interaction
+

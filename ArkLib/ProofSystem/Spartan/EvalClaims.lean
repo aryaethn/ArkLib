@@ -5,6 +5,8 @@ Authors: Quang Dao
 -/
 import ArkLib.ProofSystem.Spartan.FirstSumcheck
 
+open Interaction.Spec.TwoParty
+
 open MvPolynomial Matrix
 open Interaction OracleComp OracleSpec
 open scoped BigOperators
@@ -80,7 +82,7 @@ def evalClaimReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι} :
   prover _ sWithOracles _ := do
     let claims := evalClaimsFromOracleStmt R pp sWithOracles.stmt sWithOracles.oracleStmt
     let proverStep :
-        Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec)) Interaction.TwoParty.Participant.focal
+        Interaction.Spec.StrategyOver (pairedSyntax (OracleComp oSpec)) Interaction.TwoParty.Participant.focal
           (evalClaimSpec R).toInteractionSpec
           ((evalClaimSpec R).toSpecRoles (evalClaimRoles R))
           (fun _ =>
@@ -95,7 +97,7 @@ def evalClaimReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι} :
           ⟨⟨⟨claims, sWithOracles.stmt⟩, sWithOracles.oracleStmt⟩,
             PUnit.unit⟩⟩
     pure <|
-      Interaction.Spec.Strategy.withRolesToConstantMonads
+      Interaction.Spec.TwoParty.Focal.toConstantMonads
         (evalClaimSpec R).toInteractionSpec
         ((evalClaimSpec R).toSpecRoles (evalClaimRoles R))
         proverStep
@@ -158,7 +160,7 @@ def linearCombinationReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
       (fun _ _ => PUnit) where
   prover _ sWithOracles _ := do
     let proverStep :
-        Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec)) Interaction.TwoParty.Participant.focal
+        Interaction.Spec.StrategyOver (pairedSyntax (OracleComp oSpec)) Interaction.TwoParty.Participant.focal
           (linearCombinationSpec R).toInteractionSpec
           ((linearCombinationSpec R).toSpecRoles (linearCombinationRoles R))
           (fun _ =>
@@ -173,7 +175,7 @@ def linearCombinationReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
           ⟨⟨⟨ρ, sWithOracles.stmt⟩, sWithOracles.oracleStmt⟩,
             PUnit.unit⟩
     pure <|
-      Interaction.Spec.Strategy.withRolesToConstantMonads
+      Interaction.Spec.TwoParty.Focal.toConstantMonads
         (linearCombinationSpec R).toInteractionSpec
         ((linearCombinationSpec R).toSpecRoles (linearCombinationRoles R))
         proverStep
@@ -192,3 +194,4 @@ end
 end OracleLayer
 
 end Spartan
+

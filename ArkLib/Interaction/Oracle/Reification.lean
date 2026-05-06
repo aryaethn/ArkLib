@@ -6,6 +6,8 @@ Authors: Quang Dao
 import ArkLib.Interaction.Oracle.Security.Completeness
 import ArkLib.Interaction.Oracle.Security.KnowledgeSoundness
 
+open Interaction.Spec.TwoParty
+
 /-!
 # Concrete Reification for Oracle.Spec Protocols
 
@@ -637,7 +639,7 @@ def reifiedSoundness
       (inputImpl : InputImpl OStatementIn shared)
       {OutputP : Interaction.Spec.Transcript
         (Context shared).toInteractionSpec → Type _}
-      (prover : Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec))
+      (prover : Interaction.Spec.StrategyOver (pairedSyntax (OracleComp oSpec))
         Interaction.TwoParty.Participant.focal
         (Context shared).toInteractionSpec
         ((Context shared).toSpecRoles (Roles shared)) OutputP),
@@ -686,7 +688,7 @@ def reifiedKnowledgeSoundness
       StatementOut OStatementOut WitnessOut,
   ∀ (shared : SharedIn) (stmt : StatementIn shared)
       (inputImpl : InputImpl OStatementIn shared)
-      (prover : Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec))
+      (prover : Interaction.Spec.StrategyOver (pairedSyntax (OracleComp oSpec))
         Interaction.TwoParty.Participant.focal
         (Context shared).toInteractionSpec
         ((Context shared).toSpecRoles (Roles shared))
@@ -762,19 +764,19 @@ theorem reifiedKnowledgeSoundness_implies_reifiedSoundness
   rcases hKS with ⟨extractor, hKS⟩
   intro shared stmt inputImpl OutputP prover hs
   let proverKS :
-      Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec))
+      Interaction.Spec.StrategyOver (pairedSyntax (OracleComp oSpec))
         Interaction.TwoParty.Participant.focal
         (Context shared).toInteractionSpec
         ((Context shared).toSpecRoles (Roles shared))
         (fun tr => WitnessOut shared ((Context shared).projectPublic tr)) :=
-    Interaction.Spec.Strategy.mapOutputWithRoles
+    Interaction.Spec.TwoParty.Focal.mapOutput
       (fun tr _ => acceptWitness shared tr) prover
   have hrun :
       verifier.run shared stmt inputImpl proverKS =
         (fun z => ⟨z.1, acceptWitness shared z.1, z.2.2⟩) <$>
           verifier.run shared stmt inputImpl prover := by
     simp only [proverKS]
-    rw [Verifier.run_mapOutputWithRoles]
+    rw [Verifier.run_mapOutput]
   have hKS' := hKS shared stmt inputImpl proverKS
   rw [hrun, probEvent_map] at hKS'
   refine le_trans ?_ hKS'
@@ -798,3 +800,4 @@ end Verifier
 
 end Oracle
 end Interaction
+

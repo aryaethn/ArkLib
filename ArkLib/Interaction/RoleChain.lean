@@ -6,6 +6,8 @@ Authors: Quang Dao
 import VCVio.Interaction.Basic.Replicate
 import VCVio.Interaction.TwoParty.Compose
 
+open Interaction.Spec.TwoParty
+
 /-!
 # Decorated Two-Party Chains
 
@@ -141,7 +143,7 @@ def ofChain {m : Type u → Type u} [Monad m]
   | 0, _, state, _ => pure state
   | n + 1, ⟨spec, roles, cont⟩, state, steps => do
     let strat ← steps.1 state
-    @Strategy.compWithRoles m _ spec (fun tr => RoleChain.toSpec n (cont tr))
+    @TwoParty.Focal.comp m _ spec (fun tr => RoleChain.toSpec n (cont tr))
       roles (fun tr => RoleChain.toRoles n (cont tr))
       (fun tr => State (cont tr))
       (fun tr₁ tr₂ => RoleChain.outputFamily State n (cont tr₁) tr₂)
@@ -151,7 +153,7 @@ def ofChain {m : Type u → Type u} [Monad m]
 
 end Strategy
 
-/-! ## StrategyOver (pairedSyntax composition) TwoParty.Participant.counterpart -/
+/-! ## Counterpart composition -/
 
 namespace Counterpart
 
@@ -176,7 +178,7 @@ def ofChain {m : Type u → Type u} [Monad m]
       (RoleChain.toRoles n c) (fun tr => RoleChain.outputFamily State n c tr)
   | 0, _, state, _ => state
   | n + 1, ⟨spec, roles, cont⟩, state, steps =>
-    @Counterpart.append m _ spec (fun tr => RoleChain.toSpec n (cont tr))
+    @TwoParty.Counterpart.append m _ spec (fun tr => RoleChain.toSpec n (cont tr))
       roles (fun tr => RoleChain.toRoles n (cont tr))
       (fun tr => State (cont tr))
       (fun tr₁ tr₂ => RoleChain.outputFamily State n (cont tr₁) tr₂)
@@ -189,3 +191,4 @@ end Counterpart
 end Spec
 
 end Interaction
+

@@ -7,6 +7,8 @@ import ArkLib.Interaction.Reduction
 import ArkLib.Interaction.Oracle.Spec
 import VCVio.Interaction.TwoParty.Refine
 
+open Interaction.Spec.TwoParty
+
 /-!
 # Oracle.Spec Prover, Verifier, and Reduction
 
@@ -71,7 +73,7 @@ namespace Prover
 effects.
 
 The setup monad produces the focal `StrategyOver` induced by
-`Interaction.Spec.focalMonadicSyntax`. The oracle spec supplies the control
+`focalMonadicSyntax`. The oracle spec supplies the control
 tree and roles, while `ProverMd` supplies the node effect used by the prover at
 each runtime node. The ordinary `Oracle.Prover` below specializes setup and all
 prover nodes to `OracleComp oSpec`. -/
@@ -96,7 +98,7 @@ abbrev WithMonads (Setup : Type → Type)
     StatementWithOracles StatementIn OStatementIn shared →
       WitnessIn shared →
         Setup (Interaction.Spec.StrategyOver
-          Interaction.Spec.focalMonadicSyntax
+          focalMonadicSyntax
           PUnit.unit
           (Context shared).toInteractionSpec
           (RoleDecoration.withMonads
@@ -136,6 +138,8 @@ abbrev Prover {ι : Type} (oSpec : OracleSpec.{0, 0} ι)
     (fun shared => (Context shared).toProverMonadDecoration oSpec)
     StatementIn WitnessIn OStatementIn StatementOut OStatementOut WitnessOut
 
+namespace Verifier
+
 /-- Oracle verifier on `Oracle.Spec` with an explicit verifier-side monad
 decoration.
 
@@ -148,7 +152,7 @@ oracle messages.
 The `simulate` field remains oracle-specific: it provides query-level access to
 output oracle statements, indexed by `PublicTranscript` so it is definitionally
 independent of oracle message values. -/
-structure Verifier.WithMonads {ι : Type} (oSpec : OracleSpec.{0, 0} ι)
+structure WithMonads {ι : Type} (oSpec : OracleSpec.{0, 0} ι)
     (SharedIn : Type)
     (Context : SharedIn → Spec)
     (Roles : (shared : SharedIn) → Spec.RoleDeco (Context shared))
@@ -169,7 +173,7 @@ structure Verifier.WithMonads {ι : Type} (oSpec : OracleSpec.{0, 0} ι)
   toFun : (shared : SharedIn) →
     StatementIn shared →
       Interaction.Spec.StrategyOver
-        Interaction.Spec.counterpartMonadicSyntax
+        counterpartMonadicSyntax
         PUnit.unit
         (Context shared).toInteractionSpec
         (RoleDecoration.withMonads
@@ -182,11 +186,13 @@ structure Verifier.WithMonads {ι : Type} (oSpec : OracleSpec.{0, 0} ι)
       (OracleComp
         ([OStatementIn shared]ₒ + (Context shared).toOracleSpec (OracleDeco shared) pt))
 
+end Verifier
+
 /-- Oracle verifier on `Oracle.Spec`: the interactive verifier (`toFun`) and
 output-oracle simulation (`simulate`), both on the same `Oracle.Spec`.
 
 The verifier uses the counterpart `StrategyOver` induced by
-`Interaction.Spec.counterpartMonadicSyntax` with `toMonadDecoration`, giving
+`counterpartMonadicSyntax` with `toMonadDecoration`, giving
 `Id` monad at sender/oracle nodes and `OracleComp` at receiver nodes. The
 accumulated oracle spec starts at `[]ₒ` and grows as `.oracle` nodes are
 traversed, so the verifier's oracle access is fully determined by the protocol
@@ -314,3 +320,4 @@ def Reduction.toVerifier
 end Oracle
 
 end Interaction
+

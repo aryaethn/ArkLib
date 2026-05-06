@@ -9,6 +9,8 @@ import VCVio.Interaction.TwoParty.Strategy
 import ArkLib.Interaction.Reduction
 import ArkLib.OracleReduction.OracleInterface
 
+open Interaction.Spec.TwoParty
+
 /-!
 # Oracle Protocol Specification
 
@@ -216,7 +218,7 @@ def recOn {motive : Spec → Sort v}
 is stored. -/
 def RoleDeco : Spec → Type
   | .done => PUnit
-  | .«public» _ rest => Role × ((x : _) → RoleDeco (rest x))
+  | .«public» _ rest => Interaction.TwoParty.Role × ((x : _) → RoleDeco (rest x))
   | .«oracle» _ cont => RoleDeco (cont ⟨⟩)
 
 /-- Oracle interface assignment. `.oracle` nodes carry an `OracleInterface`
@@ -446,13 +448,13 @@ theorem accumulatedImpl_oracle (X : Type) (cont : PUnit.{1} → Spec)
 
 /-- The pure node monad used at nodes where a party only observes a message and
 does not perform ambient effects. -/
-abbrev pureNodeMonad : BundledMonad :=
+abbrev pureNodeMonad : BundledMonad.{0, 0} :=
   ⟨Id, inferInstance⟩
 
 /-! ## Prover monad decoration -/
 
 /-- The default prover node monad for native oracle reductions. -/
-abbrev proverNodeMonad {ι : Type} (oSpec : OracleSpec.{0, 0} ι) : BundledMonad :=
+abbrev proverNodeMonad {ι : Type} (oSpec : OracleSpec.{0, 0} ι) : BundledMonad.{0, 0} :=
   ⟨OracleComp oSpec, inferInstance⟩
 
 /-- Default prover-side monad decoration: every prover node runs in the same
@@ -477,7 +479,7 @@ statements, and accumulated prover oracle messages. -/
 abbrev verifierAccessMonad {ι : Type} (oSpec : OracleSpec.{0, 0} ι)
     {ιₛᵢ : Type} (OStmtIn : ιₛᵢ → Type) [∀ i, OracleInterface.{0, 0} (OStmtIn i)]
     {ιₐ : Type} (accSpec : OracleSpec.{0, 0} ιₐ) :
-    BundledMonad :=
+    BundledMonad.{0, 0} :=
   ⟨OracleComp (verifierAccessSpec oSpec OStmtIn accSpec), inferInstance⟩
 
 /-- Compute a verifier-side `MonadDecoration` from caller-supplied node effects.
@@ -488,7 +490,7 @@ oracle-message nodes. The standard oracle verifier is recovered by choosing
 `Id` for sender/oracle nodes and `verifierAccessMonad` for receiver nodes. -/
 def toMonadDecorationWith
     (senderMonad receiverMonad oracleMonad :
-      {ιₐ : Type} → OracleSpec.{0, 0} ιₐ → BundledMonad) :
+      {ιₐ : Type} → OracleSpec.{0, 0} ιₐ → BundledMonad.{0, 0}) :
     (s : Spec) → (roles : RoleDeco s) → (od : OracleDeco s) →
     {ιₐ : Type} → OracleSpec.{0, 0} ιₐ →
     Interaction.Spec.MonadDecoration s.toInteractionSpec
@@ -1169,3 +1171,4 @@ def restrictRight {r : Type → Type} [Monad r] :
 end Spec
 
 end Interaction.Oracle
+

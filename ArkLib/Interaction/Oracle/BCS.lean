@@ -5,6 +5,8 @@ Authors: Quang Dao
 -/
 import ArkLib.Interaction.Oracle.Spec
 
+open Interaction.Spec.TwoParty
+
 /-!
 # BCS Transform on Oracle.Spec
 
@@ -197,11 +199,11 @@ compatibility between original and BCS strategies. -/
 def wrapWithCommitments :
     (s : Oracle.Spec) → (roles : RoleDeco s) → (cd : CommitDeco m s) →
     (OutType : SharedTranscript s cd → Type) →
-    Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax m)
+    Interaction.Spec.StrategyOver (pairedSyntax m)
       Interaction.TwoParty.Participant.focal
       s.toInteractionSpec (s.toSpecRoles roles)
       (fun tr => OutType (projectShared s cd tr)) →
-    Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax m)
+    Interaction.Spec.StrategyOver (pairedSyntax m)
       Interaction.TwoParty.Participant.focal
       (bcsSpec s cd).toInteractionSpec
       ((bcsSpec s cd).toSpecRoles (bcsRoleDeco s roles cd))
@@ -229,15 +231,15 @@ def wrapWithCommitments :
 as witness for the opening phase.
 
 At committed `.oracle` nodes, the oracle message `x` and commitment witness
-are extracted and paired into the output via `Strategy.mapOutputWithRoles`. -/
+are extracted and paired into the output via `Spec.TwoParty.Focal.mapOutput`. -/
 def wrapWithCommitmentsExt :
     (s : Oracle.Spec) → (roles : RoleDeco s) → (cd : CommitDeco m s) →
     (OutType : SharedTranscript s cd → Type) →
-    Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax m)
+    Interaction.Spec.StrategyOver (pairedSyntax m)
       Interaction.TwoParty.Participant.focal
       s.toInteractionSpec (s.toSpecRoles roles)
       (fun tr => OutType (projectShared s cd tr)) →
-    Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax m)
+    Interaction.Spec.StrategyOver (pairedSyntax m)
       Interaction.TwoParty.Participant.focal
       (bcsSpec s cd).toInteractionSpec
       ((bcsSpec s cd).toSpecRoles (bcsRoleDeco s roles cd))
@@ -257,7 +259,7 @@ def wrapWithCommitmentsExt :
       let ⟨x, restStrategy⟩ ← strategy
       let ⟨cm, cwit⟩ ← nc.commit x
       let bcsRest := wrapWithCommitmentsExt (cont ⟨⟩) roles cdRest OutType restStrategy
-      return ⟨cm, Interaction.Spec.Strategy.mapOutputWithRoles
+      return ⟨cm, Interaction.Spec.TwoParty.Focal.mapOutput
         (fun _ ⟨out, owit⟩ => (out, x, cwit, owit)) bcsRest⟩
   | .«oracle» _ cont, roles, ⟨none, cdRest⟩, OutType, strategy => do
       let ⟨x, restStrategy⟩ ← strategy
@@ -334,9 +336,9 @@ structure PublicQueryVerifier {ι : Type} (oSpec : OracleSpec.{0, 0} ι)
     (od : OracleDeco s) (cd : CommitDeco (OracleComp oSpec) s)
     (StmtIn : Type) (StmtOut : SharedTranscript s cd → Type) where
   challenger : StmtIn →
-    Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+    Interaction.Spec.StrategyOver counterpartMonadicSyntax PUnit.unit
       (bcsSpec s cd).toInteractionSpec
-      (Interaction.RoleDecoration.withMonads
+      (RoleDecoration.withMonads
         ((bcsSpec s cd).toSpecRoles (bcsRoleDeco s roles cd))
         ((bcsSpec s cd).toMonadDecoration oSpec OStmtIn
           (bcsRoleDeco s roles cd) (bcsOracleDeco s od cd) []ₒ))
@@ -365,11 +367,11 @@ whose output includes both the original output and the `OracleWitness`. -/
 def bcsPhase1Prover
     (s : Oracle.Spec) (roles : RoleDeco s) (cd : CommitDeco (OracleComp oSpec) s)
     (OutType : SharedTranscript s cd → Type) :
-    Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec))
+    Interaction.Spec.StrategyOver (pairedSyntax (OracleComp oSpec))
       Interaction.TwoParty.Participant.focal
       s.toInteractionSpec (s.toSpecRoles roles)
       (fun tr => OutType (projectShared s cd tr)) →
-    Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec))
+    Interaction.Spec.StrategyOver (pairedSyntax (OracleComp oSpec))
       Interaction.TwoParty.Participant.focal
       (bcsSpec s cd).toInteractionSpec
       ((bcsSpec s cd).toSpecRoles (bcsRoleDeco s roles cd))
@@ -471,3 +473,4 @@ end Opening
 end Spec
 
 end Interaction.Oracle
+

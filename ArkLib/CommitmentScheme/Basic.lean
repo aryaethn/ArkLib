@@ -8,6 +8,8 @@ import VCVio
 import ArkLib.OracleReduction.Security.Basic
 import ArkLib.Interaction.Reduction
 
+open Interaction.Spec.TwoParty
+
 /-!
 # Commitment Schemes with Oracle Openings
 
@@ -195,9 +197,9 @@ no input. After interacting according to `spec`, the prover outputs
 `CommType × WitnessType` while the verifier outputs `CommType`. -/
 structure Commit (m : Type → Type)
     (Data : Type) (CommType : Type) (WitnessType : Type) where
-  spec : _root_.Interaction.Spec.{0}
-  roles : _root_.Interaction.RoleDecoration spec
-  reduction : _root_.Interaction.Reduction m Unit
+  spec : Interaction.Spec.{0}
+  roles : RoleDecoration spec
+  reduction : Interaction.Reduction m Unit
     (fun _ => spec) (fun _ => roles)
     (fun _ => Unit) (fun _ => Data)
     (fun _ _ => CommType) (fun _ _ => WitnessType)
@@ -208,9 +210,9 @@ prover (holding `WitnessType`) convinces the verifier to accept or reject. -/
 structure Opening (m : Type → Type)
     (Data : Type) (CommType : Type) (WitnessType : Type)
     [oi : OracleInterface Data] where
-  spec : _root_.Interaction.Spec.{0}
-  roles : _root_.Interaction.RoleDecoration spec
-  proof : _root_.Interaction.Proof m Unit
+  spec : Interaction.Spec.{0}
+  roles : RoleDecoration spec
+  proof : Interaction.Proof m Unit
     (fun _ => spec) (fun _ => roles)
     (fun _ => CommType × (q : oi.Query) × oi.Response q)
     (fun _ => WitnessType)
@@ -271,3 +273,4 @@ end Opening
 end Interaction
 
 end Commitment
+

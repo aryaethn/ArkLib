@@ -1,6 +1,8 @@
 import ArkLib.Interaction.Boundary.Compatibility
 import ArkLib.Interaction.Security.Completeness
 
+open Interaction.Spec.TwoParty
+
 /-!
 # Interaction-Native Boundaries: Plain Security Transport
 
@@ -49,7 +51,7 @@ theorem run_pullback
     (outer : OuterStmtIn)
     {OutputP : Spec.Transcript (InnerSpec (projection.proj outer)) → Type}
     (prover :
-      Spec.StrategyOver (Spec.pairedSyntax m) Interaction.TwoParty.Participant.focal
+      Spec.StrategyOver (pairedSyntax m) Interaction.TwoParty.Participant.focal
         (InnerSpec (projection.proj outer))
         (InnerRoles (projection.proj outer))
         OutputP) :
@@ -61,7 +63,7 @@ theorem run_pullback
       (fun z => ⟨z.1, z.2.1, boundary.lift outer z.1 z.2.2⟩) <$>
         Interaction.Verifier.run verifier (projection.proj outer) PUnit.unit prover := by
   simpa [Interaction.Verifier.run, pullback] using
-    (Spec.Strategy.runWithRoles_mapOutputWithRoles_mapOutput
+    (Spec.TwoParty.run_mapOutput_mapOutput
       (fP := fun _ out => out)
       (fC := fun tr stmtOut => boundary.lift outer tr stmtOut)
       prover
@@ -119,7 +121,7 @@ theorem probAccept_pullback_le
     (outer : OuterStmtIn)
     {OutputP : Spec.Transcript (InnerSpec (projection.proj outer)) → Type}
     (prover :
-      Spec.StrategyOver (Spec.pairedSyntax m) Interaction.TwoParty.Participant.focal
+      Spec.StrategyOver (pairedSyntax m) Interaction.TwoParty.Participant.focal
         (InnerSpec (projection.proj outer))
         (InnerRoles (projection.proj outer))
         OutputP) :
@@ -247,7 +249,7 @@ theorem execute_pullback
           PUnit.unit
           (boundary.wit.proj outerStmt outerWit) := by
   simp [Interaction.Reduction.execute, pullback, Prover.pullback, Verifier.pullback,
-    Spec.Strategy.runWithRoles_mapOutputWithRoles_mapOutput]
+    Spec.TwoParty.run_mapOutput_mapOutput]
 
 section Completeness
 
@@ -457,3 +459,4 @@ end Reduction
 
 end Boundary
 end Interaction
+

@@ -6,6 +6,8 @@ Authors: Quang Dao
 import ArkLib.ProofSystem.Spartan.OracleInterfaces
 import ArkLib.Interaction.Oracle.Composition
 
+open Interaction.Spec.TwoParty
+
 open MvPolynomial Matrix
 open Interaction OracleComp OracleSpec
 open scoped BigOperators
@@ -70,7 +72,7 @@ def witnessReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι} :
       (fun _ _ => Witness R pp) where
   prover _ sWithOracles witness := do
     let proverStep :
-        Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec)) Interaction.TwoParty.Participant.focal
+        Interaction.Spec.StrategyOver (pairedSyntax (OracleComp oSpec)) Interaction.TwoParty.Participant.focal
           (witnessSpec R pp).toInteractionSpec
           ((witnessSpec R pp).toSpecRoles (witnessRoles R pp))
           (fun _ =>
@@ -93,7 +95,7 @@ def witnessReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι} :
                 PUnit.unit)
               (Witness R pp))⟩
     pure <|
-      Interaction.Spec.Strategy.withRolesToConstantMonads
+      Interaction.Spec.TwoParty.Focal.toConstantMonads
         (witnessSpec R pp).toInteractionSpec
         ((witnessSpec R pp).toSpecRoles (witnessRoles R pp))
         proverStep
@@ -155,7 +157,7 @@ def firstChallengeReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
       (fun _ _ => PUnit) where
   prover _ sWithOracles _ := do
     let proverStep :
-        Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec)) Interaction.TwoParty.Participant.focal
+        Interaction.Spec.StrategyOver (pairedSyntax (OracleComp oSpec)) Interaction.TwoParty.Participant.focal
           (firstChallengeSpec R pp).toInteractionSpec
           ((firstChallengeSpec R pp).toSpecRoles (firstChallengeRoles R pp))
           (fun _ =>
@@ -171,7 +173,7 @@ def firstChallengeReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
           ⟨⟨state, sWithOracles.oracleStmt⟩,
             PUnit.unit⟩
     pure <|
-      Interaction.Spec.Strategy.withRolesToConstantMonads
+      Interaction.Spec.TwoParty.Focal.toConstantMonads
         (firstChallengeSpec R pp).toInteractionSpec
         ((firstChallengeSpec R pp).toSpecRoles (firstChallengeRoles R pp))
         proverStep
@@ -242,3 +244,4 @@ end
 end OracleLayer
 
 end Spartan
+

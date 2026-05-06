@@ -48,12 +48,12 @@ theorem outputRealizes_pullbackSimulate
         (InnerContext := InnerContext)
         OuterOStmtIn InnerOStmtIn InnerOStmtOut OuterOStmtOut)
     (hRealizes : Realizes access reification)
-    (oStmtIn : _root_.Interaction.OracleStatement OuterOStmtIn)
+    (oStmtIn : Interaction.OracleStatement OuterOStmtIn)
     (pt : Interaction.Oracle.Spec.PublicTranscript InnerContext)
     {ιₘ : Type}
     (msgSpec : OracleSpec ιₘ)
     (msgImpl : QueryImpl msgSpec Id)
-    (innerOStmtOut : _root_.Interaction.OracleStatement (InnerOStmtOut pt))
+    (innerOStmtOut : Interaction.OracleStatement (InnerOStmtOut pt))
     (simulateInner :
       QueryImpl [InnerOStmtOut pt]ₒ
         (OracleComp ([InnerOStmtIn]ₒ + msgSpec)))

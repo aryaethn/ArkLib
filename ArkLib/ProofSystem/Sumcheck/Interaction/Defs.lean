@@ -9,6 +9,8 @@ import ArkLib.Interaction.Reduction
 import ArkLib.Interaction.RoleChain
 import ArkLib.ProofSystem.Sumcheck.Interaction.CompPoly
 
+open Interaction.Spec.TwoParty
+
 /-!
 # Sum-Check Interaction: Shared Definitions
 
@@ -177,3 +179,4 @@ def statementResult {m_dom : Nat} (D : Fin m_dom → R) :
 end
 
 end Sumcheck
+

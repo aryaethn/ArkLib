@@ -5,6 +5,8 @@ Authors: Quang Dao
 -/
 import ArkLib.Interaction.Oracle.Composition
 
+open Interaction.Spec.TwoParty
+
 /-!
 # N-ary Chain Composition for Oracle.Spec
 
@@ -180,7 +182,7 @@ def RoundSteps {m : Type → Type} [Monad m]
   | n + 1, c =>
       ((state : State c) →
         m
-          (Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax m)
+          (Interaction.Spec.StrategyOver (pairedSyntax m)
             Interaction.TwoParty.Participant.focal
             c.1.toInteractionSpec (c.1.toSpecRoles c.2.1)
             (fun tr => State (c.2.2.2 (c.1.projectPublic tr))))) ×
@@ -192,7 +194,7 @@ def comp
     (State : {k : Nat} → Chain k → Type) :
     (n : Nat) → (c : Chain n) → State c → RoundSteps (m := m) State n c →
     m
-      (Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax m)
+      (Interaction.Spec.StrategyOver (pairedSyntax m)
         Interaction.TwoParty.Participant.focal
         (toSpec n c).toInteractionSpec
         ((toSpec n c).toSpecRoles (toRoles n c))
@@ -228,9 +230,9 @@ def RoundSteps
   | 0, _ => PUnit
   | n + 1, c =>
       ((state : State c) →
-        Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+        Interaction.Spec.StrategyOver counterpartMonadicSyntax PUnit.unit
           c.1.toInteractionSpec
-          (Interaction.RoleDecoration.withMonads (c.1.toSpecRoles c.2.1)
+          (RoleDecoration.withMonads (c.1.toSpecRoles c.2.1)
             (c.1.toMonadDecoration oSpec OStmtIn c.2.1 c.2.2.1 []ₒ))
           (fun tr => State (c.2.2.2 (c.1.projectPublic tr)))) ×
       ((pt : PublicTranscript c.1) → RoundSteps (oSpec := oSpec) (OStmtIn := OStmtIn)
@@ -243,9 +245,9 @@ def comp
     (State : {k : Nat} → Chain k → Type) :
     (n : Nat) → (c : Chain n) → State c → RoundSteps (oSpec := oSpec)
       (OStmtIn := OStmtIn) State n c →
-    Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+    Interaction.Spec.StrategyOver counterpartMonadicSyntax PUnit.unit
       (toSpec n c).toInteractionSpec
-      (Interaction.RoleDecoration.withMonads ((toSpec n c).toSpecRoles (toRoles n c))
+      (RoleDecoration.withMonads ((toSpec n c).toSpecRoles (toRoles n c))
         ((toSpec n c).toMonadDecoration oSpec OStmtIn (toRoles n c) (toOracleDeco n c) []ₒ))
       (fun tr => outputFamily State n c ((toSpec n c).projectPublic tr))
   | 0, _, state, _ => state
@@ -349,7 +351,7 @@ def Reduction.ofChain
     let strat ← Spec.Chain.Prover.comp (ProverState shared)
       n (c shared) (proverInit shared sWithOracles w) (proverSteps shared)
     let strat' :=
-      Interaction.Spec.Strategy.mapOutputWithRoles
+      Interaction.Spec.TwoParty.Focal.mapOutput
         (fun tr proverState =>
           let pt := (Spec.Chain.toSpec n (c shared)).projectPublic tr
           (⟨⟨proverStmtResult shared pt proverState,
@@ -362,16 +364,16 @@ def Reduction.ofChain
               (WitnessOut shared pt)))
         strat
     pure <|
-      Interaction.Spec.Strategy.withRolesToConstantMonads
+      Interaction.Spec.TwoParty.Focal.toConstantMonads
         (Spec.Chain.toSpec n (c shared)).toInteractionSpec
         ((Spec.Chain.toSpec n (c shared)).toSpecRoles (Spec.Chain.toRoles n (c shared)))
         strat'
   verifier := {
     toFun := fun shared stmtIn =>
-      Interaction.Spec.ShapeOver.mapOutput Interaction.Spec.counterpartMonadicShape
+      Interaction.Spec.ShapeOver.mapOutput counterpartMonadicShape
         (agent := PUnit.unit)
         (spec := (Spec.Chain.toSpec n (c shared)).toInteractionSpec)
-        (ctxs := Interaction.RoleDecoration.withMonads
+        (ctxs := RoleDecoration.withMonads
           ((Spec.Chain.toSpec n (c shared)).toSpecRoles (Spec.Chain.toRoles n (c shared)))
           ((Spec.Chain.toSpec n (c shared)).toMonadDecoration oSpec (OStatementIn shared)
             (Spec.Chain.toRoles n (c shared)) (Spec.Chain.toOracleDeco n (c shared)) []ₒ))
@@ -459,7 +461,7 @@ def RoundSteps {Idx : Type} {m : Type → Type} [Monad m]
   | n + 1, idx, c =>
       ((state : State idx) →
         m
-          (Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax m)
+          (Interaction.Spec.StrategyOver (pairedSyntax m)
             Interaction.TwoParty.Participant.focal
             c.1.toInteractionSpec (c.1.toSpecRoles c.2.1)
             (fun tr => State (c.2.2.2 (c.1.projectPublic tr)).1))) ×
@@ -472,7 +474,7 @@ def comp {Idx : Type}
     (n : Nat) → {idx : Idx} → (c : IndexedChain Idx n idx) → State idx →
     RoundSteps (m := m) State n c →
     m
-      (Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax m)
+      (Interaction.Spec.StrategyOver (pairedSyntax m)
         Interaction.TwoParty.Participant.focal
         (toSpec n c).toInteractionSpec
         ((toSpec n c).toSpecRoles (toRoles n c))
@@ -502,9 +504,9 @@ def RoundSteps {Idx : Type}
   | 0, _, _ => PUnit
   | n + 1, idx, c =>
       ((state : State idx) →
-        Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+        Interaction.Spec.StrategyOver counterpartMonadicSyntax PUnit.unit
           c.1.toInteractionSpec
-          (Interaction.RoleDecoration.withMonads (c.1.toSpecRoles c.2.1)
+          (RoleDecoration.withMonads (c.1.toSpecRoles c.2.1)
             (c.1.toMonadDecoration oSpec OStmtIn c.2.1 c.2.2.1 []ₒ))
           (fun tr => State (c.2.2.2 (c.1.projectPublic tr)).1)) ×
       ((pt : PublicTranscript c.1) → RoundSteps (oSpec := oSpec) (OStmtIn := OStmtIn)
@@ -517,9 +519,9 @@ def comp {Idx : Type}
     (State : Idx → Type) :
     (n : Nat) → {idx : Idx} → (c : IndexedChain Idx n idx) → State idx →
     RoundSteps (oSpec := oSpec) (OStmtIn := OStmtIn) State n c →
-    Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+    Interaction.Spec.StrategyOver counterpartMonadicSyntax PUnit.unit
       (toSpec n c).toInteractionSpec
-      (Interaction.RoleDecoration.withMonads ((toSpec n c).toSpecRoles (toRoles n c))
+      (RoleDecoration.withMonads ((toSpec n c).toSpecRoles (toRoles n c))
         ((toSpec n c).toMonadDecoration oSpec OStmtIn (toRoles n c) (toOracleDeco n c) []ₒ))
       (fun tr => outputFamily State n c ((toSpec n c).projectPublic tr))
   | 0, _, _, state, _ => state
@@ -620,7 +622,7 @@ def RoundSteps {Idx : Type} {m : Type → Type} [Monad m]
   | n + 1, idx, _, .cons spec roles _ nextIdx cont =>
       ((state : State idx) →
         m
-          (Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax m)
+          (Interaction.Spec.StrategyOver (pairedSyntax m)
             Interaction.TwoParty.Participant.focal
             spec.toInteractionSpec (spec.toSpecRoles roles)
             (fun tr => State (nextIdx (spec.projectPublic tr))))) ×
@@ -633,7 +635,7 @@ def comp {Idx : Type}
     (n : Nat) → {idx finish : Idx} → (c : PathChain Idx n idx finish) → State idx →
     RoundSteps (m := m) State n c →
     m
-      (Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax m)
+      (Interaction.Spec.StrategyOver (pairedSyntax m)
         Interaction.TwoParty.Participant.focal
         (toSpec n c).toInteractionSpec
         ((toSpec n c).toSpecRoles (toRoles n c))
@@ -663,9 +665,9 @@ def RoundSteps {Idx : Type}
   | 0, _, _, .nil => PUnit
   | n + 1, idx, _, .cons spec roles od nextIdx cont =>
       ((state : State idx) →
-        Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+        Interaction.Spec.StrategyOver counterpartMonadicSyntax PUnit.unit
           spec.toInteractionSpec
-          (Interaction.RoleDecoration.withMonads (spec.toSpecRoles roles)
+          (RoleDecoration.withMonads (spec.toSpecRoles roles)
             (spec.toMonadDecoration oSpec OStmtIn roles od []ₒ))
           (fun tr => State (nextIdx (spec.projectPublic tr)))) ×
       ((pt : PublicTranscript spec) → RoundSteps (oSpec := oSpec) (OStmtIn := OStmtIn)
@@ -678,9 +680,9 @@ def comp {Idx : Type}
     (State : Idx → Type) :
     (n : Nat) → {idx finish : Idx} → (c : PathChain Idx n idx finish) → State idx →
     RoundSteps (oSpec := oSpec) (OStmtIn := OStmtIn) State n c →
-    Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+    Interaction.Spec.StrategyOver counterpartMonadicSyntax PUnit.unit
       (toSpec n c).toInteractionSpec
-      (Interaction.RoleDecoration.withMonads ((toSpec n c).toSpecRoles (toRoles n c))
+      (RoleDecoration.withMonads ((toSpec n c).toSpecRoles (toRoles n c))
         ((toSpec n c).toMonadDecoration oSpec OStmtIn (toRoles n c) (toOracleDeco n c) []ₒ))
       (fun tr => outputFamily State n c ((toSpec n c).projectPublic tr))
   | 0, _, _, .nil, state, _ => state
@@ -784,7 +786,7 @@ def Reduction.ofIndexedChain
     let strat ← Spec.IndexedChain.Prover.comp (ProverState shared)
       n (c shared) (proverInit shared sWithOracles w) (proverSteps shared)
     let strat' :=
-      Interaction.Spec.Strategy.mapOutputWithRoles
+      Interaction.Spec.TwoParty.Focal.mapOutput
         (fun tr proverState =>
           let pt := (Spec.IndexedChain.toSpec n (c shared)).projectPublic tr
           (⟨⟨proverStmtResult shared pt proverState,
@@ -798,17 +800,17 @@ def Reduction.ofIndexedChain
               (WitnessOut shared pt)))
         strat
     pure <|
-      Interaction.Spec.Strategy.withRolesToConstantMonads
+      Interaction.Spec.TwoParty.Focal.toConstantMonads
         (Spec.IndexedChain.toSpec n (c shared)).toInteractionSpec
         ((Spec.IndexedChain.toSpec n (c shared)).toSpecRoles
           (Spec.IndexedChain.toRoles n (c shared)))
         strat'
   verifier := {
     toFun := fun shared stmtIn =>
-      Interaction.Spec.ShapeOver.mapOutput Interaction.Spec.counterpartMonadicShape
+      Interaction.Spec.ShapeOver.mapOutput counterpartMonadicShape
         (agent := PUnit.unit)
         (spec := (Spec.IndexedChain.toSpec n (c shared)).toInteractionSpec)
-        (ctxs := Interaction.RoleDecoration.withMonads
+        (ctxs := RoleDecoration.withMonads
           ((Spec.IndexedChain.toSpec n (c shared)).toSpecRoles
             (Spec.IndexedChain.toRoles n (c shared)))
           ((Spec.IndexedChain.toSpec n (c shared)).toMonadDecoration oSpec (OStatementIn shared)
@@ -901,7 +903,7 @@ def Reduction.ofPathChain
     let strat ← Spec.PathChain.Prover.comp (ProverState shared)
       n (c shared) (proverInit shared sWithOracles w) (proverSteps shared)
     let strat' :=
-      Interaction.Spec.Strategy.mapOutputWithRoles
+      Interaction.Spec.TwoParty.Focal.mapOutput
         (fun tr proverState =>
           let pt := (Spec.PathChain.toSpec n (c shared)).projectPublic tr
           (⟨⟨proverStmtResult shared pt proverState,
@@ -915,17 +917,17 @@ def Reduction.ofPathChain
               (WitnessOut shared pt)))
         strat
     pure <|
-      Interaction.Spec.Strategy.withRolesToConstantMonads
+      Interaction.Spec.TwoParty.Focal.toConstantMonads
         (Spec.PathChain.toSpec n (c shared)).toInteractionSpec
         ((Spec.PathChain.toSpec n (c shared)).toSpecRoles
           (Spec.PathChain.toRoles n (c shared)))
         strat'
   verifier := {
     toFun := fun shared stmtIn =>
-      Interaction.Spec.ShapeOver.mapOutput Interaction.Spec.counterpartMonadicShape
+      Interaction.Spec.ShapeOver.mapOutput counterpartMonadicShape
         (agent := PUnit.unit)
         (spec := (Spec.PathChain.toSpec n (c shared)).toInteractionSpec)
-        (ctxs := Interaction.RoleDecoration.withMonads
+        (ctxs := RoleDecoration.withMonads
           ((Spec.PathChain.toSpec n (c shared)).toSpecRoles
             (Spec.PathChain.toRoles n (c shared)))
           ((Spec.PathChain.toSpec n (c shared)).toMonadDecoration oSpec (OStatementIn shared)
@@ -941,3 +943,4 @@ def Reduction.ofPathChain
   }
 
 end Interaction.Oracle
+

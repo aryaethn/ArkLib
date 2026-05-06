@@ -6,6 +6,8 @@ Authors: Quang Dao
 import ArkLib.Interaction.Reduction
 import VCVio.OracleComp.ProbComp
 
+open Interaction.Spec.TwoParty
+
 /-!
 # Basic Security Utilities
 -/
@@ -27,7 +29,7 @@ provides the probability distribution for each type. Returns `PUnit` output at
 `.done`. -/
 def randomChallenger (sample : (T : Type) → ProbComp T) :
     (spec : Spec) → (roles : RoleDecoration spec) →
-    Spec.StrategyOver (Spec.pairedSyntax ProbComp) Interaction.TwoParty.Participant.counterpart
+    Spec.StrategyOver (pairedSyntax ProbComp) Interaction.TwoParty.Participant.counterpart
       spec roles (fun _ => PUnit)
   | .done, _ => ⟨⟩
   | .node _X rest, ⟨.sender, rRest⟩ =>
@@ -39,3 +41,4 @@ def randomChallenger (sample : (T : Type) → ProbComp T) :
 end Interaction
 
 end
+

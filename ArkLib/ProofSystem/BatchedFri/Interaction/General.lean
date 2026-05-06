@@ -7,6 +7,8 @@ import ArkLib.Data.Fin.Basic
 import ArkLib.ProofSystem.Fri.Interaction.General
 import CompPoly.Univariate.ToPoly.Degree
 
+open Interaction.Spec.TwoParty
+
 /-!
 # Batched FRI Interaction
 
@@ -158,7 +160,7 @@ noncomputable def batchingReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
       (fun _ _ => Fri.OracleLayer.HonestPoly (F := F) s d 0) where
   prover shared sWithOracles witness := do
     let proverStep :
-        Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec)) Interaction.TwoParty.Participant.focal
+        Interaction.Spec.StrategyOver (pairedSyntax (OracleComp oSpec)) Interaction.TwoParty.Participant.focal
           (batchingSpec (F := F) m).toInteractionSpec
           ((batchingSpec (F := F) m).toSpecRoles (batchingRoles (F := F) m))
           (fun _ =>
@@ -182,7 +184,7 @@ noncomputable def batchingReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
                 shared)
               (Fri.OracleLayer.HonestPoly (F := F) s d 0))
     pure <|
-      Interaction.Spec.Strategy.withRolesToConstantMonads
+      Interaction.Spec.TwoParty.Focal.toConstantMonads
         (batchingSpec (F := F) m).toInteractionSpec
         ((batchingSpec (F := F) m).toSpecRoles (batchingRoles (F := F) m))
         proverStep
@@ -259,3 +261,4 @@ end
 end OracleLayer
 
 end BatchedFri
+

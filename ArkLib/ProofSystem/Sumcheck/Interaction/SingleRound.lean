@@ -6,6 +6,8 @@ Authors: Quang Dao
 import ArkLib.ProofSystem.Sumcheck.Interaction.Oracle
 import ArkLib.Interaction.Oracle.Execution
 
+open Interaction.Spec.TwoParty
+
 /-!
 # Sum-Check Single Round
 
@@ -46,7 +48,7 @@ def roundProverStep (m : Type → Type) [Monad m]
     {numVars : ℕ}
     (poly : Sumcheck.PolyStmt R deg (numVars + 1))
     (computeNext : R → NextState) :
-    Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax m)
+    Interaction.Spec.StrategyOver (pairedSyntax m)
       Interaction.TwoParty.Participant.focal
       (roundSpec R deg).toInteractionSpec
       ((roundSpec R deg).toSpecRoles (roundRoles R deg))
@@ -99,3 +101,4 @@ noncomputable def roundReduction
 end
 
 end Sumcheck
+

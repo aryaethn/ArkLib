@@ -43,7 +43,7 @@ def simulateWithWitnessOracle :
           Interaction.Oracle.Spec.toOracleSpec
             (witnessSpec R pp)
             (witnessOracleDeco R pp)
-            ⟨⟩))
+            ⟨⟨⟩, ⟨⟩⟩))
   | ⟨.inl idx, q⟩ =>
       liftM <| ([InputOracleFamily R pp]ₒ).query ⟨idx, q⟩
   | ⟨.inr (), q⟩ =>
@@ -51,7 +51,7 @@ def simulateWithWitnessOracle :
         (Interaction.Oracle.Spec.toOracleSpec
           (witnessSpec R pp)
           (witnessOracleDeco R pp)
-          ⟨⟩).query (.inl q)
+          ⟨⟨⟩, ⟨⟩⟩).query (.inl q)
 
 /-- Spartan's first oracle reduction: append the witness oracle to the input
 R1CS matrix oracle family. -/
@@ -101,7 +101,7 @@ def witnessReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι} :
     toFun := fun _ stmt _ => stmt
     simulate := fun _ pt =>
       match pt with
-      | ⟨⟩ => simulateWithWitnessOracle R pp
+      | ⟨⟨⟩, ⟨⟩⟩ => simulateWithWitnessOracle R pp
   }
 
 end WitnessOracleRound

@@ -55,8 +55,8 @@ abbrev oracleDeco (n : Nat) :
   (protocol R deg n).oracleDeco
 
 /-- Extract the public transcript of the `i`-th oracle sum-check round. Since
-round polynomials are oracle messages, this transcript contains only the
-verifier challenge for that round. -/
+round polynomials are oracle messages, this transcript contains the oracle-round
+marker and the verifier challenge, but not the polynomial message itself. -/
 def roundPublicTranscript (n : Nat)
     (pt : Interaction.Oracle.Spec.PublicTranscript (context R deg n)) (i : Fin n) :
     RoundPublicTranscript R deg :=

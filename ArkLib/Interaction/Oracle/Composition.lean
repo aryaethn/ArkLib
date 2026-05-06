@@ -199,8 +199,8 @@ constructs the suffix strategy runs in `m`; `setupLift` embeds that construction
 effect into each first-phase node monad, so the first phase may use arbitrary
 node effects rather than a globally constant prover monad.
 
-The suffix is indexed by `s₁.projectPublic tr₁`, because oracle-message nodes
-are deliberately omitted from the public transcript used by oracle specs. -/
+The suffix is indexed by `s₁.projectPublic tr₁`, whose oracle-message nodes
+record explicit `PUnit` markers rather than concrete oracle messages. -/
 def compAuxWithMonads
     {m : Type → Type} [Monad m] :
     (s₁ : Oracle.Spec) → (s₂ : Spec.PublicTranscript s₁ → Oracle.Spec) →
@@ -239,8 +239,10 @@ def compAuxWithMonads
       pure <| do
         let ⟨x, next⟩ ← strat₁
         let result ← liftSetup <|
-          compAuxWithMonads (cont' ⟨⟩) s₂ r₁ r₂ (md₂ := md₂) (liftRest x)
-            (OutType := fun pt₁ pt₂ => OutType pt₁ pt₂) next
+          compAuxWithMonads (cont' ⟨⟩) (fun pt => s₂ ⟨⟨⟩, pt⟩)
+            r₁ (fun pt => r₂ ⟨⟨⟩, pt⟩) (md₂ := fun pt => md₂ ⟨⟨⟩, pt⟩)
+            (liftRest x)
+            (OutType := fun pt₁ pt₂ => OutType ⟨⟨⟩, pt₁⟩ pt₂) next
             (fun tr₁ mid => cont ⟨x, tr₁⟩ mid)
         pure ⟨x, result⟩
   | .«public» _X rest, s₂, ⟨.sender, rRest⟩, r₂, _, md₂, ⟨liftSetup, liftRest⟩, _,
@@ -303,8 +305,9 @@ def compAux
   | .«oracle» _X cont', s₂, r₁, r₂, _, OutType, strat₁, cont =>
       pure <| do
         let ⟨x, next⟩ ← strat₁
-        let result ← compAux (cont' ⟨⟩) s₂ r₁ r₂
-          (OutType := fun pt₁ pt₂ => OutType pt₁ pt₂) next
+        let result ← compAux (cont' ⟨⟩) (fun pt => s₂ ⟨⟨⟩, pt⟩)
+          r₁ (fun pt => r₂ ⟨⟨⟩, pt⟩)
+          (OutType := fun pt₁ pt₂ => OutType ⟨⟨⟩, pt₁⟩ pt₂) next
           (fun tr₁ mid => cont ⟨x, tr₁⟩ mid)
         pure ⟨x, result⟩
   | .«public» _X rest, s₂, ⟨.sender, rRest⟩, r₂, _, OutType, strat₁, cont =>
@@ -375,9 +378,10 @@ def compAux
   | .done, _, _, _, _, _, _, _, _, _, cpt, cont => cont ⟨⟩ cpt
   | .«oracle» _X cont', s₂, r₁, r₂, ⟨oi, odRest⟩, od₂, _, accSpec, _, OutType,
       cpt, cont =>
-      fun x => compAux (cont' ⟨⟩) s₂ r₁ r₂ odRest od₂
+      fun x => compAux (cont' ⟨⟩) (fun pt => s₂ ⟨⟨⟩, pt⟩)
+        r₁ (fun pt => r₂ ⟨⟨⟩, pt⟩) odRest (fun pt => od₂ ⟨⟨⟩, pt⟩)
         (accSpec + @OracleInterface.spec _ oi)
-        (OutType := fun pt₁ pt₂ => OutType pt₁ pt₂) (cpt x)
+        (OutType := fun pt₁ pt₂ => OutType ⟨⟨⟩, pt₁⟩ pt₂) (cpt x)
         (fun tr₁ mid => cont ⟨x, tr₁⟩ mid)
   | .«public» _X rest, s₂, ⟨.sender, rRest⟩, r₂, odRest, od₂, _,
       accSpec, _, OutType, cpt, cont =>

@@ -69,8 +69,8 @@ is finite, so the existence of a `Telescope` term is a proof that the
 underlying state machine terminates.
 
 This is the oracle-specialized alias of `PFunctor.FreeM.TelescopeWith`; the
-observation family is `PublicTranscript`, which is itself `FreeM.PathWith`
-observed through `publicPathView`. -/
+observation family is `PublicTranscript`, which keeps public choices and
+keeps an explicit `PUnit` marker at each oracle-message node. -/
 abbrev Telescope {St : Type v}
     (round : St → Oracle.Spec)
     (step : (s : St) → PublicTranscript (round s) → St) : St → Type v :=

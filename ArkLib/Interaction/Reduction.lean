@@ -40,8 +40,8 @@ SharedIn and output are represented as:
 
 - **Prover**: monadic setup producing a role-dependent `Strategy` whose output is
   `HonestProverOutput StatementOut WitnessOut`.
-- **Verifier**: an `SharedIn`-indexed, `StatementIn`-parameterized `Counterpart`
-  with `StatementOut` at `.done`. No `OptionT` — acceptance semantics (if
+- **Verifier**: a `SharedIn`-indexed, `StatementIn`-parameterized counterpart
+  strategy with `StatementOut` at `.done`. No `OptionT` — acceptance semantics (if
   needed) are chosen by the caller through the `StatementOut` type
   (e.g., `StatementOut = fun _ _ => Option Bool`).
 - **PublicCoinVerifier**: a stronger verifier surface whose receiver nodes are
@@ -106,12 +106,13 @@ abbrev Prover (m : Type u → Type u)
     (StatementIn WitnessIn : SharedIn → Type w)
     (StatementOut WitnessOut : (i : SharedIn) → Spec.Transcript (Context i) → Type u) :=
   (i : SharedIn) → StatementIn i → WitnessIn i →
-    m (Spec.Strategy.withRoles m (Context i) (Roles i)
+    m (Spec.StrategyOver (Spec.pairedSyntax m) Interaction.TwoParty.Participant.focal
+      (Context i) (Roles i)
       (fun tr => HonestProverOutput (StatementOut i tr) (WitnessOut i tr)))
 
-/-- A verifier: given ambient input `i` and local statement `stmt`, provides a
-`Counterpart` with `StatementOut i tr` at `.done`. No `OptionT` wrapping — the
-caller chooses whether `StatementOut` includes `Option` for accept/reject
+/-- A verifier: given ambient input `i` and local statement `stmt`, provides the
+counterpart strategy with `StatementOut i tr` at `.done`. No `OptionT` wrapping:
+the caller chooses whether `StatementOut` includes `Option` for accept/reject
 semantics. -/
 abbrev Verifier (m : Type u → Type u)
     (SharedIn : Type v)
@@ -120,7 +121,8 @@ abbrev Verifier (m : Type u → Type u)
     (StatementIn : SharedIn → Type w)
     (StatementOut : (i : SharedIn) → Spec.Transcript (Context i) → Type u) :=
   (i : SharedIn) → StatementIn i →
-    Spec.Counterpart m (Context i) (Roles i) (fun tr => StatementOut i tr)
+    Spec.StrategyOver (Spec.pairedSyntax m) Interaction.TwoParty.Participant.counterpart
+      (Context i) (Roles i) (fun tr => StatementOut i tr)
 
 /-- A verifier whose receiver nodes are public-coin in the strong replayable
 sense captured by `Spec.publicCoinCounterpartSyntax`.
@@ -254,7 +256,8 @@ def Verifier.run {m : Type u → Type u} [Monad m]
     (i : SharedIn)
     (stmt : StatementIn i)
     {OutputP : Spec.Transcript (Context i) → Type u}
-    (prover : Spec.Strategy.withRoles m (Context i) (Roles i) OutputP) :
+    (prover : Spec.StrategyOver (Spec.pairedSyntax m) Interaction.TwoParty.Participant.focal
+      (Context i) (Roles i) OutputP) :
     m ((tr : Spec.Transcript (Context i)) × OutputP tr × StatementOut i tr) :=
   Spec.Strategy.runWithRoles (Context i) (Roles i) prover (v i stmt)
 

@@ -49,7 +49,7 @@ theorem run_pullback
     (outer : OuterStmtIn)
     {OutputP : Spec.Transcript (InnerSpec (projection.proj outer)) → Type}
     (prover :
-      Spec.Strategy.withRoles m
+      Spec.StrategyOver (Spec.pairedSyntax m) Interaction.TwoParty.Participant.focal
         (InnerSpec (projection.proj outer))
         (InnerRoles (projection.proj outer))
         OutputP) :
@@ -119,7 +119,7 @@ theorem probAccept_pullback_le
     (outer : OuterStmtIn)
     {OutputP : Spec.Transcript (InnerSpec (projection.proj outer)) → Type}
     (prover :
-      Spec.Strategy.withRoles m
+      Spec.StrategyOver (Spec.pairedSyntax m) Interaction.TwoParty.Participant.focal
         (InnerSpec (projection.proj outer))
         (InnerRoles (projection.proj outer))
         OutputP) :

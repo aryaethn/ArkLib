@@ -48,7 +48,7 @@ def finalFoldReduction {SharedIn : Type} {ι : Type} {oSpec : OracleSpec.{0, 0} 
       (fun _ _ => PUnit) where
   prover shared sWithOracles witness := do
     let proverStep :
-        Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
+        Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec)) Interaction.TwoParty.Participant.focal
           (finalFoldSpec (F := F) (d := d)).toInteractionSpec
           ((finalFoldSpec (F := F) (d := d)).toSpecRoles
             (finalFoldRoles (F := F) (d := d)))

@@ -68,7 +68,8 @@ def knowledgeSoundness
       StatementOut OStatementOut WitnessOut,
   ∀ (shared : SharedIn) (stmt : StatementIn shared)
       (inputImpl : InputImpl OStatementIn shared)
-      (prover : Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
+      (prover : Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec))
+        Interaction.TwoParty.Participant.focal
         (Context shared).toInteractionSpec
         ((Context shared).toSpecRoles (Roles shared))
         (fun tr => WitnessOut shared ((Context shared).projectPublic tr))),
@@ -298,7 +299,8 @@ theorem knowledgeSoundness_implies_soundness
   rcases hKS with ⟨extractor, hKS⟩
   intro shared stmt inputImpl OutputP prover hs
   let proverKS :
-      Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
+      Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec))
+        Interaction.TwoParty.Participant.focal
         (Context shared).toInteractionSpec
         ((Context shared).toSpecRoles (Roles shared))
         (fun tr => WitnessOut shared ((Context shared).projectPublic tr)) :=

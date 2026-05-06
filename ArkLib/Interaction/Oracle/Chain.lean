@@ -180,7 +180,8 @@ def RoundSteps {m : Type → Type} [Monad m]
   | n + 1, c =>
       ((state : State c) →
         m
-          (Interaction.Spec.Strategy.withRoles m
+          (Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax m)
+            Interaction.TwoParty.Participant.focal
             c.1.toInteractionSpec (c.1.toSpecRoles c.2.1)
             (fun tr => State (c.2.2.2 (c.1.projectPublic tr))))) ×
       ((pt : PublicTranscript c.1) → RoundSteps (m := m) State n (c.2.2.2 pt))
@@ -191,7 +192,8 @@ def comp
     (State : {k : Nat} → Chain k → Type) :
     (n : Nat) → (c : Chain n) → State c → RoundSteps (m := m) State n c →
     m
-      (Interaction.Spec.Strategy.withRoles m
+      (Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax m)
+        Interaction.TwoParty.Participant.focal
         (toSpec n c).toInteractionSpec
         ((toSpec n c).toSpecRoles (toRoles n c))
         (fun tr => outputFamily State n c ((toSpec n c).projectPublic tr)))
@@ -457,7 +459,8 @@ def RoundSteps {Idx : Type} {m : Type → Type} [Monad m]
   | n + 1, idx, c =>
       ((state : State idx) →
         m
-          (Interaction.Spec.Strategy.withRoles m
+          (Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax m)
+            Interaction.TwoParty.Participant.focal
             c.1.toInteractionSpec (c.1.toSpecRoles c.2.1)
             (fun tr => State (c.2.2.2 (c.1.projectPublic tr)).1))) ×
       ((pt : PublicTranscript c.1) → RoundSteps (m := m) State n (c.2.2.2 pt).2)
@@ -469,7 +472,8 @@ def comp {Idx : Type}
     (n : Nat) → {idx : Idx} → (c : IndexedChain Idx n idx) → State idx →
     RoundSteps (m := m) State n c →
     m
-      (Interaction.Spec.Strategy.withRoles m
+      (Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax m)
+        Interaction.TwoParty.Participant.focal
         (toSpec n c).toInteractionSpec
         ((toSpec n c).toSpecRoles (toRoles n c))
         (fun tr => outputFamily State n c ((toSpec n c).projectPublic tr)))
@@ -616,7 +620,8 @@ def RoundSteps {Idx : Type} {m : Type → Type} [Monad m]
   | n + 1, idx, _, .cons spec roles _ nextIdx cont =>
       ((state : State idx) →
         m
-          (Interaction.Spec.Strategy.withRoles m
+          (Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax m)
+            Interaction.TwoParty.Participant.focal
             spec.toInteractionSpec (spec.toSpecRoles roles)
             (fun tr => State (nextIdx (spec.projectPublic tr))))) ×
       ((pt : PublicTranscript spec) → RoundSteps (m := m) State n (cont pt))
@@ -628,7 +633,8 @@ def comp {Idx : Type}
     (n : Nat) → {idx finish : Idx} → (c : PathChain Idx n idx finish) → State idx →
     RoundSteps (m := m) State n c →
     m
-      (Interaction.Spec.Strategy.withRoles m
+      (Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax m)
+        Interaction.TwoParty.Participant.focal
         (toSpec n c).toInteractionSpec
         ((toSpec n c).toSpecRoles (toRoles n c))
         (fun tr => outputFamily State n c ((toSpec n c).projectPublic tr)))

@@ -74,7 +74,8 @@ def knowledgeSoundness
       Extractor.Straightline SharedIn StatementIn WitnessIn Context StatementOut WitnessOut,
   ∀ (shared : SharedIn)
       (stmt : StatementIn shared)
-      (prover : Spec.Strategy.withRoles m (Context shared) (Roles shared)
+      (prover : Spec.StrategyOver (Spec.pairedSyntax m)
+        Interaction.TwoParty.Participant.focal (Context shared) (Roles shared)
         (WitnessOut shared)),
       Pr[fun z =>
         (z.2.2, z.2.1) ∈ relOut shared z.1 ∧
@@ -184,7 +185,8 @@ theorem knowledgeSoundness_implies_soundness
   rcases hKS with ⟨extractor, hKS⟩
   intro shared OutputP prover stmt hs
   let proverKS :
-      Spec.Strategy.withRoles m (Context shared) (Roles shared) (WitnessOut shared) :=
+      Spec.StrategyOver (Spec.pairedSyntax m) Interaction.TwoParty.Participant.focal
+        (Context shared) (Roles shared) (WitnessOut shared) :=
     Spec.Strategy.mapOutputWithRoles
       (fun tr _ => acceptWitness shared tr) prover
   have hrun :

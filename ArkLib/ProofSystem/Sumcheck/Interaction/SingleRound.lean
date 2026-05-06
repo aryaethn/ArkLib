@@ -46,7 +46,8 @@ def roundProverStep (m : Type → Type) [Monad m]
     {numVars : ℕ}
     (poly : Sumcheck.PolyStmt R deg (numVars + 1))
     (computeNext : R → NextState) :
-    Interaction.Spec.Strategy.withRoles m
+    Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax m)
+      Interaction.TwoParty.Participant.focal
       (roundSpec R deg).toInteractionSpec
       ((roundSpec R deg).toSpecRoles (roundRoles R deg))
       (fun _ => NextState) :=

@@ -212,7 +212,8 @@ theorem IsKnowledgeSound.bound_terminalProb
     (tree : KnowledgeClaimTree spec roles Claim)
     (hSound : tree.IsKnowledgeSound sample)
     {OutputP : Spec.Transcript spec → Type}
-    (prover : Spec.Strategy.withRoles ProbComp spec roles OutputP)
+    (prover : Spec.StrategyOver (Spec.pairedSyntax ProbComp)
+      Interaction.TwoParty.Participant.focal spec roles OutputP)
     {claim : Claim} (hBad : ¬ tree.good claim) :
     Pr[fun z => tree.terminalGood z.1 (tree.follow z.1 claim)
       | Spec.Strategy.runWithRoles spec roles prover

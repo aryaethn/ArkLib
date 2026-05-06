@@ -842,7 +842,7 @@ theorem pullbackSimulate_eval
 
 end OracleStatementAccess
 
-/-! ## Counterpart and verifier pullback -/
+/-! ## StrategyOver (pairedSyntax and) TwoParty.Participant.counterpart verifier pullback -/
 
 /-- Rewire every receiver-node input-oracle query in a verifier counterpart
 through `simulateIn`, while applying an output map `f`. -/

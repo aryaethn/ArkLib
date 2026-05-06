@@ -139,7 +139,8 @@ theorem IsSound.bound_terminalProb
     (tree : ClaimTree spec roles Claim)
     (hSound : tree.IsSound sample)
     {OutputP : Spec.Transcript spec → Type}
-    (prover : Spec.Strategy.withRoles ProbComp spec roles OutputP)
+    (prover : Spec.StrategyOver (Spec.pairedSyntax ProbComp)
+      Interaction.TwoParty.Participant.focal spec roles OutputP)
     {claim : Claim} (hBad : ¬ tree.good claim) :
     Pr[fun z => tree.terminalGood z.1 (tree.follow z.1 claim)
       | Spec.Strategy.runWithRoles spec roles prover
@@ -154,14 +155,16 @@ theorem IsSound.bound_terminalProb
   | @sender _ X rest rRest good NextClaim next advance ih =>
       rcases hSound with ⟨hStayBad, hChildrenSound⟩
       let mx :
-          ProbComp ((x : X) × Spec.Strategy.withRoles ProbComp (rest x) (rRest x)
+          ProbComp ((x : X) × Spec.StrategyOver (Spec.pairedSyntax ProbComp)
+            Interaction.TwoParty.Participant.focal (rest x) (rRest x)
             (fun tr => OutputP ⟨x, tr⟩)) := prover
       let event :
           ((tr : Spec.Transcript (Spec.node X rest)) × OutputP tr × PUnit) → Prop :=
         fun z => ClaimTree.terminalGood (.sender good NextClaim next advance) z.1
           (ClaimTree.follow (.sender good NextClaim next advance) z.1 claim)
       let my :
-          ((x : X) × Spec.Strategy.withRoles ProbComp (rest x) (rRest x)
+          ((x : X) × Spec.StrategyOver (Spec.pairedSyntax ProbComp)
+            Interaction.TwoParty.Participant.focal (rest x) (rRest x)
             (fun tr => OutputP ⟨x, tr⟩)) →
             ProbComp ((tr : Spec.Transcript (Spec.node X rest)) × OutputP tr × PUnit) :=
         fun xc =>
@@ -223,7 +226,9 @@ theorem IsSound.bound_terminalProb
           (x : X) → ProbComp ((tr : Spec.Transcript (Spec.node X rest)) × OutputP tr × PUnit) :=
         fun x =>
           let childRun :
-              Spec.Strategy.withRoles ProbComp (rest x) (rRest x) (fun tr => OutputP ⟨x, tr⟩) →
+              Spec.StrategyOver (Spec.pairedSyntax ProbComp)
+                Interaction.TwoParty.Participant.focal (rest x) (rRest x)
+                (fun tr => OutputP ⟨x, tr⟩) →
                 ProbComp ((tr : Spec.Transcript (Spec.node X rest)) × OutputP tr × PUnit) :=
             fun nextProver =>
               let addPrefix :
@@ -240,7 +245,9 @@ theorem IsSound.bound_terminalProb
           ∀ x ∈ support (sample _), p x → Pr[event | my x] ≤ ⨆ x, (next x).maxPathError := by
         intro x _ hp
         let childRun :
-            Spec.Strategy.withRoles ProbComp (rest x) (rRest x) (fun tr => OutputP ⟨x, tr⟩) →
+            Spec.StrategyOver (Spec.pairedSyntax ProbComp)
+              Interaction.TwoParty.Participant.focal (rest x) (rRest x)
+              (fun tr => OutputP ⟨x, tr⟩) →
               ProbComp ((tr : Spec.Transcript (Spec.node X rest)) × OutputP tr × PUnit) :=
           fun nextProver =>
             let addPrefix :

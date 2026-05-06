@@ -140,7 +140,7 @@ def terminalCheckReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι} :
       (fun _ _ => PUnit) where
   prover _ sWithOracles _ := do
     let proverStep :
-        Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
+        Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec)) Interaction.TwoParty.Participant.focal
           (terminalCheckSpec R pp).toInteractionSpec
           ((terminalCheckSpec R pp).toSpecRoles (terminalCheckRoles R pp))
           (fun _ =>

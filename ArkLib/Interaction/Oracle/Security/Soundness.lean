@@ -85,7 +85,8 @@ def soundness
       (inputImpl : InputImpl OStatementIn shared)
       {OutputP : Interaction.Spec.Transcript
         (Context shared).toInteractionSpec → Type _}
-      (prover : Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
+      (prover : Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec))
+        Interaction.TwoParty.Participant.focal
         (Context shared).toInteractionSpec
         ((Context shared).toSpecRoles (Roles shared)) OutputP),
       ¬ langIn shared stmt inputImpl →

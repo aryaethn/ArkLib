@@ -13,8 +13,8 @@ This module implements the basic Fiat-Shamir (FS) transform for the `Interaction
 core when the verifier is public-coin in the strong, replayable sense captured
 by `Spec.publicCoinCounterpartSyntax`. The construction works as follows:
 
-1. Replacing the random verifier with a deterministic `ReplayOracle`
-   (= `Counterpart Id`), which is bundled into the statement.
+1. Replacing the random verifier with a deterministic `ReplayOracle`, which is
+   bundled into the statement.
 2. The prover runs its strategy against the replay oracle, producing a
    `MessagesOnly` proof (sent as a single message).
 3. The verifier receives `MessagesOnly`, reconstructs the full transcript
@@ -54,7 +54,7 @@ def Strategy.runWithReplayOracle {m : Type u → Type u} [Monad m] :
     (spec : Spec.{u}) → (roles : RoleDecoration spec) →
     (rho : ReplayOracle spec roles) →
     {Output : Transcript spec → Type u} →
-    Strategy.withRoles m spec roles Output →
+    Spec.StrategyOver (Spec.pairedSyntax m) TwoParty.Participant.focal spec roles Output →
     m ((msgs : MessagesOnly spec roles rho) ×
        Output (MessagesOnly.deriveTranscript spec roles rho msgs))
   | .done, _, _, _, output => pure ⟨⟨⟩, output⟩

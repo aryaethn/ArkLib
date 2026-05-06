@@ -123,7 +123,8 @@ theorem soundness_of_rbrSoundness
     (h : Verifier.rbrSoundness (roles := roles) sample langIn langOut ε) :
     ∀ (shared : SharedIn)
       {OutputP : Spec.Transcript (pSpec shared) → Type}
-      (prover : Spec.Strategy.withRoles ProbComp (pSpec shared) (roles shared) OutputP)
+      (prover : Spec.StrategyOver (Spec.pairedSyntax ProbComp)
+        Interaction.TwoParty.Participant.focal (pSpec shared) (roles shared) OutputP)
       (stmt : StatementIn shared), stmt ∉ langIn shared →
       Pr[fun z => langOut shared z.1
         | Spec.Strategy.runWithRoles (pSpec shared) (roles shared) prover

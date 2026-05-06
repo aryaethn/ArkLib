@@ -293,17 +293,20 @@ def compAux
     {Mid : Interaction.Spec.Transcript s₁.toInteractionSpec → Type} →
     {OutType : (pt₁ : Spec.PublicTranscript s₁) →
       Spec.PublicTranscript (s₂ pt₁) → Type} →
-    Interaction.Spec.Strategy.withRoles m
+    Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax m)
+      Interaction.TwoParty.Participant.focal
       s₁.toInteractionSpec (s₁.toSpecRoles r₁) Mid →
     ((tr₁ : Interaction.Spec.Transcript s₁.toInteractionSpec) → Mid tr₁ →
       m
-        (Interaction.Spec.Strategy.withRoles m
+        (Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax m)
+          Interaction.TwoParty.Participant.focal
           ((s₂ (s₁.projectPublic tr₁)).toInteractionSpec)
           ((s₂ (s₁.projectPublic tr₁)).toSpecRoles (r₂ (s₁.projectPublic tr₁)))
           (fun tr₂ => OutType (s₁.projectPublic tr₁)
             ((s₂ (s₁.projectPublic tr₁)).projectPublic tr₂)))) →
     m
-      (Interaction.Spec.Strategy.withRoles m
+      (Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax m)
+        Interaction.TwoParty.Participant.focal
         ((s₁.append s₂).toInteractionSpec)
         ((s₁.append s₂).toSpecRoles (Spec.RoleDeco.append s₁ s₂ r₁ r₂))
         (fun tr =>

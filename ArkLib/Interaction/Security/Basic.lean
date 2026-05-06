@@ -21,12 +21,14 @@ namespace Interaction
 
 /-! ## Random challenger -/
 
-/-- Build a `Counterpart` that samples challenges uniformly at receiver nodes.
-At sender nodes, the counterpart simply observes. The `sample` function provides
-the probability distribution for each type. Returns `PUnit` output at `.done`. -/
+/-- Build a counterpart strategy that samples challenges uniformly at receiver
+nodes. At sender nodes, the strategy simply observes. The `sample` function
+provides the probability distribution for each type. Returns `PUnit` output at
+`.done`. -/
 def randomChallenger (sample : (T : Type) → ProbComp T) :
     (spec : Spec) → (roles : RoleDecoration spec) →
-    Spec.Counterpart ProbComp spec roles (fun _ => PUnit)
+    Spec.StrategyOver (Spec.pairedSyntax ProbComp) Interaction.TwoParty.Participant.counterpart
+      spec roles (fun _ => PUnit)
   | .done, _ => ⟨⟩
   | .node _X rest, ⟨.sender, rRest⟩ =>
       fun x => pure <| randomChallenger sample (rest x) (rRest x)

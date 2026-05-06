@@ -158,7 +158,7 @@ noncomputable def batchingReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
       (fun _ _ => Fri.OracleLayer.HonestPoly (F := F) s d 0) where
   prover shared sWithOracles witness := do
     let proverStep :
-        Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
+        Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec)) Interaction.TwoParty.Participant.focal
           (batchingSpec (F := F) m).toInteractionSpec
           ((batchingSpec (F := F) m).toSpecRoles (batchingRoles (F := F) m))
           (fun _ =>

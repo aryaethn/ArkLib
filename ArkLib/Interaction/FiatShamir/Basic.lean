@@ -12,16 +12,16 @@ The Fiat-Shamir (FS) transform replaces verifier challenges with deterministic
 hash outputs, converting an interactive public-coin protocol into a
 non-interactive one.
 
-The key insight for the dependent-type setting: a `ReplayOracle` is simply
-a `Counterpart Id` — a deterministic counterpart that observes sender messages
-and provides challenges at receiver nodes. Given a fixed replay oracle, all
-challenge values (and hence all subsequent types) are determined.
+The key insight for the dependent-type setting: a `ReplayOracle` is a
+deterministic counterpart strategy that observes sender messages and provides
+challenges at receiver nodes. Given a fixed replay oracle, all challenge values
+(and hence all subsequent types) are determined.
 
 ## Main definitions
 
-- `ReplayOracle` — abbreviation for `Counterpart Id spec roles (fun _ => PUnit)`.
-  At sender nodes it observes (function from message to continuation); at receiver
-  nodes it picks a challenge (sigma: challenge × continuation).
+- `ReplayOracle` — deterministic counterpart strategy with unit output. At
+  sender nodes it observes a message; at receiver nodes it picks a challenge
+  and continuation.
 - `MessagesOnly` — the FS proof type. Only sender messages are stored; at
   receiver nodes the challenge is read from the replay oracle. This is the
   prover's output after the FS transform.
@@ -33,16 +33,18 @@ universe u
 
 namespace Interaction
 
-/-- A `ReplayOracle` for the Fiat-Shamir transform is a deterministic counterpart:
-at sender nodes it observes any message, at receiver nodes it provides a challenge.
+/-- A `ReplayOracle` for the Fiat-Shamir transform is a deterministic
+counterpart strategy: at sender nodes it observes any message, at receiver nodes
+it provides a challenge.
 
-This is an abbreviation for `Counterpart Id spec roles (fun _ => PUnit)`, which
+This is a counterpart fiber of the paired two-party syntax over `Id`, which
 unfolds to:
 - `.done`: `PUnit`
 - sender node: `(x : X) → ReplayOracle (rest x) (rRest x)` (observe)
 - receiver node: `(x : X) × ReplayOracle (rest x) (rRest x)` (pick challenge) -/
 abbrev ReplayOracle (spec : Spec.{u}) (roles : RoleDecoration spec) : Type u :=
-  Spec.Counterpart Id spec roles (fun _ => PUnit)
+  Spec.StrategyOver (Spec.pairedSyntax Id) TwoParty.Participant.counterpart
+    spec roles (fun _ => PUnit)
 
 namespace ReplayOracle
 

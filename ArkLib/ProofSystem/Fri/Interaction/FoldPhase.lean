@@ -182,7 +182,7 @@ private def indexedProverStepAux {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
     (hround : round + (remaining + 1) = k)
     (state : IndexedProverState (F := F) (n := n) (s := s) (d := d) round) :
     OracleComp oSpec
-      (Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
+      (Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec)) Interaction.TwoParty.Participant.focal
         (foldRoundSpec (F := F) (n := n) D x s
           ⟨round, stateRound_lt (k := k) hround⟩).toInteractionSpec
         ((foldRoundSpec (F := F) (n := n) D x s

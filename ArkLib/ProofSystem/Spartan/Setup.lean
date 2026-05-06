@@ -70,7 +70,7 @@ def witnessReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι} :
       (fun _ _ => Witness R pp) where
   prover _ sWithOracles witness := do
     let proverStep :
-        Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
+        Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec)) Interaction.TwoParty.Participant.focal
           (witnessSpec R pp).toInteractionSpec
           ((witnessSpec R pp).toSpecRoles (witnessRoles R pp))
           (fun _ =>
@@ -155,7 +155,7 @@ def firstChallengeReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
       (fun _ _ => PUnit) where
   prover _ sWithOracles _ := do
     let proverStep :
-        Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
+        Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec)) Interaction.TwoParty.Participant.focal
           (firstChallengeSpec R pp).toInteractionSpec
           ((firstChallengeSpec R pp).toSpecRoles (firstChallengeRoles R pp))
           (fun _ =>

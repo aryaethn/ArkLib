@@ -17,10 +17,10 @@ two interactive frameworks:
    family and case-splits on round indices.
 2. `Interactive.*` — ArkLib's `Interaction.Prover` / `Interaction.Verifier` /
    `Interaction.Reduction` wrappers (in `ArkLib/Interaction/Reduction.lean`) over VCVio's
-   `Spec.Strategy.withRoles` / `Spec.Counterpart`. The protocol is a `Spec` (free monad over
-   `Spec.basePFunctor`); the prover/verifier inhabit `Strategy.withRoles` / `Counterpart`,
-   which definitionally unfold to iterated-monad forms. State threads through via lexical
-   scope; no `PrvState` family, no case-split on round indices.
+   paired `StrategyOver` fibers. The protocol is a `Spec` (free monad over
+   `Spec.basePFunctor`); the prover/verifier inhabit focal/counterpart fibers
+   that definitionally unfold to iterated-monad forms. State threads through via
+   lexical scope; no `PrvState` family, no case-split on round indices.
 
 Both target the same Σ-protocol:
 
@@ -122,12 +122,12 @@ def reduction : Reduction unifSpec G F Unit Unit (pSpec F G) where
 end State
 
 /-! ## Interactive view: ArkLib's `Interaction.Prover` / `Interaction.Verifier` /
-  `Interaction.Reduction` wrappers over `Spec.Strategy.withRoles` / `Spec.Counterpart`.
+  `Interaction.Reduction` wrappers over paired `StrategyOver` fibers.
 
   The protocol shape is a real W-type (free monad over `Spec.basePFunctor`); the prover and
-  verifier inhabit the actual `Strategy.withRoles` and `Counterpart` types — wrapped, by ArkLib's
-  `Interaction.Prover`/`Verifier` abbrevs, with the standard `(SharedIn, StatementIn, WitnessIn,
-  StatementOut, WitnessOut)` indexing. -/
+  verifier inhabit focal and counterpart strategy fibers, wrapped by ArkLib's
+  `Interaction.Prover`/`Verifier` abbrevs with the standard `(SharedIn,
+  StatementIn, WitnessIn, StatementOut, WitnessOut)` indexing. -/
 
 namespace Interactive
 
@@ -149,7 +149,7 @@ def proverRoles : RoleDecoration (spec F G) :=
   `SharedIn := G` carries the public key, `StatementIn := PUnit`, `WitnessIn := F` the secret key.
   The output type at `.done` is `HonestProverOutput (Option Unit) PUnit`.
 
-  After unfolding `Strategy.withRoles` on the role decoration, the underlying strategy has type
+  After unfolding the focal strategy fiber on the role decoration, the underlying strategy has type
   `m ((R : G) × ((c : F) → m (m ((z : F) × (Option Unit × PUnit)))))` for
   `m = OracleComp unifSpec`. -/
 @[inline, specialize]
@@ -165,7 +165,7 @@ def prover :
 /-- The honest Schnorr verifier as an `Interaction.Verifier` over `OracleComp unifSpec`.
 
   `StatementOut := Option Unit` carries the accept / reject decision (`some ()` accepts,
-  `none` rejects). After unfolding `Counterpart`, the underlying counterpart has type
+  `none` rejects). After unfolding the counterpart strategy fiber, the underlying type is
   `(R : G) → m (m ((c : F) × ((z : F) → m (Option Unit))))` for `m = OracleComp unifSpec`. -/
 @[inline, specialize]
 def verifier :
@@ -189,19 +189,21 @@ def reduction :
 
 /-! ### Type-unfolding checks
 
-Both `Strategy.withRoles` and `Counterpart` are abbrevs whose unfolding on a concrete role
-decoration is proved by `rfl`. The two `example`s below pin down exactly the iterated-monad
-shapes asserted in the docstrings of `prover` and `verifier`. -/
+The paired `StrategyOver` fibers unfold on a concrete role decoration by `rfl`.
+The two `example`s below pin down exactly the iterated-monad shapes asserted in
+the docstrings of `prover` and `verifier`. -/
 
 example :
-    Spec.Strategy.withRoles (OracleComp unifSpec) (spec F G) (proverRoles F G)
+    Spec.StrategyOver (Spec.pairedSyntax (OracleComp unifSpec))
+      Interaction.TwoParty.Participant.focal (spec F G) (proverRoles F G)
       (fun _ => HonestProverOutput (Option Unit) PUnit) =
       OracleComp unifSpec ((_ : G) ×
         ((_ : F) → OracleComp unifSpec (OracleComp unifSpec
           ((_ : F) × (Option Unit × PUnit))))) := rfl
 
 example :
-    Spec.Counterpart (OracleComp unifSpec) (spec F G) (proverRoles F G)
+    Spec.StrategyOver (Spec.pairedSyntax (OracleComp unifSpec))
+      Interaction.TwoParty.Participant.counterpart (spec F G) (proverRoles F G)
       (fun _ => Option Unit) =
       ((_ : G) → OracleComp unifSpec (OracleComp unifSpec ((_ : F) ×
         ((_ : F) → OracleComp unifSpec (Option Unit))))) := rfl

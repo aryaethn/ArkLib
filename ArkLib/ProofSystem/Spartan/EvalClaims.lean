@@ -80,7 +80,7 @@ def evalClaimReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι} :
   prover _ sWithOracles _ := do
     let claims := evalClaimsFromOracleStmt R pp sWithOracles.stmt sWithOracles.oracleStmt
     let proverStep :
-        Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
+        Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec)) Interaction.TwoParty.Participant.focal
           (evalClaimSpec R).toInteractionSpec
           ((evalClaimSpec R).toSpecRoles (evalClaimRoles R))
           (fun _ =>
@@ -158,7 +158,7 @@ def linearCombinationReduction {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
       (fun _ _ => PUnit) where
   prover _ sWithOracles _ := do
     let proverStep :
-        Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
+        Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec)) Interaction.TwoParty.Participant.focal
           (linearCombinationSpec R).toInteractionSpec
           ((linearCombinationSpec R).toSpecRoles (linearCombinationRoles R))
           (fun _ =>

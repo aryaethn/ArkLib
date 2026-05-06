@@ -197,10 +197,12 @@ compatibility between original and BCS strategies. -/
 def wrapWithCommitments :
     (s : Oracle.Spec) → (roles : RoleDeco s) → (cd : CommitDeco m s) →
     (OutType : SharedTranscript s cd → Type) →
-    Interaction.Spec.Strategy.withRoles m
+    Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax m)
+      Interaction.TwoParty.Participant.focal
       s.toInteractionSpec (s.toSpecRoles roles)
       (fun tr => OutType (projectShared s cd tr)) →
-    Interaction.Spec.Strategy.withRoles m
+    Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax m)
+      Interaction.TwoParty.Participant.focal
       (bcsSpec s cd).toInteractionSpec
       ((bcsSpec s cd).toSpecRoles (bcsRoleDeco s roles cd))
       (fun tr => OutType (bcsProjectShared s cd tr))
@@ -231,10 +233,12 @@ are extracted and paired into the output via `Strategy.mapOutputWithRoles`. -/
 def wrapWithCommitmentsExt :
     (s : Oracle.Spec) → (roles : RoleDeco s) → (cd : CommitDeco m s) →
     (OutType : SharedTranscript s cd → Type) →
-    Interaction.Spec.Strategy.withRoles m
+    Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax m)
+      Interaction.TwoParty.Participant.focal
       s.toInteractionSpec (s.toSpecRoles roles)
       (fun tr => OutType (projectShared s cd tr)) →
-    Interaction.Spec.Strategy.withRoles m
+    Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax m)
+      Interaction.TwoParty.Participant.focal
       (bcsSpec s cd).toInteractionSpec
       ((bcsSpec s cd).toSpecRoles (bcsRoleDeco s roles cd))
       (fun tr => OutType (bcsProjectShared s cd tr) ×
@@ -361,10 +365,12 @@ whose output includes both the original output and the `OracleWitness`. -/
 def bcsPhase1Prover
     (s : Oracle.Spec) (roles : RoleDeco s) (cd : CommitDeco (OracleComp oSpec) s)
     (OutType : SharedTranscript s cd → Type) :
-    Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
+    Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec))
+      Interaction.TwoParty.Participant.focal
       s.toInteractionSpec (s.toSpecRoles roles)
       (fun tr => OutType (projectShared s cd tr)) →
-    Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
+    Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec))
+      Interaction.TwoParty.Participant.focal
       (bcsSpec s cd).toInteractionSpec
       ((bcsSpec s cd).toSpecRoles (bcsRoleDeco s roles cd))
       (fun tr => OutType (bcsProjectShared s cd tr) ×

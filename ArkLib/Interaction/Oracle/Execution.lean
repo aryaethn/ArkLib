@@ -104,7 +104,8 @@ def Spec.runWithOracleCounterpartStaged
     {MidP MidC : Interaction.Spec.Transcript s₁.toInteractionSpec → Type} →
     {OutP OutC :
       (pt₁ : Spec.PublicTranscript s₁) → Spec.PublicTranscript (s₂ pt₁) → Type} →
-    Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
+    Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec))
+      Interaction.TwoParty.Participant.focal
       s₁.toInteractionSpec (s₁.toSpecRoles r₁) MidP →
     Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
       s₁.toInteractionSpec
@@ -113,7 +114,8 @@ def Spec.runWithOracleCounterpartStaged
       MidC →
     ((tr₁ : Interaction.Spec.Transcript s₁.toInteractionSpec) → MidP tr₁ →
       OracleComp oSpec
-        (Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
+        (Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec))
+          Interaction.TwoParty.Participant.focal
           ((s₂ (s₁.projectPublic tr₁)).toInteractionSpec)
           ((s₂ (s₁.projectPublic tr₁)).toSpecRoles (r₂ (s₁.projectPublic tr₁)))
           (fun tr₂ => OutP (s₁.projectPublic tr₁)
@@ -280,7 +282,8 @@ def Reduction.runConcrete
     (shared : SharedIn)
     (s : StatementWithOracles StatementIn OStatementIn shared)
     {OutputP : Interaction.Spec.Transcript (Context shared).toInteractionSpec → Type}
-    (prover : Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
+    (prover : Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec))
+      Interaction.TwoParty.Participant.focal
       (Context shared).toInteractionSpec
       ((Context shared).toSpecRoles (Roles shared)) OutputP) :
     OracleComp oSpec
@@ -712,7 +715,8 @@ def Verifier.run
     (stmt : StatementIn shared)
     (inputImpl : QueryImpl [OStatementIn shared]ₒ Id)
     {OutputP : Interaction.Spec.Transcript (Context shared).toInteractionSpec → Type}
-    (prover : Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
+    (prover : Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec))
+      Interaction.TwoParty.Participant.focal
       (Context shared).toInteractionSpec
       ((Context shared).toSpecRoles (Roles shared)) OutputP) :
     OracleComp oSpec
@@ -765,7 +769,8 @@ theorem Reduction.runConcrete_eq_verifier_run
     (shared : SharedIn)
     (s : StatementWithOracles StatementIn OStatementIn shared)
     {OutputP : Interaction.Spec.Transcript (Context shared).toInteractionSpec → Type}
-    (prover : Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
+    (prover : Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec))
+      Interaction.TwoParty.Participant.focal
       (Context shared).toInteractionSpec
       ((Context shared).toSpecRoles (Roles shared)) OutputP) :
     reduction.runConcrete shared s prover =
@@ -1044,7 +1049,8 @@ theorem Verifier.run_mapOutputWithRoles
     {OutputP OutputP' :
       Interaction.Spec.Transcript (Context shared).toInteractionSpec → Type}
     (fP : ∀ tr, OutputP tr → OutputP' tr)
-    (prover : Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
+    (prover : Interaction.Spec.StrategyOver (Interaction.Spec.pairedSyntax (OracleComp oSpec))
+      Interaction.TwoParty.Participant.focal
       (Context shared).toInteractionSpec
       ((Context shared).toSpecRoles (Roles shared)) OutputP) :
     verifier.run shared stmt inputImpl

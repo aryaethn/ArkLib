@@ -219,21 +219,25 @@ def compAuxWithMonads
     {Mid : Interaction.Spec.Transcript s₁.toInteractionSpec → Type} →
     {OutType : (pt₁ : Spec.PublicTranscript s₁) →
       Spec.PublicTranscript (s₂ pt₁) → Type} →
-    Interaction.Spec.Strategy.withRolesAndMonads
-      s₁.toInteractionSpec (s₁.toSpecRoles r₁) md₁ Mid →
+    Interaction.Spec.StrategyOver Interaction.Spec.focalMonadicSyntax PUnit.unit
+      s₁.toInteractionSpec
+      (Interaction.RoleDecoration.withMonads (s₁.toSpecRoles r₁) md₁)
+      Mid →
     ((tr₁ : Interaction.Spec.Transcript s₁.toInteractionSpec) → Mid tr₁ →
       m
-        (Interaction.Spec.Strategy.withRolesAndMonads
+        (Interaction.Spec.StrategyOver Interaction.Spec.focalMonadicSyntax PUnit.unit
           ((s₂ (s₁.projectPublic tr₁)).toInteractionSpec)
-          ((s₂ (s₁.projectPublic tr₁)).toSpecRoles (r₂ (s₁.projectPublic tr₁)))
-          (md₂ (s₁.projectPublic tr₁))
+          (Interaction.RoleDecoration.withMonads
+            ((s₂ (s₁.projectPublic tr₁)).toSpecRoles (r₂ (s₁.projectPublic tr₁)))
+            (md₂ (s₁.projectPublic tr₁)))
           (fun tr₂ => OutType (s₁.projectPublic tr₁)
             ((s₂ (s₁.projectPublic tr₁)).projectPublic tr₂)))) →
     m
-      (Interaction.Spec.Strategy.withRolesAndMonads
+      (Interaction.Spec.StrategyOver Interaction.Spec.focalMonadicSyntax PUnit.unit
         ((s₁.append s₂).toInteractionSpec)
-        ((s₁.append s₂).toSpecRoles (Spec.RoleDeco.append s₁ s₂ r₁ r₂))
-        (Spec.MonadDecoration.appendPublic s₁ s₂ md₁ md₂)
+        (Interaction.RoleDecoration.withMonads
+          ((s₁.append s₂).toSpecRoles (Spec.RoleDeco.append s₁ s₂ r₁ r₂))
+          (Spec.MonadDecoration.appendPublic s₁ s₂ md₁ md₂))
         (fun tr =>
           Spec.PublicTranscript.liftAppend s₁ s₂ OutType
             ((s₁.append s₂).projectPublic tr)))

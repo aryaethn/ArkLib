@@ -30,8 +30,11 @@ def Spec.runWithOracleCounterpart
     (s : Spec) → (roles : Spec.RoleDeco s) → (od : Spec.OracleDeco s) →
     {ιₐ : Type} → (accSpec : OracleSpec.{0, 0} ιₐ) → (accImpl : QueryImpl accSpec Id) →
     {OutputP OutputC : Interaction.Spec.Transcript s.toInteractionSpec → Type} →
-    Interaction.Spec.Strategy.withRolesAndMonads s.toInteractionSpec (s.toSpecRoles roles)
-      (s.toProverMonadDecoration oSpec) OutputP →
+    Interaction.Spec.StrategyOver Interaction.Spec.focalMonadicSyntax PUnit.unit
+      s.toInteractionSpec
+      (Interaction.RoleDecoration.withMonads
+        (s.toSpecRoles roles) (s.toProverMonadDecoration oSpec))
+      OutputP →
     Interaction.Spec.Counterpart.withMonads s.toInteractionSpec (s.toSpecRoles roles)
       (s.toMonadDecoration oSpec OStmtIn roles od accSpec) OutputC →
     OracleComp oSpec ((tr : Interaction.Spec.Transcript s.toInteractionSpec) ×
@@ -895,8 +898,11 @@ theorem Spec.runWithOracleCounterpart_mapOutputWithMonads
     {ιₐ : Type} → (accSpec : OracleSpec.{0, 0} ιₐ) → (accImpl : QueryImpl accSpec Id) →
     {OutputP OutputP' OutputC : Interaction.Spec.Transcript s.toInteractionSpec → Type} →
     (fP : ∀ tr, OutputP tr → OutputP' tr) →
-    (strat : Interaction.Spec.Strategy.withRolesAndMonads s.toInteractionSpec
-      (s.toSpecRoles roles) (s.toProverMonadDecoration oSpec) OutputP) →
+    (strat : Interaction.Spec.StrategyOver Interaction.Spec.focalMonadicSyntax PUnit.unit
+      s.toInteractionSpec
+      (Interaction.RoleDecoration.withMonads
+        (s.toSpecRoles roles) (s.toProverMonadDecoration oSpec))
+      OutputP) →
     (cpt : Interaction.Spec.Counterpart.withMonads s.toInteractionSpec (s.toSpecRoles roles)
       (s.toMonadDecoration oSpec OStmtIn roles od accSpec) OutputC) →
     Spec.runWithOracleCounterpart inputImpl s roles od accSpec accImpl

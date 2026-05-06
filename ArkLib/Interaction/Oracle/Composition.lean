@@ -362,24 +362,28 @@ def compAux
     {Mid : Interaction.Spec.Transcript s₁.toInteractionSpec → Type} →
     {OutType : (pt₁ : Spec.PublicTranscript s₁) →
       Spec.PublicTranscript (s₂ pt₁) → Type} →
-    Interaction.Spec.Counterpart.withMonads s₁.toInteractionSpec
-      (s₁.toSpecRoles r₁)
-      (s₁.toMonadDecoration oSpec OStmtIn r₁ od₁ accSpec) Mid →
+    Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+      s₁.toInteractionSpec
+      (Interaction.RoleDecoration.withMonads (s₁.toSpecRoles r₁)
+        (s₁.toMonadDecoration oSpec OStmtIn r₁ od₁ accSpec))
+      Mid →
     ((tr₁ : Interaction.Spec.Transcript s₁.toInteractionSpec) → Mid tr₁ →
-      Interaction.Spec.Counterpart.withMonads
+      Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
         ((s₂ (s₁.projectPublic tr₁)).toInteractionSpec)
-        ((s₂ (s₁.projectPublic tr₁)).toSpecRoles (r₂ (s₁.projectPublic tr₁)))
-        ((s₂ (s₁.projectPublic tr₁)).toMonadDecoration oSpec OStmtIn
-          (r₂ (s₁.projectPublic tr₁)) (od₂ (s₁.projectPublic tr₁))
-          (Spec.accumulatedSpec s₁ od₁ tr₁ accSpec).2)
+        (Interaction.RoleDecoration.withMonads
+          ((s₂ (s₁.projectPublic tr₁)).toSpecRoles (r₂ (s₁.projectPublic tr₁)))
+          ((s₂ (s₁.projectPublic tr₁)).toMonadDecoration oSpec OStmtIn
+            (r₂ (s₁.projectPublic tr₁)) (od₂ (s₁.projectPublic tr₁))
+            (Spec.accumulatedSpec s₁ od₁ tr₁ accSpec).2))
         (fun tr₂ => OutType (s₁.projectPublic tr₁)
           ((s₂ (s₁.projectPublic tr₁)).projectPublic tr₂))) →
-    Interaction.Spec.Counterpart.withMonads
+    Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
       ((s₁.append s₂).toInteractionSpec)
-      ((s₁.append s₂).toSpecRoles (Spec.RoleDeco.append s₁ s₂ r₁ r₂))
-      ((s₁.append s₂).toMonadDecoration oSpec OStmtIn
-        (Spec.RoleDeco.append s₁ s₂ r₁ r₂)
-        (Spec.OracleDeco.append s₁ s₂ od₁ od₂) accSpec)
+      (Interaction.RoleDecoration.withMonads
+        ((s₁.append s₂).toSpecRoles (Spec.RoleDeco.append s₁ s₂ r₁ r₂))
+        ((s₁.append s₂).toMonadDecoration oSpec OStmtIn
+          (Spec.RoleDeco.append s₁ s₂ r₁ r₂)
+          (Spec.OracleDeco.append s₁ s₂ od₁ od₂) accSpec))
       (fun tr =>
         Spec.PublicTranscript.liftAppend s₁ s₂ OutType
           ((s₁.append s₂).projectPublic tr))
@@ -483,12 +487,16 @@ def mapOracles
     (reroute : QueryImpl (oSpec + [OStmt₁]ₒ + accSpec₁)
       (OracleComp (oSpec + [OStmt₂]ₒ + accSpec₂)))
     {Output : Interaction.Spec.Transcript s.toInteractionSpec → Type}
-    (cpt : Interaction.Spec.Counterpart.withMonads s.toInteractionSpec
-      (s.toSpecRoles roles)
-      (s.toMonadDecoration oSpec OStmt₁ roles od accSpec₁) Output) :
-    Interaction.Spec.Counterpart.withMonads s.toInteractionSpec
-      (s.toSpecRoles roles)
-      (s.toMonadDecoration oSpec OStmt₂ roles od accSpec₂) Output :=
+    (cpt : Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+      s.toInteractionSpec
+      (Interaction.RoleDecoration.withMonads (s.toSpecRoles roles)
+        (s.toMonadDecoration oSpec OStmt₁ roles od accSpec₁))
+      Output) :
+    Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+      s.toInteractionSpec
+      (Interaction.RoleDecoration.withMonads (s.toSpecRoles roles)
+        (s.toMonadDecoration oSpec OStmt₂ roles od accSpec₂))
+      Output :=
   Interaction.Spec.Counterpart.mapMonadDecoration s.toInteractionSpec
     (s.toSpecRoles roles)
     (mapOraclesHom s roles od accSpec₁ accSpec₂ reroute)
@@ -513,12 +521,16 @@ def liftAcc
     {ιₐ₂ : Type} (accSpec₂ : OracleSpec.{0, 0} ιₐ₂)
     (routeAcc : QueryImpl accSpec₁ (OracleComp ((oSpec + [OStmtIn]ₒ) + accSpec₂)))
     {Output : Interaction.Spec.Transcript s.toInteractionSpec → Type}
-    (cpt : Interaction.Spec.Counterpart.withMonads s.toInteractionSpec
-      (s.toSpecRoles roles)
-      (s.toMonadDecoration oSpec OStmtIn roles od accSpec₁) Output) :
-    Interaction.Spec.Counterpart.withMonads s.toInteractionSpec
-      (s.toSpecRoles roles)
-      (s.toMonadDecoration oSpec OStmtIn roles od accSpec₂) Output :=
+    (cpt : Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+      s.toInteractionSpec
+      (Interaction.RoleDecoration.withMonads (s.toSpecRoles roles)
+        (s.toMonadDecoration oSpec OStmtIn roles od accSpec₁))
+      Output) :
+    Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+      s.toInteractionSpec
+      (Interaction.RoleDecoration.withMonads (s.toSpecRoles roles)
+        (s.toMonadDecoration oSpec OStmtIn roles od accSpec₂))
+      Output :=
   mapOracles s roles od accSpec₁ accSpec₂
     (QueryImpl.addLift (QueryImpl.id _) routeAcc) cpt
 
@@ -549,12 +561,16 @@ def retargetMonads
     (s₂ : Oracle.Spec) (roles₂ : Spec.RoleDeco s₂) (od₂ : Spec.OracleDeco s₂)
     {ιₐ : Type} (accSpec : OracleSpec.{0, 0} ιₐ)
     {Output : Interaction.Spec.Transcript s₂.toInteractionSpec → Type}
-    (cpt : Interaction.Spec.Counterpart.withMonads s₂.toInteractionSpec
-      (s₂.toSpecRoles roles₂)
-      (s₂.toMonadDecoration oSpec OStmtMid roles₂ od₂ accSpec) Output) :
-    Interaction.Spec.Counterpart.withMonads s₂.toInteractionSpec
-      (s₂.toSpecRoles roles₂)
-      (s₂.toMonadDecoration oSpec OStmtIn roles₂ od₂ accSpec) Output :=
+    (cpt : Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+      s₂.toInteractionSpec
+      (Interaction.RoleDecoration.withMonads (s₂.toSpecRoles roles₂)
+        (s₂.toMonadDecoration oSpec OStmtMid roles₂ od₂ accSpec))
+      Output) :
+    Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+      s₂.toInteractionSpec
+      (Interaction.RoleDecoration.withMonads (s₂.toSpecRoles roles₂)
+        (s₂.toMonadDecoration oSpec OStmtIn roles₂ od₂ accSpec))
+      Output :=
   let liftRoute : QueryImpl ([OStmtIn]ₒ + s₁.toOracleSpec od₁ pt₁)
       (OracleComp ((oSpec + [OStmtIn]ₒ) + accSpec)) := fun
     | .inl q => liftM <| ([OStmtIn]ₒ).query q
@@ -766,12 +782,10 @@ def Reduction.comp
                 (Context₂ shared pt₁) (Roles₂ shared pt₁) (OracleDeco₂ shared pt₁)
                 []ₒ
                 ((r₂ shared pt₁).verifier.toFun PUnit.unit midStmt))))
-    -- This `simulate` operates directly on `QueryImpl`s over combined
-    -- oracle specs, not on `Counterpart.withMonads` values, so
-    -- `Counterpart.mapOracles` (which rewrites per-node monads in a
-    -- counterpart) is not applicable here. The routing below is a
-    -- specialized plumbing of `simulateQ` through the two sub-verifiers'
-    -- `simulate`s.
+    -- This `simulate` operates directly on `QueryImpl`s over combined oracle
+    -- specs, not on counterpart strategies, so `Counterpart.mapOracles` is not
+    -- applicable here. The routing below is specialized plumbing of
+    -- `simulateQ` through the two sub-verifiers' `simulate`s.
     simulate := fun shared pt =>
       let pt₁ := (Spec.PublicTranscript.split
         (Context₁ shared) (Context₂ shared) pt).1

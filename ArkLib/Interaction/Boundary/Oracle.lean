@@ -863,15 +863,15 @@ def pullbackCounterpart
     {ιₐ : Type}
     (accSpec : OracleSpec ιₐ)
     (cpt :
-      Interaction.Spec.Counterpart.withMonads
+      Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
         spec.toInteractionSpec
-        (spec.toSpecRoles roles)
-        (spec.toMonadDecoration oSpec InnerOStmtIn roles od accSpec)
+        (Interaction.RoleDecoration.withMonads (spec.toSpecRoles roles)
+          (spec.toMonadDecoration oSpec InnerOStmtIn roles od accSpec))
         Output₁) :
-    Interaction.Spec.Counterpart.withMonads
+    Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
       spec.toInteractionSpec
-      (spec.toSpecRoles roles)
-      (spec.toMonadDecoration oSpec OuterOStmtIn roles od accSpec)
+      (Interaction.RoleDecoration.withMonads (spec.toSpecRoles roles)
+        (spec.toMonadDecoration oSpec OuterOStmtIn roles od accSpec))
       Output₂ :=
   match spec, roles, od with
   | .done, _, _ =>

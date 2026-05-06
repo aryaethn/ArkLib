@@ -311,11 +311,11 @@ end QueryResponse
 /-- A BCS-compatible verifier decomposed into three components that together
 express the "public query" property:
 
-1. `challenger`: a `Counterpart.withMonads` on `bcsSpec` using
-   `toMonadDecoration` with `bcsOracleDeco`. At receiver nodes, the verifier
-   can query external oracles (`oSpec`), input oracle statements (`[OStmtIn]ₒ`),
-   and non-committed message oracles, but NOT committed ones (committed nodes
-   are `.public` in the BCS spec, so they don't contribute to oracle access).
+1. `challenger`: a counterpart strategy on `bcsSpec` using `toMonadDecoration`
+   with `bcsOracleDeco`. At receiver nodes, the verifier can query external
+   oracles (`oSpec`), input oracle statements (`[OStmtIn]ₒ`), and non-committed
+   message oracles, but NOT committed ones (committed nodes are `.public` in the
+   BCS spec, so they don't contribute to oracle access).
 
 2. `queryFn`: a deterministic function producing queries to committed oracles
    from the `SharedTranscript`. The "public query" property is implicit in
@@ -330,11 +330,12 @@ structure PublicQueryVerifier {ι : Type} (oSpec : OracleSpec.{0, 0} ι)
     (od : OracleDeco s) (cd : CommitDeco (OracleComp oSpec) s)
     (StmtIn : Type) (StmtOut : SharedTranscript s cd → Type) where
   challenger : StmtIn →
-    Interaction.Spec.Counterpart.withMonads
+    Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
       (bcsSpec s cd).toInteractionSpec
-      ((bcsSpec s cd).toSpecRoles (bcsRoleDeco s roles cd))
-      ((bcsSpec s cd).toMonadDecoration oSpec OStmtIn
-        (bcsRoleDeco s roles cd) (bcsOracleDeco s od cd) []ₒ)
+      (Interaction.RoleDecoration.withMonads
+        ((bcsSpec s cd).toSpecRoles (bcsRoleDeco s roles cd))
+        ((bcsSpec s cd).toMonadDecoration oSpec OStmtIn
+          (bcsRoleDeco s roles cd) (bcsOracleDeco s od cd) []ₒ))
       (fun _ => PUnit)
   queryFn : StmtIn → (st : SharedTranscript s cd) →
     OracleQueryDeco s od cd st

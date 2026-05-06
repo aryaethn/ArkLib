@@ -35,8 +35,11 @@ def Spec.runWithOracleCounterpart
       (Interaction.RoleDecoration.withMonads
         (s.toSpecRoles roles) (s.toProverMonadDecoration oSpec))
       OutputP →
-    Interaction.Spec.Counterpart.withMonads s.toInteractionSpec (s.toSpecRoles roles)
-      (s.toMonadDecoration oSpec OStmtIn roles od accSpec) OutputC →
+    Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+      s.toInteractionSpec
+      (Interaction.RoleDecoration.withMonads (s.toSpecRoles roles)
+        (s.toMonadDecoration oSpec OStmtIn roles od accSpec))
+      OutputC →
     OracleComp oSpec ((tr : Interaction.Spec.Transcript s.toInteractionSpec) ×
       OutputP tr × OutputC tr)
   | .done, _, _, _, _, _, _, _, output, cOutput =>
@@ -57,9 +60,10 @@ def Spec.runWithOracleCounterpart
       have dualSample' : OracleComp ((oSpec + [OStmtIn]ₒ) + accSpec) _ := by
         simpa using dualSample
       let z' : Sigma (fun x =>
-          Interaction.Spec.Counterpart.withMonads (rest x).toInteractionSpec
-            ((rest x).toSpecRoles (rRest x))
-            ((rest x).toMonadDecoration oSpec OStmtIn (rRest x) (odRest x) accSpec)
+          Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+            (rest x).toInteractionSpec
+            (Interaction.RoleDecoration.withMonads ((rest x).toSpecRoles (rRest x))
+              ((rest x).toMonadDecoration oSpec OStmtIn (rRest x) (odRest x) accSpec))
             (fun p => OutputC ⟨x, p⟩)) ←
         simulateQ routeImpl dualSample'
       let x := z'.1
@@ -102,9 +106,11 @@ def Spec.runWithOracleCounterpartStaged
       (pt₁ : Spec.PublicTranscript s₁) → Spec.PublicTranscript (s₂ pt₁) → Type} →
     Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
       s₁.toInteractionSpec (s₁.toSpecRoles r₁) MidP →
-    Interaction.Spec.Counterpart.withMonads s₁.toInteractionSpec
-      (s₁.toSpecRoles r₁)
-      (s₁.toMonadDecoration oSpec OStmtIn r₁ od₁ accSpec) MidC →
+    Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+      s₁.toInteractionSpec
+      (Interaction.RoleDecoration.withMonads (s₁.toSpecRoles r₁)
+        (s₁.toMonadDecoration oSpec OStmtIn r₁ od₁ accSpec))
+      MidC →
     ((tr₁ : Interaction.Spec.Transcript s₁.toInteractionSpec) → MidP tr₁ →
       OracleComp oSpec
         (Interaction.Spec.Strategy.withRoles (OracleComp oSpec)
@@ -113,12 +119,13 @@ def Spec.runWithOracleCounterpartStaged
           (fun tr₂ => OutP (s₁.projectPublic tr₁)
             ((s₂ (s₁.projectPublic tr₁)).projectPublic tr₂)))) →
     ((tr₁ : Interaction.Spec.Transcript s₁.toInteractionSpec) → MidC tr₁ →
-      Interaction.Spec.Counterpart.withMonads
+      Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
         ((s₂ (s₁.projectPublic tr₁)).toInteractionSpec)
-        ((s₂ (s₁.projectPublic tr₁)).toSpecRoles (r₂ (s₁.projectPublic tr₁)))
-        ((s₂ (s₁.projectPublic tr₁)).toMonadDecoration oSpec OStmtIn
-          (r₂ (s₁.projectPublic tr₁)) (od₂ (s₁.projectPublic tr₁))
-          (Spec.accumulatedSpec s₁ od₁ tr₁ accSpec).2)
+        (Interaction.RoleDecoration.withMonads
+          ((s₂ (s₁.projectPublic tr₁)).toSpecRoles (r₂ (s₁.projectPublic tr₁)))
+          ((s₂ (s₁.projectPublic tr₁)).toMonadDecoration oSpec OStmtIn
+            (r₂ (s₁.projectPublic tr₁)) (od₂ (s₁.projectPublic tr₁))
+            (Spec.accumulatedSpec s₁ od₁ tr₁ accSpec).2))
         (fun tr₂ => OutC (s₁.projectPublic tr₁)
           ((s₂ (s₁.projectPublic tr₁)).projectPublic tr₂))) →
     OracleComp oSpec
@@ -158,9 +165,10 @@ def Spec.runWithOracleCounterpartStaged
       have cpt₁' : OracleComp ((oSpec + [OStmtIn]ₒ) + accSpec) _ := by
         simpa using cpt₁
       let z' : Sigma (fun x =>
-          Interaction.Spec.Counterpart.withMonads (rest x).toInteractionSpec
-            ((rest x).toSpecRoles (rRest x))
-            ((rest x).toMonadDecoration oSpec OStmtIn (rRest x) (od₁ x) accSpec)
+          Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+            (rest x).toInteractionSpec
+            (Interaction.RoleDecoration.withMonads ((rest x).toSpecRoles (rRest x))
+              ((rest x).toMonadDecoration oSpec OStmtIn (rRest x) (od₁ x) accSpec))
             (fun p => MidC ⟨x, p⟩)) ←
         simulateQ routeImpl cpt₁'
       let x := z'.1
@@ -903,8 +911,11 @@ theorem Spec.runWithOracleCounterpart_mapOutputWithMonads
       (Interaction.RoleDecoration.withMonads
         (s.toSpecRoles roles) (s.toProverMonadDecoration oSpec))
       OutputP) →
-    (cpt : Interaction.Spec.Counterpart.withMonads s.toInteractionSpec (s.toSpecRoles roles)
-      (s.toMonadDecoration oSpec OStmtIn roles od accSpec) OutputC) →
+    (cpt : Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
+      s.toInteractionSpec
+      (Interaction.RoleDecoration.withMonads (s.toSpecRoles roles)
+        (s.toMonadDecoration oSpec OStmtIn roles od accSpec))
+      OutputC) →
     Spec.runWithOracleCounterpart inputImpl s roles od accSpec accImpl
       (Interaction.Spec.ShapeOver.mapOutput Interaction.Spec.focalMonadicShape
         (agent := PUnit.unit)

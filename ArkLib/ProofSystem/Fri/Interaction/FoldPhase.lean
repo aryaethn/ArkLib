@@ -214,21 +214,22 @@ private def indexedVerifierStepAux {ι : Type} {oSpec : OracleSpec.{0, 0} ι}
     {remaining round : Nat}
     (hround : round + (remaining + 1) = k)
     (state : IndexedVerifierState (F := F) (k := k) round) :
-    Interaction.Spec.Counterpart.withMonads
+    Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
       (foldRoundSpec (F := F) (n := n) D x s
         ⟨round, stateRound_lt (k := k) hround⟩).toInteractionSpec
-      ((foldRoundSpec (F := F) (n := n) D x s
-        ⟨round, stateRound_lt (k := k) hround⟩).toSpecRoles
-          (foldRoundRoles (F := F) (n := n) D x s
-            ⟨round, stateRound_lt (k := k) hround⟩))
-      ((foldRoundSpec (F := F) (n := n) D x s
-        ⟨round, stateRound_lt (k := k) hround⟩).toMonadDecoration oSpec
-          (InputOracleFamily (F := F) (n := n) D x s)
-          (foldRoundRoles (F := F) (n := n) D x s
-            ⟨round, stateRound_lt (k := k) hround⟩)
-          (foldRoundOD (F := F) (n := n) D x s
-            ⟨round, stateRound_lt (k := k) hround⟩)
-          []ₒ)
+      (Interaction.RoleDecoration.withMonads
+        ((foldRoundSpec (F := F) (n := n) D x s
+          ⟨round, stateRound_lt (k := k) hround⟩).toSpecRoles
+            (foldRoundRoles (F := F) (n := n) D x s
+              ⟨round, stateRound_lt (k := k) hround⟩))
+        ((foldRoundSpec (F := F) (n := n) D x s
+          ⟨round, stateRound_lt (k := k) hround⟩).toMonadDecoration oSpec
+            (InputOracleFamily (F := F) (n := n) D x s)
+            (foldRoundRoles (F := F) (n := n) D x s
+              ⟨round, stateRound_lt (k := k) hround⟩)
+            (foldRoundOD (F := F) (n := n) D x s
+              ⟨round, stateRound_lt (k := k) hround⟩)
+            []ₒ))
       (fun _ => IndexedVerifierState (F := F) (k := k) round.succ) := do
   let roundIdx : Fin k := ⟨round, stateRound_lt (k := k) hround⟩
   let α ← sampleChallenge roundIdx

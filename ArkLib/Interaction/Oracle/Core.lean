@@ -254,8 +254,7 @@ structure Reduction.WithMonads {ι : Type} (oSpec : OracleSpec.{0, 0} ι)
 
 /-- Oracle reduction on `Oracle.Spec`: bundles a prover and a verifier for the
 same protocol. The prover produces strategies on `(Context shared).toInteractionSpec`
-while the verifier interacts via `Counterpart.withMonads` with growing oracle
-access.
+while the verifier interacts as a counterpart strategy with growing oracle access.
 
 All output types are indexed by `PublicTranscript`, ensuring they do not
 depend on oracle message values. -/

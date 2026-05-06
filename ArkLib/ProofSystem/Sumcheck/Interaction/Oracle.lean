@@ -78,11 +78,11 @@ abbrev RoundCounterpart
     [∀ i, OracleInterface (OStmtIn i)]
     {ιₐ : Type} (accSpec : OracleSpec.{0, 0} ιₐ)
     (Output : Interaction.Spec.Transcript (roundSpec R deg).toInteractionSpec → Type) :=
-  Interaction.Spec.Counterpart.withMonads
+  Interaction.Spec.StrategyOver Interaction.Spec.counterpartMonadicSyntax PUnit.unit
     (roundSpec R deg).toInteractionSpec
-    ((roundSpec R deg).toSpecRoles (roundRoles R deg))
-    ((roundSpec R deg).toMonadDecoration oSpec OStmtIn
-      (roundRoles R deg) (roundOracleDeco R deg) accSpec)
+    (Interaction.RoleDecoration.withMonads ((roundSpec R deg).toSpecRoles (roundRoles R deg))
+      ((roundSpec R deg).toMonadDecoration oSpec OStmtIn
+        (roundRoles R deg) (roundOracleDeco R deg) accSpec))
     Output
 
 /-- The live-claim oracle verifier for one sum-check round.

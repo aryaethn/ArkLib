@@ -186,8 +186,7 @@ The scoped choreography core keeps public messages in continuation scope, so the
 verifier can refer to `R`, `c`, and `z` without manually packing them into local
 state names such as `pkAndR`. Private prover state is unpacked by pattern at the
 next prover action, instead of being projected from an ad-hoc tuple name. -/
-@[inline, specialize]
-def choreography :
+def schnorrChoreo :
     Choreo.Scoped.Program (OracleComp unifSpec)
       F G (Option Unit × PUnit) (Option Unit) :=
   choreo_begin
@@ -208,11 +207,11 @@ def choreography :
 
 /-- The choreography produces the same interaction tree as the hand-written
 Schnorr `spec`. -/
-example : (choreography F G g).spec = spec F G := rfl
+example : (schnorrChoreo F G g).spec = spec F G := rfl
 
 /-- The choreography produces the same prover-perspective roles as
 `proverRoles`. -/
-example : (choreography F G g).roles = proverRoles F G := rfl
+example : (schnorrChoreo F G g).roles = proverRoles F G := rfl
 
 /-- Honest Schnorr prover projected from the choreography. -/
 @[inline, specialize]
@@ -221,7 +220,7 @@ def proverFromChoreo :
       (fun _ => spec F G) (fun _ => proverRoles F G)
       (fun _ => PUnit) (fun _ => F)
       (fun _ _ => Option Unit) (fun _ _ => PUnit) :=
-  fun _pk _ sk => (choreography F G g).prover sk
+  fun _pk _ sk => (schnorrChoreo F G g).prover sk
 
 /-- Honest Schnorr verifier projected from the choreography. -/
 @[inline, specialize]
@@ -229,7 +228,7 @@ def verifierFromChoreo :
     Verifier (OracleComp unifSpec) G
       (fun _ => spec F G) (fun _ => proverRoles F G)
       (fun _ => PUnit) (fun _ _ => Option Unit) :=
-  fun pk _ => (choreography F G g).verifier pk
+  fun pk _ => (schnorrChoreo F G g).verifier pk
 
 /-- Schnorr packaged as a reduction via the choreography. -/
 @[inline, specialize]
@@ -254,7 +253,7 @@ def reduction :
 /-- The projected prover is propositionally the same as the hand-written prover. -/
 theorem proverFromChoreo_eq_prover : proverFromChoreo F G g = prover F G g := by
   funext pk stmt sk
-  simp only [proverFromChoreo, prover, choreography, Choreo.Scoped.proverSendConst,
+  simp only [proverFromChoreo, prover, schnorrChoreo, Choreo.Scoped.proverSendConst,
     Choreo.Scoped.verifierSendConst, Choreo.Scoped.done, bind_pure_comp,
     map_pure, Functor.map_map]
   rfl
@@ -262,7 +261,7 @@ theorem proverFromChoreo_eq_prover : proverFromChoreo F G g = prover F G g := by
 /-- The projected verifier is propositionally the same as the hand-written verifier. -/
 theorem verifierFromChoreo_eq_verifier : verifierFromChoreo F G g = verifier F G g := by
   funext pk stmt R
-  simp only [verifierFromChoreo, verifier, choreography, Choreo.Scoped.proverSendConst,
+  simp only [verifierFromChoreo, verifier, schnorrChoreo, Choreo.Scoped.proverSendConst,
     Choreo.Scoped.verifierSendConst, Choreo.Scoped.done, bind_pure_comp,
     Functor.map_map]
   rfl

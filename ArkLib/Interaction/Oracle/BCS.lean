@@ -77,25 +77,38 @@ namespace Spec
 
 /-! ## Commitment decoration -/
 
+/-- Displayed-family shape for BCS commitment selections on `Oracle.Spec`. -/
+def commitDecoShape (m : Type → Type) :
+    PFunctor.FreeM.Displayed.Shape.{1, 0, 0, 2} Oracle.Spec.basePFunctor PUnit.{1} where
+  leaf := fun _ => PUnit.{2}
+  node := fun
+    | .public X => fun child => (x : X) → child x
+    | .oracle X => fun child => Option (NodeCommitment m X) × child ⟨⟩
+
 /-- Commitment selection on an `Oracle.Spec`. At each `.oracle` node, either
 `some nc` (commit the oracle message using `nc`) or `none` (leave it in the
 clear). `.public` nodes just recurse, indexed by the message value. -/
-def CommitDeco (m : Type → Type) : Oracle.Spec → Type 1
-  | .done => PUnit
-  | .«public» _ rest => (x : _) → CommitDeco m (rest x)
-  | .«oracle» X cont => Option (NodeCommitment m X) × CommitDeco m (cont ⟨⟩)
+abbrev CommitDeco (m : Type → Type) (s : Oracle.Spec) : Type 1 :=
+  PFunctor.FreeM.Displayed (commitDecoShape m) s
 
 /-! ## Shared transcript -/
+
+/-- Displayed-over shape for data shared between original and BCS protocols. -/
+def sharedTranscriptShape (m : Type → Type) :
+    PFunctor.FreeM.Displayed.OverShape (commitDecoShape m) where
+  leaf := fun _ _ => PUnit.{1}
+  node := fun
+    | .public X => fun _ childOver cdRest => (x : X) × childOver x (cdRest x)
+    | .oracle X => fun _ childOver cd =>
+        match cd with
+        | ⟨some _, cdRest⟩ => childOver ⟨⟩ cdRest
+        | ⟨none, cdRest⟩ => X × childOver ⟨⟩ cdRest
 
 /-- Transcript data shared between the original protocol and the BCS protocol.
 Committed oracle messages are dropped; non-committed oracle messages are
 retained. `.public` messages are always included. -/
-def SharedTranscript {m : Type → Type} :
-    (s : Oracle.Spec) → CommitDeco m s → Type
-  | .done, _ => PUnit
-  | .«public» X rest, cdRest => (x : X) × SharedTranscript (rest x) (cdRest x)
-  | .«oracle» _ _, ⟨some _, cdRest⟩ => SharedTranscript _ cdRest
-  | .«oracle» X _, ⟨none, cdRest⟩ => X × SharedTranscript _ cdRest
+abbrev SharedTranscript {m : Type → Type} (s : Oracle.Spec) (cd : CommitDeco m s) : Type :=
+  PFunctor.FreeM.Displayed.Over (sharedTranscriptShape m) s cd
 
 /-- Project an original transcript to the shared transcript. -/
 def projectShared {m : Type → Type} :

@@ -41,7 +41,7 @@ This structural distinction gives:
 that distinguishes the two kinds of position:
 
 ```
-Oracle.Spec := PFunctor.FreeM Oracle.basePFunctor PUnit
+Oracle.Spec := PFunctor.FreeM Oracle.Spec.basePFunctor PUnit
 ```
 
 NOTE (universe polymorphism): the entire stack is currently pinned at
@@ -54,7 +54,7 @@ ambient query-spec universe across the codebase, so polymorphizing buys no
 expressivity today. Track polymorphization as a follow-up if an oracle
 message type at higher universe is needed.
 
-where `Oracle.basePFunctor.A := Oracle.Position` is a two-constructor
+where `Oracle.Spec.basePFunctor.A := Oracle.Position` is a two-constructor
 inductive (`.public X` and `.oracle X`), and the child family is
 
 ```
@@ -81,8 +81,8 @@ without leaking `.roll` or the polynomial substrate.
 
 ### Core types
 - `Oracle.Position` — coproduct of public / oracle position kinds.
-- `Oracle.basePFunctor` — the polynomial functor whose free monad is `Spec`.
-- `Oracle.Spec` — `PFunctor.FreeM Oracle.basePFunctor PUnit`.
+- `Oracle.Spec.basePFunctor` — the polynomial functor whose free monad is `Spec`.
+- `Oracle.Spec` — `PFunctor.FreeM Oracle.Spec.basePFunctor PUnit`.
 - `Spec.RoleDeco` — role assignment on `.public` nodes only.
 - `Spec.OracleDeco` — oracle interface assignment on `.oracle` nodes only.
 
@@ -131,6 +131,8 @@ def Position.B : Position → Type
   | .public X => X
   | .oracle _ => PUnit
 
+namespace Spec
+
 /-- The polynomial functor that generates the shape of an oracle protocol
 spec. Positions are `Oracle.Position` (a coproduct of public/oracle kinds);
 the child family is `Position.B`. The non-dependence of oracle continuations
@@ -140,8 +142,10 @@ def basePFunctor : PFunctor.{1, 0} where
   A := Position
   B := Position.B
 
+end Spec
+
 /-- The canonical protocol specification for oracle reductions, defined as
-the free monad on `Oracle.basePFunctor` with `PUnit` payloads.
+the free monad on `Oracle.Spec.basePFunctor` with `PUnit` payloads.
 
 Use `Oracle.Spec.done`, `Oracle.Spec.public`, and `Oracle.Spec.oracle` to
 construct nodes. All three aliases double as `match` patterns thanks to
@@ -149,7 +153,7 @@ their symmetric shape: `oracle` takes `cont : PUnit → Spec` in first-class
 position, mirroring `public`'s `rest : X → Spec`. Construction sites pass
 `fun _ => rest` for non-dependent oracle continuations; pattern bodies
 recover the rest as `cont ⟨⟩`. -/
-def Spec : Type 1 := PFunctor.FreeM basePFunctor PUnit.{1}
+def Spec : Type 1 := PFunctor.FreeM Spec.basePFunctor PUnit.{1}
 
 namespace Spec
 
@@ -213,20 +217,30 @@ def recOn {motive : Spec → Sort v}
 
 /-! ## Role and oracle decorations -/
 
+/-- Displayed-family shape for role assignments on `Oracle.Spec`. -/
+def roleDecoShape : PFunctor.FreeM.Displayed.Shape.{1, 0, 0, 1} basePFunctor PUnit.{1} where
+  leaf := fun _ => PUnit.{1}
+  node := fun
+    | .public X => fun child => Interaction.TwoParty.Role × ((x : X) → child x)
+    | .oracle _ => fun child => child ⟨⟩
+
 /-- Role assignment for an `Oracle.Spec`. Only `.public` nodes carry a role
 (`sender` or `receiver`). `.oracle` nodes are always sender, so no annotation
 is stored. -/
-def RoleDeco : Spec → Type
-  | .done => PUnit
-  | .«public» _ rest => Interaction.TwoParty.Role × ((x : _) → RoleDeco (rest x))
-  | .«oracle» _ cont => RoleDeco (cont ⟨⟩)
+abbrev RoleDeco (s : Spec) : Type :=
+  PFunctor.FreeM.Displayed roleDecoShape s
+
+/-- Displayed-family shape for oracle interfaces on `Oracle.Spec`. -/
+def oracleDecoShape : PFunctor.FreeM.Displayed.Shape.{1, 0, 0, 2} basePFunctor PUnit.{1} where
+  leaf := fun _ => PUnit.{2}
+  node := fun
+    | .public X => fun child => (x : X) → child x
+    | .oracle X => fun child => OracleInterface X × child ⟨⟩
 
 /-- Oracle interface assignment. `.oracle` nodes carry an `OracleInterface`
 (defining the query-response structure). `.public` nodes just recurse. -/
-def OracleDeco : Spec → Type 1
-  | .done => PUnit
-  | .«public» _ rest => (x : _) → OracleDeco (rest x)
-  | .«oracle» X cont => OracleInterface X × OracleDeco (cont ⟨⟩)
+abbrev OracleDeco (s : Spec) : Type 1 :=
+  PFunctor.FreeM.Displayed oracleDecoShape s
 
 /-! ## Runtime map to Interaction.Spec -/
 

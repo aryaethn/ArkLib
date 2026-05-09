@@ -29,6 +29,7 @@ lemma exists_factors_with_large_common_root_set (δ : ℚ) (x₀ : F)
   (h_gs : ModifiedGuruswami m n k ωs Q u₀ u₁) :
   ∃ R H, R ∈ (irreducible_factorization_of_gs_solution h_gs).choose_spec.choose ∧
     Irreducible H ∧ 0 < H.natDegree ∧ H ∣ (Bivariate.evalX (Polynomial.C x₀) R) ∧
+    (Bivariate.evalX (Polynomial.C x₀) R).Separable ∧
     #(@Set.toFinset _ { z : coeffs_of_close_proximity (F := F) k ωs δ u₀ u₁ |
         letI Pz := Pz z.2
         (Trivariate.eval_on_Z R z.1).eval Pz = 0 ∧
@@ -57,6 +58,22 @@ lemma natDegree_H_pos (h_gs : ModifiedGuruswami m n k ωs Q u₀ u₁) :
     0 < (H k δ x₀ h_gs).natDegree :=
   (exists_factors_with_large_common_root_set k δ x₀ h_gs).choose_spec.choose_spec.2.2.1
 
+/-- The extracted `H` divides `R(x₀, Y, Z)`, as required for the Hensel setup in Claim A.2. -/
+lemma H_dvd_evalX_R (h_gs : ModifiedGuruswami m n k ωs Q u₀ u₁) :
+    H k δ x₀ h_gs ∣ Bivariate.evalX (Polynomial.C x₀) (R k δ x₀ h_gs) :=
+  (exists_factors_with_large_common_root_set k δ x₀ h_gs).choose_spec.choose_spec.2.2.2.1
+
+/-- The specialization `R(x₀, Y, Z)` is separable in `Y`, as required for Claim A.2. -/
+lemma evalX_R_separable (h_gs : ModifiedGuruswami m n k ωs Q u₀ u₁) :
+    (Bivariate.evalX (Polynomial.C x₀) (R k δ x₀ h_gs)).Separable :=
+  (exists_factors_with_large_common_root_set k δ x₀ h_gs).choose_spec.choose_spec.2.2.2.2.1
+
+open BCIKS20AppendixA.ClaimA2 in
+/-- The Claim A.2 hypotheses satisfied by the `R,H` pair extracted from Claim 5.7. -/
+lemma claimA2_hypotheses (h_gs : ModifiedGuruswami m n k ωs Q u₀ u₁) :
+    Hypotheses x₀ (R k δ x₀ h_gs) (H k δ x₀ h_gs) :=
+  ⟨H_dvd_evalX_R k h_gs, evalX_R_separable k h_gs⟩
+
 open BCIKS20AppendixA.ClaimA2 in
 /-- Claim 5.8 from [BCIKS20].
 States that the approximate solution is actually a solution. This version of the claim is stated in
@@ -69,6 +86,7 @@ lemma approximate_solution_is_exact_solution_coeffs
       (R k δ x₀ h_gs)
       (irreducible_H k h_gs)
       (natDegree_H_pos k h_gs)
+      (claimA2_hypotheses k h_gs)
       t
     =
     (0 : BCIKS20AppendixA.𝕃 (H k δ x₀ h_gs))
@@ -82,7 +100,8 @@ This version is in terms of polynomials.
 lemma approximate_solution_is_exact_solution_coeffs'
     (h_gs : ModifiedGuruswami m n k ωs Q u₀ u₁)
     :
-    γ' x₀ (R k δ x₀ h_gs) (irreducible_H k h_gs) (natDegree_H_pos k h_gs) =
+    γ' x₀ (R k δ x₀ h_gs) (irreducible_H k h_gs) (natDegree_H_pos k h_gs)
+        (claimA2_hypotheses k h_gs) =
         PowerSeries.mk (fun t =>
           if t ≥ k
           then (0 : BCIKS20AppendixA.𝕃 (H k δ x₀ h_gs))
@@ -91,7 +110,8 @@ lemma approximate_solution_is_exact_solution_coeffs'
               x₀
               (R k (x₀ := x₀) (δ := δ) h_gs)
               (irreducible_H k h_gs)
-              (natDegree_H_pos k h_gs))) := by
+              (natDegree_H_pos k h_gs)
+              (claimA2_hypotheses k h_gs))) := by
    sorry
 
 open BCIKS20AppendixA.ClaimA2 in
@@ -102,7 +122,8 @@ lemma solution_gamma_is_linear_in_Z
     :
   ∃ (v₀ v₁ : F[X]),
     γ' x₀ (R k δ x₀ h_gs) (irreducible_H k (x₀ := x₀) (δ := δ) h_gs)
-      (natDegree_H_pos k (x₀ := x₀) (δ := δ) h_gs) =
+      (natDegree_H_pos k (x₀ := x₀) (δ := δ) h_gs)
+      (claimA2_hypotheses k (x₀ := x₀) (δ := δ) h_gs) =
         BCIKS20AppendixA.polyToPowerSeries𝕃 _
           (
             (Polynomial.map Polynomial.C v₀) +
@@ -123,7 +144,8 @@ open BCIKS20AppendixA.ClaimA2 in
 /-- The extracted `P` from Claim 5.9 equals `γ`. -/
 lemma gamma_eq_P (h_gs : ModifiedGuruswami m n k ωs Q u₀ u₁) :
   γ' x₀ (R k δ x₀ h_gs) (irreducible_H k (x₀ := x₀) (δ := δ) h_gs)
-    (natDegree_H_pos k (x₀ := x₀) (δ := δ) h_gs) =
+    (natDegree_H_pos k (x₀ := x₀) (δ := δ) h_gs)
+    (claimA2_hypotheses k (x₀ := x₀) (δ := δ) h_gs) =
   BCIKS20AppendixA.polyToPowerSeries𝕃 _
     (P k δ x₀ h_gs) :=
   Classical.choose_spec

@@ -722,6 +722,22 @@ variable {F : Type} [Field F]
          {H : F[X][Y]} [H_irreducible : Fact (Irreducible H)]
          [H_natDegree_pos : Fact (0 < H.natDegree)]
 
+/-- The algebraic hypotheses for Claim A.2 from Appendix A.4 of [BCIKS20], after specializing
+`R` at `X = x₀`. -/
+structure Hypotheses (x₀ : F) (R : F[X][X][Y]) (H : F[X][Y]) : Prop where
+  dvd_evalX : H ∣ Bivariate.evalX (Polynomial.C x₀) R
+  separable_evalX : (Bivariate.evalX (Polynomial.C x₀) R).Separable
+
+/-- The leading coefficient `W` of `H` divides the leading coefficient of `R(x₀,Y,Z)`. -/
+lemma leadingCoeff_dvd_evalX_leadingCoeff {x₀ : F} {R : F[X][X][Y]} {H : F[X][Y]}
+    (hHyp : Hypotheses x₀ R H) :
+    H.leadingCoeff ∣ (Bivariate.evalX (Polynomial.C x₀) R).leadingCoeff := by
+  rcases hHyp.dvd_evalX with ⟨q, hq⟩
+  refine ⟨q.leadingCoeff, ?_⟩
+  calc
+    (Bivariate.evalX (Polynomial.C x₀) R).leadingCoeff = (H * q).leadingCoeff := by rw [hq]
+    _ = H.leadingCoeff * q.leadingCoeff := Polynomial.leadingCoeff_mul H q
+
 /-- The definition of `ζ` given in Appendix A.4 of [BCIKS20]. -/
 def ζ (R : F[X][X][Y]) (x₀ : F) (H : F[X][Y]) [H_irreducible : Fact (Irreducible H)]
     [H_natDegree_pos : Fact (0 < H.natDegree)] : 𝕃 H :=
@@ -758,7 +774,7 @@ lemma ξ_regular_of_derivative_evalX_eq_C_of_natDegree_le_one
 /-- There exist regular elements `ξ = W(Z)^(d-2) * ζ` as defined in Claim A.2 of Appendix A.4
 of [BCIKS20]. -/
 lemma ξ_regular (x₀ : F) (R : F[X][X][Y]) (H : F[X][Y]) [H_irreducible : Fact (Irreducible H)]
-    [H_natDegree_pos : Fact (0 < H.natDegree)] :
+    [H_natDegree_pos : Fact (0 < H.natDegree)] (_hHyp : Hypotheses x₀ R H) :
     ∃ pre : 𝒪 H,
     let d := R.natDegree
     let W : 𝕃 H := liftToFunctionField (H.leadingCoeff);
@@ -767,14 +783,15 @@ lemma ξ_regular (x₀ : F) (R : F[X][X][Y]) (H : F[X][Y]) [H_irreducible : Fact
 
 /-- The elements `ξ = W(Z)^(d-2) * ζ` as defined in Claim A.2 of Appendix A.4 of [BCIKS20]. -/
 def ξ (x₀ : F) (R : F[X][X][Y]) (H : F[X][Y]) [φ : Fact (Irreducible H)]
-    [H_natDegree_pos : Fact (0 < H.natDegree)] : 𝒪 H :=
-  (ξ_regular x₀ R H).choose
+    [H_natDegree_pos : Fact (0 < H.natDegree)] (hHyp : Hypotheses x₀ R H) : 𝒪 H :=
+  (ξ_regular x₀ R H hHyp).choose
 
 /-- The bound of the weight `Λ` of the elements `ζ` as stated in Claim A.2 of Appendix A.4
 of [BCIKS20]. -/
-lemma weight_ξ_bound (x₀ : F) (hH : 0 < H.natDegree) {D : ℕ}
-    (hD : D ≥ Bivariate.totalDegree H) :
-    weight_Λ_over_𝒪 hH (ξ x₀ R H) D ≤
+lemma weight_ξ_bound (x₀ : F) (hH : 0 < H.natDegree) (hHyp : Hypotheses x₀ R H)
+    {D : ℕ} (hD_H : D ≥ Bivariate.totalDegree H)
+    (hD_Rx0 : D ≥ Bivariate.totalDegree (Bivariate.evalX (Polynomial.C x₀) R)) :
+    weight_Λ_over_𝒪 hH (ξ x₀ R H hHyp) D ≤
     WithBot.some ((Bivariate.natDegreeY R - 1) * (D - Bivariate.natDegreeY H + 1)) := by
   sorry
 
@@ -800,29 +817,30 @@ def β (R : F[X][X][Y]) (t : ℕ) : 𝒪 H :=
 /-- The Hensel lift coefficients `α` are of the form as given in Claim A.2 of Appendix A.4
 of [BCIKS20]. -/
 def α (x₀ : F) (R : F[X][X][Y]) (H : F[X][Y]) [φ : Fact (Irreducible H)]
-    [H_natDegree_pos : Fact (0 < H.natDegree)] (t : ℕ) : 𝕃 H :=
+    [H_natDegree_pos : Fact (0 < H.natDegree)] (hHyp : Hypotheses x₀ R H) (t : ℕ) : 𝕃 H :=
   let W : 𝕃 H := liftToFunctionField (H.leadingCoeff)
   embeddingOf𝒪Into𝕃 _ (β R t) /
-    (W ^ (t + 1) * (embeddingOf𝒪Into𝕃 _ (ξ x₀ R H)) ^ (2*t - 1))
+    (W ^ (t + 1) * (embeddingOf𝒪Into𝕃 _ (ξ x₀ R H hHyp)) ^ (2*t - 1))
 
 def α' (x₀ : F) (R : F[X][X][Y]) (H_irreducible : Irreducible H)
-    (hHdeg : 0 < H.natDegree) (t : ℕ) : 𝕃 H :=
-  α x₀ R _ (φ := ⟨H_irreducible⟩) (H_natDegree_pos := ⟨hHdeg⟩) t
+    (hHdeg : 0 < H.natDegree) (hHyp : Hypotheses x₀ R H) (t : ℕ) : 𝕃 H :=
+  α x₀ R _ (φ := ⟨H_irreducible⟩) (H_natDegree_pos := ⟨hHdeg⟩) hHyp t
 
 /-- The power series `γ = ∑ α^t (X - x₀)^t ∈ 𝕃 [[X - x₀]]` as defined in Appendix A.4
 of [BCIKS20]. -/
 def γ (x₀ : F) (R : F[X][X][Y]) (H : F[X][Y]) [φ : Fact (Irreducible H)]
-    [H_natDegree_pos : Fact (0 < H.natDegree)] : PowerSeries (𝕃 H) :=
+    [H_natDegree_pos : Fact (0 < H.natDegree)] (hHyp : Hypotheses x₀ R H) :
+    PowerSeries (𝕃 H) :=
   let subst (t : ℕ) : 𝕃 H :=
     match t with
     | 0 => fieldTo𝕃 (-x₀)
     | 1 => 1
     | _ => 0
-  PowerSeries.subst (PowerSeries.mk subst) (PowerSeries.mk (α x₀ R H))
+  PowerSeries.subst (PowerSeries.mk subst) (PowerSeries.mk (α x₀ R H hHyp))
 
 def γ' (x₀ : F) (R : F[X][X][Y]) (H_irreducible : Irreducible H)
-    (hHdeg : 0 < H.natDegree) : PowerSeries (𝕃 H) :=
-  γ x₀ R H (φ := ⟨H_irreducible⟩) (H_natDegree_pos := ⟨hHdeg⟩)
+    (hHdeg : 0 < H.natDegree) (hHyp : Hypotheses x₀ R H) : PowerSeries (𝕃 H) :=
+  γ x₀ R H (φ := ⟨H_irreducible⟩) (H_natDegree_pos := ⟨hHdeg⟩) hHyp
 
 end ClaimA2
 end

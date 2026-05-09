@@ -685,6 +685,60 @@ lemma regularElms_set_liftToFunctionField (H : F[X][Y]) (p : F[X]) :
     liftToFunctionField (H := H) p ∈ regularElms_set H := by
   simpa using regularElms_set_liftBivariate H (Polynomial.C p)
 
+/-- Nonzero coefficient polynomials remain nonzero after embedding into the function field. -/
+lemma liftToFunctionField_ne_zero {F : Type} [Field F] {H : F[X][Y]}
+    [H_irreducible : Fact (Irreducible H)] [H_natDegree_pos : Fact (0 < H.natDegree)]
+    {p : F[X]} (hp : p ≠ 0) :
+    liftToFunctionField (H := H) p ≠ 0 := by
+  intro hzero
+  have hmem : coeffAsRatFunc p ∈ Ideal.span ({H_tilde H} : Set (Polynomial (RatFunc F))) := by
+    simpa [liftToFunctionField] using (Ideal.Quotient.eq_zero_iff_mem.mp hzero)
+  rw [Ideal.mem_span_singleton] at hmem
+  have hp_map : univPolyHom (F := F) p ≠ 0 := by
+    intro hp_zero
+    exact hp (univPolyHom_injective (F := F) (by simpa using hp_zero))
+  have hunit : IsUnit (coeffAsRatFunc p) := by
+    have hunitC : IsUnit (Polynomial.C (univPolyHom (F := F) p) :
+        Polynomial (RatFunc F)) :=
+      Polynomial.isUnit_C.mpr (Ne.isUnit hp_map)
+    simpa only [coeffAsRatFunc, RingHom.comp_apply, ToRatFunc.bivPolyHom,
+      Polynomial.coe_mapRingHom, Polynomial.map_C] using hunitC
+  exact (irreducibleHTildeOfIrreducible_of_natDegree_pos H_natDegree_pos.out
+    H_irreducible.out).not_dvd_isUnit hunit hmem
+
+/-- The leading coefficient `W` of a positive-`Y`-degree `H` is nonzero in the function field. -/
+lemma liftToFunctionField_leadingCoeff_ne_zero {F : Type} [Field F] {H : F[X][Y]}
+    [H_irreducible : Fact (Irreducible H)] [H_natDegree_pos : Fact (0 < H.natDegree)] :
+    liftToFunctionField (H := H) H.leadingCoeff ≠ 0 := by
+  exact liftToFunctionField_ne_zero
+    (Polynomial.leadingCoeff_ne_zero.mpr (Polynomial.ne_zero_of_natDegree_gt H_natDegree_pos.out))
+
+/-- If `q ∣ p` in `F[X]`, then `p / q` is regular after embedding into `𝕃`. -/
+lemma regularElms_set_liftToFunctionField_div_of_dvd {F : Type} [Field F] {H : F[X][Y]}
+    [H_irreducible : Fact (Irreducible H)] [H_natDegree_pos : Fact (0 < H.natDegree)]
+    {p q : F[X]} (hq : q ≠ 0) (hdiv : q ∣ p) :
+    liftToFunctionField (H := H) p / liftToFunctionField (H := H) q ∈ regularElms_set H := by
+  rcases hdiv with ⟨r, rfl⟩
+  have hq_lift : liftToFunctionField (H := H) q ≠ 0 := liftToFunctionField_ne_zero hq
+  have heq :
+      liftToFunctionField (H := H) (q * r) / liftToFunctionField (H := H) q =
+        liftToFunctionField (H := H) r := by
+    rw [map_mul]
+    field_simp [hq_lift]
+  rw [heq]
+  exact regularElms_set_liftToFunctionField H r
+
+/-- If `W = H.leadingCoeff` divides `p`, then `p / W` is regular after embedding into `𝕃`. -/
+lemma regularElms_set_liftToFunctionField_div_leadingCoeff_of_dvd {F : Type} [Field F]
+    {H : F[X][Y]} [H_irreducible : Fact (Irreducible H)]
+    [H_natDegree_pos : Fact (0 < H.natDegree)] {p : F[X]}
+    (hdiv : H.leadingCoeff ∣ p) :
+    liftToFunctionField (H := H) p / liftToFunctionField (H := H) H.leadingCoeff ∈
+      regularElms_set H := by
+  exact regularElms_set_liftToFunctionField_div_of_dvd
+    (Polynomial.leadingCoeff_ne_zero.mpr (Polynomial.ne_zero_of_natDegree_gt H_natDegree_pos.out))
+    hdiv
+
 /-- The bivariate variable maps to the function-field variable `T`. -/
 @[simp]
 lemma liftBivariate_X {H : F[X][Y]} :
@@ -695,6 +749,30 @@ lemma liftBivariate_X {H : F[X][Y]} :
 lemma regularElms_set_functionFieldT (H : F[X][Y]) :
     functionFieldT (H := H) ∈ regularElms_set H := by
   simpa using regularElms_set_liftBivariate H (Polynomial.X : F[X][Y])
+
+/-- A linear polynomial evaluated at `T / W` is regular when its linear coefficient is divisible by
+`W = H.leadingCoeff`. -/
+lemma regularElms_set_eval₂_linear_of_coeff_one_dvd {F : Type} [Field F] {H : F[X][Y]}
+    [H_irreducible : Fact (Irreducible H)] [H_natDegree_pos : Fact (0 < H.natDegree)]
+    {P : F[X][Y]} (hP : P.natDegree ≤ 1) (hdiv : H.leadingCoeff ∣ P.coeff 1) :
+    Polynomial.eval₂ liftToFunctionField
+      (functionFieldT (H := H) / liftToFunctionField (H := H) H.leadingCoeff) P ∈
+      regularElms_set H := by
+  rw [Polynomial.eq_X_add_C_of_natDegree_le_one hP]
+  simp only [Polynomial.eval₂_add, Polynomial.eval₂_mul, Polynomial.eval₂_C, Polynomial.eval₂_X]
+  have hterm :
+      liftToFunctionField (H := H) (P.coeff 1) *
+          (functionFieldT (H := H) / liftToFunctionField (H := H) H.leadingCoeff) =
+        (liftToFunctionField (H := H) (P.coeff 1) /
+            liftToFunctionField (H := H) H.leadingCoeff) * functionFieldT (H := H) := by
+    rw [div_eq_mul_inv, div_eq_mul_inv]
+    ring
+  rw [hterm]
+  exact regularElms_set_add
+    (regularElms_set_mul
+      (regularElms_set_liftToFunctionField_div_leadingCoeff_of_dvd hdiv)
+      (regularElms_set_functionFieldT H))
+    (regularElms_set_liftToFunctionField H (P.coeff 0))
 
 /-- Constant bivariate polynomials map through the coefficient embedding. -/
 @[simp]
@@ -728,6 +806,13 @@ structure Hypotheses (x₀ : F) (R : F[X][X][Y]) (H : F[X][Y]) : Prop where
   dvd_evalX : H ∣ Bivariate.evalX (Polynomial.C x₀) R
   separable_evalX : (Bivariate.evalX (Polynomial.C x₀) R).Separable
 
+private lemma evalX_natDegree_le {K : Type} [CommSemiring K] (x : K) (P : K[X][Y]) :
+    (Bivariate.evalX x P).natDegree ≤ P.natDegree := by
+  rw [Polynomial.natDegree_le_iff_coeff_eq_zero]
+  intro n hn
+  have hcoeff : P.coeff n = 0 := Polynomial.coeff_eq_zero_of_natDegree_lt hn
+  simp [Bivariate.evalX_eq_map, Polynomial.coeff_map, hcoeff]
+
 /-- The leading coefficient `W` of `H` divides the leading coefficient of `R(x₀,Y,Z)`. -/
 lemma leadingCoeff_dvd_evalX_leadingCoeff {x₀ : F} {R : F[X][X][Y]} {H : F[X][Y]}
     (hHyp : Hypotheses x₀ R H) :
@@ -737,6 +822,53 @@ lemma leadingCoeff_dvd_evalX_leadingCoeff {x₀ : F} {R : F[X][X][Y]} {H : F[X][
   calc
     (Bivariate.evalX (Polynomial.C x₀) R).leadingCoeff = (H * q).leadingCoeff := by rw [hq]
     _ = H.leadingCoeff * q.leadingCoeff := Polynomial.leadingCoeff_mul H q
+
+/-- The leading coefficient `W` of `H` divides the coefficient of `Y ^ R.natDegree` in
+`R(x₀,Y,Z)`. If specialization lowers the `Y`-degree, that coefficient is zero. -/
+lemma leadingCoeff_dvd_evalX_coeff_natDegree {x₀ : F} {R : F[X][X][Y]} {H : F[X][Y]}
+    (hHyp : Hypotheses x₀ R H) :
+    H.leadingCoeff ∣ (Bivariate.evalX (Polynomial.C x₀) R).coeff R.natDegree := by
+  let P : F[X][Y] := Bivariate.evalX (Polynomial.C x₀) R
+  have hdeg : P.natDegree ≤ R.natDegree := evalX_natDegree_le (Polynomial.C x₀) R
+  by_cases hEq : P.natDegree = R.natDegree
+  · simpa [P, hEq.symm] using leadingCoeff_dvd_evalX_leadingCoeff hHyp
+  · have hlt : P.natDegree < R.natDegree := lt_of_le_of_ne hdeg hEq
+    rw [Polynomial.coeff_eq_zero_of_natDegree_lt hlt]
+    exact dvd_zero H.leadingCoeff
+
+/-- The leading coefficient `W` of `H` divides the top possible coefficient of
+`∂R/∂Y(x₀,Y,Z)`. This is the coefficient that remains after multiplying `ζ` by `W^(d-2)`. -/
+lemma leadingCoeff_dvd_evalX_derivative_coeff_pred {x₀ : F} {R : F[X][X][Y]} {H : F[X][Y]}
+    (hHyp : Hypotheses x₀ R H) :
+    H.leadingCoeff ∣
+      (Bivariate.evalX (Polynomial.C x₀) R.derivative).coeff (R.natDegree - 1) := by
+  by_cases hR : R.natDegree = 0
+  · have hderiv : R.derivative = 0 := Polynomial.derivative_of_natDegree_zero hR
+    rw [hderiv]
+    exact ⟨0, by simp [Bivariate.evalX_eq_map]⟩
+  · have hsucc : R.natDegree - 1 + 1 = R.natDegree :=
+      Nat.sub_add_cancel (Nat.pos_of_ne_zero hR)
+    have hsucc_cast : (((R.natDegree - 1 : ℕ) : F[X][X]) + 1) =
+        (R.natDegree : F[X][X]) := by
+      rw [← Nat.cast_one (R := F[X][X])]
+      rw [← Nat.cast_add, hsucc]
+    have hcoeff :
+        (Bivariate.evalX (Polynomial.C x₀) R.derivative).coeff (R.natDegree - 1) =
+          (Bivariate.evalX (Polynomial.C x₀) R).coeff R.natDegree *
+            (R.natDegree : F[X]) := by
+      calc
+        (Bivariate.evalX (Polynomial.C x₀) R.derivative).coeff (R.natDegree - 1) =
+            ((R.derivative).coeff (R.natDegree - 1)).eval (Polynomial.C x₀) := by
+          simp [Bivariate.evalX_eq_map, Polynomial.coeff_map]
+        _ = (R.coeff R.natDegree * (R.natDegree : F[X][X])).eval (Polynomial.C x₀) := by
+          rw [Polynomial.coeff_derivative, hsucc, hsucc_cast]
+        _ = (Bivariate.evalX (Polynomial.C x₀) R).coeff R.natDegree *
+            (R.natDegree : F[X]) := by
+          simp [Bivariate.evalX_eq_map, Polynomial.coeff_map]
+    rcases leadingCoeff_dvd_evalX_coeff_natDegree hHyp with ⟨q, hq⟩
+    refine ⟨q * (R.natDegree : F[X]), ?_⟩
+    rw [hcoeff, hq]
+    ring
 
 /-- The definition of `ζ` given in Appendix A.4 of [BCIKS20]. -/
 def ζ (R : F[X][X][Y]) (x₀ : F) (H : F[X][Y]) [H_irreducible : Fact (Irreducible H)]
@@ -756,6 +888,20 @@ lemma ζ_regular_of_derivative_evalX_eq_C (x₀ : F) (R : F[X][X][Y]) (H : F[X][
   simp only [Polynomial.eval₂_C]
   exact regularElms_set_liftToFunctionField H p
 
+/-- If `R` has `Y`-degree at most one, then the specialized derivative is constant. -/
+lemma derivative_evalX_eq_C_of_natDegree_le_one
+    (x₀ : F) (R : F[X][X][Y]) (hR : R.natDegree ≤ 1) :
+    ∃ p : F[X], Bivariate.evalX (Polynomial.C x₀) R.derivative = Polynomial.C p := by
+  let P : F[X][Y] := Bivariate.evalX (Polynomial.C x₀) R.derivative
+  refine ⟨P.coeff 0, ?_⟩
+  have hderiv : R.derivative.natDegree ≤ 0 := by
+    calc
+      R.derivative.natDegree ≤ R.natDegree - 1 := Polynomial.natDegree_derivative_le R
+      _ = 0 := by omega
+  have hP : P.natDegree ≤ 0 :=
+    (evalX_natDegree_le (Polynomial.C x₀) R.derivative).trans hderiv
+  exact Polynomial.eq_C_of_natDegree_le_zero hP
+
 /-- In the constant-derivative, low-`Y`-degree case, the `ξ` regularity witness is explicit. -/
 lemma ξ_regular_of_derivative_evalX_eq_C_of_natDegree_le_one
     (x₀ : F) (R : F[X][X][Y]) (H : F[X][Y]) [H_irreducible : Fact (Irreducible H)]
@@ -771,14 +917,55 @@ lemma ξ_regular_of_derivative_evalX_eq_C_of_natDegree_le_one
   have hd : R.natDegree - 2 = 0 := by omega
   simpa [hd] using hpre.symm
 
-/-- There exist regular elements `ξ = W(Z)^(d-2) * ζ` as defined in Claim A.2 of Appendix A.4
-of [BCIKS20]. -/
-lemma ξ_regular (x₀ : F) (R : F[X][X][Y]) (H : F[X][Y]) [H_irreducible : Fact (Irreducible H)]
-    [H_natDegree_pos : Fact (0 < H.natDegree)] (_hHyp : Hypotheses x₀ R H) :
+/-- If `R` has `Y`-degree at most one, the regularity statement for `ξ` follows from the
+constant-derivative case. -/
+lemma ξ_regular_of_natDegree_le_one
+    (x₀ : F) (R : F[X][X][Y]) (H : F[X][Y]) [H_irreducible : Fact (Irreducible H)]
+    [H_natDegree_pos : Fact (0 < H.natDegree)] (hR : R.natDegree ≤ 1) :
     ∃ pre : 𝒪 H,
     let d := R.natDegree
     let W : 𝕃 H := liftToFunctionField (H.leadingCoeff);
     embeddingOf𝒪Into𝕃 _ pre = W ^ (d - 2) * ζ R x₀ H := by
+  rcases derivative_evalX_eq_C_of_natDegree_le_one x₀ R hR with ⟨p, hp⟩
+  exact ξ_regular_of_derivative_evalX_eq_C_of_natDegree_le_one x₀ R H hp hR
+
+/-- In the quadratic case, `ξ = ζ` is regular by clearing the single denominator with the
+divisibility of the top derivative coefficient. -/
+lemma ξ_regular_of_natDegree_eq_two
+    (x₀ : F) (R : F[X][X][Y]) (H : F[X][Y]) [H_irreducible : Fact (Irreducible H)]
+    [H_natDegree_pos : Fact (0 < H.natDegree)] (hHyp : Hypotheses x₀ R H)
+    (hR : R.natDegree = 2) :
+    ∃ pre : 𝒪 H,
+    let d := R.natDegree
+    let W : 𝕃 H := liftToFunctionField (H.leadingCoeff);
+    embeddingOf𝒪Into𝕃 _ pre = W ^ (d - 2) * ζ R x₀ H := by
+  let P : F[X][Y] := Bivariate.evalX (Polynomial.C x₀) R.derivative
+  have hP : P.natDegree ≤ 1 := by
+    calc
+      P.natDegree ≤ R.derivative.natDegree := evalX_natDegree_le (Polynomial.C x₀) R.derivative
+      _ ≤ R.natDegree - 1 := Polynomial.natDegree_derivative_le R
+      _ = 1 := by omega
+  have hdiv : H.leadingCoeff ∣ P.coeff 1 := by
+    simpa [P, hR] using leadingCoeff_dvd_evalX_derivative_coeff_pred hHyp
+  have hreg : ζ R x₀ H ∈ regularElms_set H := by
+    simpa [ζ, P] using regularElms_set_eval₂_linear_of_coeff_one_dvd (H := H) hP hdiv
+  rcases hreg with ⟨pre, hpre⟩
+  refine ⟨pre, ?_⟩
+  have hd : R.natDegree - 2 = 0 := by omega
+  simpa [hd] using hpre.symm
+
+/-- There exist regular elements `ξ = W(Z)^(d-2) * ζ` as defined in Claim A.2 of Appendix A.4
+of [BCIKS20]. -/
+lemma ξ_regular (x₀ : F) (R : F[X][X][Y]) (H : F[X][Y]) [H_irreducible : Fact (Irreducible H)]
+    [H_natDegree_pos : Fact (0 < H.natDegree)] (hHyp : Hypotheses x₀ R H) :
+    ∃ pre : 𝒪 H,
+    let d := R.natDegree
+    let W : 𝕃 H := liftToFunctionField (H.leadingCoeff);
+    embeddingOf𝒪Into𝕃 _ pre = W ^ (d - 2) * ζ R x₀ H := by
+  by_cases hRle : R.natDegree ≤ 1
+  · exact ξ_regular_of_natDegree_le_one x₀ R H hRle
+  by_cases hRtwo : R.natDegree = 2
+  · exact ξ_regular_of_natDegree_eq_two x₀ R H hHyp hRtwo
   sorry
 
 /-- The elements `ξ = W(Z)^(d-2) * ζ` as defined in Claim A.2 of Appendix A.4 of [BCIKS20]. -/

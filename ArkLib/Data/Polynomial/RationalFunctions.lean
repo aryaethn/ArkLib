@@ -28,6 +28,8 @@ We define the notions of Appendix A of [BCIKS20].
 
 -/
 
+set_option linter.style.longFile 1700
+
 open Polynomial Polynomial.Bivariate ToRatFunc Ideal
 
 namespace BCIKS20AppendixA
@@ -802,6 +804,19 @@ lemma weight_Λ_sum_le {ι : Type} (s : Finset ι) (f : ι → F[X][Y]) (H : F[X
       exact (weight_Λ_add_le _ _ _ _).trans (max_le_max le_rfl ih)
 
 omit [IsDomain F] in
+/-- Bound on the `X`-degree of a coefficient of `H` from a `totalDegree` bound. -/
+lemma natDegree_coeff_le_of_totalDegree_le (f : F[X][Y]) {D : ℕ}
+    (hD : Bivariate.totalDegree f ≤ D) (i : ℕ) :
+    (f.coeff i).natDegree ≤ D - i := by
+  classical
+  by_cases hi : f.coeff i = 0
+  · simp [hi]
+  · have hi_in : i ∈ f.support := Polynomial.mem_support_iff.mpr hi
+    have h1 : (f.coeff i).natDegree + i ≤ Bivariate.totalDegree f :=
+      Bivariate.coeff_totalDegree_le f hi_in
+    omega
+
+omit [IsDomain F] in
 /-- Sub-additivity for `C c · Y^k · f`: given `Λ(f) ≤ b`, multiplying by `C c · Y^k` adds
 `k · m + c.natDegree` to the weight. -/
 lemma weight_Λ_C_mul_X_pow_mul_le {c : F[X]} {k : ℕ} {f H : F[X][Y]} {D b : ℕ}
@@ -857,6 +872,77 @@ lemma weight_Λ_C_mul_X_pow_mul_le {c : F[X]} {k : ℕ} {f H : F[X][Y]} {D b : �
     exact hgoal
   · rw [hcoeff_eq, if_neg hkn] at hcoeff_ne
     exact (hcoeff_ne rfl).elim
+
+omit [IsDomain F] in
+/-- The `Λ`-weight of `H_tilde' H` is bounded by `d_H · m`, where `d_H = H.natDegree`. -/
+lemma weight_Λ_H_tilde'_le {H : F[X][Y]} {D : ℕ}
+    (hD : Bivariate.totalDegree H ≤ D) (hH : 0 < H.natDegree) :
+    weight_Λ (H_tilde' H) H D ≤
+      (WithBot.some (H.natDegree * (D + 1 - Bivariate.natDegreeY H)) : WithBot ℕ) := by
+  classical
+  have hbY : Bivariate.natDegreeY H = H.natDegree := rfl
+  have hH_ne : H ≠ 0 := Polynomial.ne_zero_of_natDegree_gt hH
+  have hH_in : H.natDegree ∈ H.support :=
+    Polynomial.mem_support_iff.mpr (Polynomial.leadingCoeff_ne_zero.mpr hH_ne)
+  have hd_le_D : H.natDegree ≤ D := by
+    have : (H.coeff H.natDegree).natDegree + H.natDegree ≤ Bivariate.totalDegree H :=
+      Bivariate.coeff_totalDegree_le H hH_in
+    omega
+  rw [H_tilde', if_neg (Nat.ne_of_gt hH)]
+  refine (weight_Λ_add_le _ _ _ _).trans ?_
+  refine max_le ?_ ?_
+  · -- weight_Λ Y^d ≤ d · m
+    refine (weight_Λ_X_pow_le H D _).trans ?_
+    rw [WithBot.coe_le_coe]
+  · -- weight_Λ (∑ ... · Y^i) ≤ d · m
+    refine (weight_Λ_sum_le _ _ _ _).trans ?_
+    refine Finset.sup_le (fun i hi => ?_)
+    have hi_lt : i < H.natDegree := Finset.mem_range.mp hi
+    refine (weight_Λ_C_mul_X_pow_le H D _ _).trans ?_
+    -- Goal: WithBot.some (i·m + (H.coeff i · W^(d-1-i)).natDegree) ≤ WithBot.some (d·m)
+    rw [WithBot.coe_le_coe]
+    rw [hbY]
+    have hcoeff_natDeg :
+        (H.coeff i * H.coeff H.natDegree ^ (H.natDegree - 1 - i)).natDegree ≤
+          (D - i) + (H.natDegree - 1 - i) * (D - H.natDegree) := by
+      have h1 :
+          (H.coeff i * H.coeff H.natDegree ^ (H.natDegree - 1 - i)).natDegree ≤
+            (H.coeff i).natDegree +
+              (H.coeff H.natDegree ^ (H.natDegree - 1 - i)).natDegree :=
+        Polynomial.natDegree_mul_le
+      have h2 :
+          (H.coeff H.natDegree ^ (H.natDegree - 1 - i)).natDegree ≤
+            (H.natDegree - 1 - i) * (H.coeff H.natDegree).natDegree :=
+        Polynomial.natDegree_pow_le
+      have hi_deg : (H.coeff i).natDegree ≤ D - i :=
+        natDegree_coeff_le_of_totalDegree_le H hD i
+      have hd_deg : (H.coeff H.natDegree).natDegree ≤ D - H.natDegree :=
+        natDegree_coeff_le_of_totalDegree_le H hD H.natDegree
+      calc (H.coeff i * H.coeff H.natDegree ^ (H.natDegree - 1 - i)).natDegree
+          ≤ (H.coeff i).natDegree +
+              (H.coeff H.natDegree ^ (H.natDegree - 1 - i)).natDegree := h1
+        _ ≤ (D - i) + (H.natDegree - 1 - i) * (H.coeff H.natDegree).natDegree := by
+            exact Nat.add_le_add hi_deg h2
+        _ ≤ (D - i) + (H.natDegree - 1 - i) * (D - H.natDegree) :=
+            Nat.add_le_add_left (Nat.mul_le_mul_left _ hd_deg) _
+    -- numeric bound: i·m + (D-i) + (d-1-i)(D-d) = d·m
+    have hadd : i * (D + 1 - H.natDegree) +
+        (H.coeff i * H.coeff H.natDegree ^ (H.natDegree - 1 - i)).natDegree ≤
+          i * (D + 1 - H.natDegree) +
+            ((D - i) + (H.natDegree - 1 - i) * (D - H.natDegree)) :=
+      Nat.add_le_add_left hcoeff_natDeg _
+    refine hadd.trans ?_
+    -- Numeric identity: i*(D+1-d) + (D-i) + (d-1-i)(D-d) = d*(D+1-d)
+    have hkey : i * (D + 1 - H.natDegree) +
+        ((D - i) + (H.natDegree - 1 - i) * (D - H.natDegree)) =
+        H.natDegree * (D + 1 - H.natDegree) := by
+      have hi_le : i ≤ H.natDegree - 1 := by omega
+      have hi_le_D : i ≤ D := by omega
+      have hd_le_D1 : H.natDegree ≤ 1 + D := by omega
+      have hd_le_D' : H.natDegree ≤ D + 1 := by omega
+      zify [hd_le_D, hd_le_D', hi_le, hi_le_D, hH]
+      ring
+    omega
 
 /-- The set `S_β` from the statement of Lemma A.1 in Appendix A of [BCIKS20].
 Note: Here `F[X][Y]` is `F[Z][T]`. -/

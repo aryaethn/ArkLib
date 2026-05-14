@@ -62,7 +62,14 @@ namespace Interleaved
   `IRS[F, L, k, s] := (RS[F, L, k/s])^≡s`
 
 Each codeword is an `s`-tuple of base RS codewords arranged column-wise. Matches the
-existing `interleavedCodeSet` API with the `s = Fin s` index type. -/
+existing `interleavedCodeSet` API with the `s = Fin s` index type.
+
+**Rounding convention.** The paper writes `k/s` and implicitly assumes `s ∣ k` so that
+the message length divides cleanly into `s` blocks of size `k/s`. In Lean `k / s` is
+Nat truncated division, which silently rounds when `s ∤ k`. Downstream theorems quoting
+the paper directly (e.g. `dim(IRS) = k`) should add an explicit `s ∣ k` hypothesis at
+the use site; we keep the definition itself unguarded so degenerate parameter regimes
+type-check uniformly. -/
 noncomputable def irsCode {ι : Type} [Fintype ι] [DecidableEq ι]
     {F : Type} [Field F] [DecidableEq F]
     (domain : ι ↪ F) (k s : ℕ) : Set (Matrix ι (Fin s) F) :=

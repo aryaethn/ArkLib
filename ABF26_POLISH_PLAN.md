@@ -57,7 +57,7 @@ trusted blindly.
 
 | ID | Lean name | Status | Known issues / things to check |
 | --- | --- | --- | --- |
-| D2.13 | `ReedSolomon.Interleaved.irsCode` | ⚠ | Uses `k / s` (Nat truncated division). Paper assumes `s ∣ k`. Either add `(h : s ∣ k)` hypothesis or rename to make rounding behaviour explicit in name. |
+| D2.13 | `ReedSolomon.Interleaved.irsCode` | 🔧 | **Rounding documented.** Decision: keep unguarded `k / s` (Nat truncated division) in the definition so degenerate regimes type-check; downstream paper-quoting theorems (e.g. `dim(IRS) = k`) must add `s ∣ k` themselves. Docstring spells out the convention. |
 | D2.14 | `ReedSolomon.Folded.Admissible` | ⏳ | Paper uses unordered pairs `binom(L, 2)`; my version uses ordered `∀ α β ∈ L, α ≠ β`. The asymmetric formula `α · ω^i ≠ β` means ordered is *stronger* than what the paper said but presumably equivalent. Confirm. |
 | D2.15 | `ReedSolomon.Folded.frsCode` | ⚠ | Uses `p.degree < k` directly; existing ArkLib `ReedSolomon.code` uses `Polynomial.degreeLT F k`. Align. Verify the encoding `f x j = p.eval (domain x * ω ^ j)` matches paper's `f̂(x · ω^j)` exactly (multiplication side / parenthesisation). |
 | D2.16 | `CodingTheory.IsSubspaceDesign` | ⚠ | `LinearMap.proj` formulation for `A_i` is technical; paper uses comprehension `{a ∈ A : a_i = 0^s}`. Add an equivalence lemma; pick one formulation as canonical. Also: paper requires `dim A ≤ r`, but `r ∈ ℕ` while `dim` lives in `ℕ∞` (here truncated to `Module.finrank` returning `ℕ`). Confirm infinite-dim ruled out. |
@@ -201,7 +201,7 @@ Resolve every `⚠` and `❌` in §1. One commit per concern, smallest reversibl
 1. **A1.** ✅ Fix T2.18 off-by-one in τ profile (`Finset.range s` → `Finset.Icc 1 s`).
 2. **A2.** ✅ Fix Nat-subtraction in L3.7 and T3.9 exponents (cast to ℝ before subtracting; preserves paper's floor in T3.9).
 3. **A3.** ✅ Document `qEntropy` boundary at `q ≤ 1` (no precondition; downstream already guards).
-4. **A4.** Add `s ∣ k` hypothesis to `irsCode` (D2.13), or rename to capture rounding.
+4. **A4.** ✅ Document `irsCode` rounding convention (Nat truncated division; downstream guards with `s ∣ k`).
 5. **A5.** Tighten T5.1 hypotheses to ensure `1 − δ + η ≤ 1` (or document `.toNNReal` truncation).
 6. **A6.** Tighten T4.11.1 denominator positivity assumptions.
 7. **A7.** Align `frsCode` (D2.15) to `Polynomial.degreeLT` style.

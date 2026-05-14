@@ -88,9 +88,9 @@ trusted blindly.
 
 | ID | Lean name | Status | Known issues / things to check |
 | --- | --- | --- | --- |
-| L3.7 | `CodingTheory.linear_lambda_ge_elias_volume_eli57` | ⚠ | `Fintype.card ι - Module.finrank F C` uses **Nat subtraction**; if `dim > n` (impossible for codes but Lean doesn't know that), bound silently becomes `(card F)^0 = 1`. Either add `Module.finrank F C ≤ Fintype.card ι` hypothesis or cast subtraction to ℤ/ℝ. |
+| L3.7 | `CodingTheory.linear_lambda_ge_elias_volume_eli57` | 🔧 | **Nat-subtraction fix:** cast both `Fintype.card ι` and `Module.finrank F C` to `ℝ` before subtracting; wrap whole RHS in `ENNReal.ofReal`. Uses `Real.rpow` so `|F|^{n−k}` is well-defined even if Lean can't see `k ≤ n`. |
 | C3.8 | `CodingTheory.linear_lambda_ge_entropy_volume` | ⏳ | Operator precedence inside `ENNReal.ofReal (...)` block; verify `q^{n·(ρ−1+H_q(δ))} / √(8nδ(1−δ))` is what's parsed. |
-| T3.9 | `CodingTheory.linear_C_le_generalized_singleton_st20` | ⚠ | Same Nat-subtraction issue in exponent `Fintype.card ι - Nat.floor (...)`. If `δ` close to 1 the floor exceeds `n`. Real-valued or guarded. |
+| T3.9 | `CodingTheory.linear_C_le_generalized_singleton_st20` | 🔧 | **Nat-subtraction fix:** kept the floor (paper has `⌊…⌋`, dropping it would tighten the bound) but cast both `Fintype.card ι` and `Nat.floor (…)` to `ℝ` before subtracting. Real-valued exponent. |
 | T3.10 | `CodingTheory.large_alphabet_barrier_bdg24_agl23` | ⏳ | Existential `∃ n₀, ∀ {ι} ..., n₀ ≤ Fintype.card ι → ...`. Check the `Lambda C ... ≤ (ℓ : ℕ∞)` premise direction matches paper's "any code with `|Λ(...)| ≤ ℓ` has..." |
 | T3.11 | `CodingTheory.random_linear_lambda_lower_glmrsw22` | ⏳ | `Nat.Prime q` only allows primes, not prime powers; paper says "prime power". Confirm whether to keep restricted or broaden to `IsPrimePow q`. |
 | T3.12 | `CodingTheory.rs_lambda_superpoly_extension_bkr06` | ⏳ | `Nat.Prime (qs i)` — same as T3.11 question. Also: paper's `2^{(α-β²)(log q)²}` exponent contains `log q` *and* the result is `q^{(α-β²) log q}`. Verify the equality `q^{(α-β²)·log q} = 2^{(α-β²)·(log q)²}` is captured in the bound. |
@@ -199,7 +199,7 @@ Execute in this order — earlier passes affect statement meaning, so they're lo
 Resolve every `⚠` and `❌` in §1. One commit per concern, smallest reversible unit:
 
 1. **A1.** ✅ Fix T2.18 off-by-one in τ profile (`Finset.range s` → `Finset.Icc 1 s`).
-2. **A2.** Fix Nat-subtraction in L3.7 and T3.9 exponents (real-valued exponent or add hypothesis).
+2. **A2.** ✅ Fix Nat-subtraction in L3.7 and T3.9 exponents (cast to ℝ before subtracting; preserves paper's floor in T3.9).
 3. **A3.** Add `2 ≤ q` precondition to D2.2 `qEntropy` or document boundary.
 4. **A4.** Add `s ∣ k` hypothesis to `irsCode` (D2.13), or rename to capture rounding.
 5. **A5.** Tighten T5.1 hypotheses to ensure `1 − δ + η ≤ 1` (or document `.toNNReal` truncation).

@@ -111,8 +111,10 @@ admit it here as an external result. Uses `hammingBallVolume` (ABF26 D2.4) from
 `ABF26Prelims.lean`. -/
 theorem linear_lambda_ge_elias_volume_eli57
     (C : Submodule F (ι → F)) (δ : ℝ) (_hδ_pos : 0 < δ) (_hδ_lt : δ < 1) :
-    (hammingBallVolume (Fintype.card F) δ (Fintype.card ι) : ENNReal) /
-        ((Fintype.card F : ENNReal) ^ (Fintype.card ι - Module.finrank F C))
+    ENNReal.ofReal
+        ((hammingBallVolume (Fintype.card F) δ (Fintype.card ι) : ℝ)
+          / (Fintype.card F : ℝ) ^
+              ((Fintype.card ι : ℝ) - Module.finrank F C))
       ≤ (Lambda ((C : Set (ι → F))) δ : ENNReal) := by
   sorry -- ABF26-L3.7; external admit [Eli57].
 
@@ -147,8 +149,9 @@ theorem linear_C_le_generalized_singleton_st20
     (_hδ_pos : 0 < δ) (_hδ_lt : δ < 1)
     (_hΛ : Lambda ((C : Set (ι → F))) δ ≤ (ℓ : ℕ∞)) :
     (Set.ncard ((C : Set (ι → F))) : ℝ)
-      ≤ (Fintype.card F : ℝ) ^ (Fintype.card ι
-            - Nat.floor (((ℓ : ℝ) + 1) / ℓ * δ * Fintype.card ι)) := by
+      ≤ (Fintype.card F : ℝ) ^
+          ((Fintype.card ι : ℝ)
+            - (Nat.floor (((ℓ : ℝ) + 1) / ℓ * δ * Fintype.card ι) : ℝ)) := by
   sorry -- ABF26-T3.9; external admit [ST20 Thm 1.2].
 
 end LowerBounds_General

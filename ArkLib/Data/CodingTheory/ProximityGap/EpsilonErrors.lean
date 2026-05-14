@@ -70,6 +70,14 @@ added on top of this file's definitions. Each is in scope for Phase 1 of the pla
 - [ABF26] Arnon, Boneh, Fenzi. *Open Problems in List Decoding and Correlated Agreement*. 2026.
 -/
 
+-- The definitions and proofs below all take the variables `ι`, `F`, `A` from a single section
+-- (PMF forces them into `Type 0`). Several theorems use `Fintype`/`DecidableEq` instances at
+-- proof-time but not in their types; suppressing the noisy `unused...InType` linter warnings
+-- file-wide here, matching the idiom used in `ReedSolomon/FftDomain.lean` and similar files.
+set_option linter.unusedFintypeInType false
+set_option linter.unusedDecidableInType false
+set_option linter.unusedSectionVars false
+
 namespace ProximityGap
 
 open NNReal Code
@@ -120,7 +128,11 @@ noncomputable def epsCA (C : Set (ι → A)) (δ_fld δ_int : ℝ≥0) : ENNReal
 short-form notation when both fold-distance and interleaved-distance coincide.
 
 By definition `epsCA C δ δ ≡ epsCA' C δ`; no explicit `epsCA_self` simp lemma is needed
-because the two forms are definitionally equal. -/
+because the two forms are definitionally equal.
+
+Currently unused inside this file — F4.5 and downstream theorems state things in terms of
+`epsCA C δ δ` directly to keep the two `δ` arguments visible. Kept exported because external
+callers (and future bridging lemmas) may prefer the short form. -/
 noncomputable def epsCA' (C : Set (ι → A)) (δ : ℝ≥0) : ENNReal :=
   epsCA (F := F) C δ δ
 
@@ -204,13 +216,17 @@ theorem epsPG_le_epsCA (MC : Submodule F (ι → A)) (δ : ℝ≥0) :
   apply iSup_mono
   intro u
   by_cases hjp : jointProximity (C := (MC : Set (ι → A))) (u := u) δ
-  · have h_all : ∀ γ : F, δᵣ(u 0 + γ • u 1, (MC : Set (ι → A))) ≤ δ :=
+  · -- jointProximity ⇒ ∀ γ close (via the helper), so both `if`s pick the 0 branch.
+    -- `rw` closes the residual `0 ≤ 0` goal automatically via its built-in `rfl` step.
+    have h_all : ∀ γ : F, δᵣ(u 0 + γ • u 1, (MC : Set (ι → A))) ≤ δ :=
       jointProximity_imp_line_close MC u δ hjp
     rw [if_pos h_all, if_pos hjp]
   · by_cases h_all : ∀ γ : F, δᵣ(u 0 + γ • u 1, (MC : Set (ι → A))) ≤ δ
-    · rw [if_pos h_all, if_neg hjp]
+    · -- `epsPG` picks 0; `epsCA` picks Pr ≥ 0.
+      rw [if_pos h_all, if_neg hjp]
       exact zero_le _
-    · rw [if_neg h_all, if_neg hjp]
+    · -- Both pick the same `Pr_γ[line δ-close]` (same expression inside the `Pr`).
+      rw [if_neg h_all, if_neg hjp]
 
 /-- **ABF26 Fact 4.5, second inequality.** `ε_ca ≤ ε_mca` for a `Submodule F (ι → A)`.
 
@@ -230,19 +246,26 @@ theorem epsCA_le_epsMCA (MC : Submodule F (ι → A)) (δ : ℝ≥0) :
   by_cases hjp : jointProximity (C := (MC : Set (ι → A))) (u := u) δ
   · rw [if_pos hjp]; exact zero_le _
   · rw [if_neg hjp]
+    -- Probability monotonicity: `Pr_γ[line close] ≤ Pr_γ[mcaEvent]` because, in the
+    -- `¬jointProximity` regime, "line δ-close to MC" implies `mcaEvent`. The implication
+    -- is proved per γ below.
     apply Pr_le_Pr_of_implies
     intro γ h_line
-    -- Unfold the line-close witness to get S and the pointwise agreement of line with w.
+    -- Step 1: unfold the line-close witness. `h_line : δᵣ(line, MC) ≤ δ` gives a codeword `w`
+    -- and a finite set `S` on which `line = w` pointwise.
     rw [relCloseToCode_iff_relCloseToCodeword_of_minDist] at h_line
     obtain ⟨w, hw_mem, hw_close⟩ := h_line
     rw [relCloseToWord_iff_exists_agreementCols] at hw_close
     obtain ⟨S, hS_card_nat, h_word_agree⟩ := hw_close
     have hS_card_real : (S.card : ℝ≥0) ≥ (1 - δ) * Fintype.card ι :=
       (relDist_floor_bound_iff_complement_bound _ _ _).mp hS_card_nat
+    -- Step 2: assemble `mcaEvent` with witness `S`, codeword `w` for the line-side, and the
+    -- still-to-prove negation on the pair-side.
     refine ⟨S, hS_card_real, ⟨w, hw_mem, fun i hi => ((h_word_agree i).1 hi).symm⟩, ?_⟩
-    -- ¬ pairJointAgreesOn MC S (u 0) (u 1). If it held, then by extending the witness pair
-    -- to a `Fin 2`-stack we would derive `jointAgreement` and hence `jointProximity`,
-    -- contradicting `hjp`.
+    -- Step 3: ¬ pairJointAgreesOn MC S (u 0) (u 1). Argue by contradiction with `hjp`:
+    -- if there were a joint codeword pair agreeing on `S`, `finMapTwoWords` would build a
+    -- jointAgreement witness, which `jointAgreement_iff_jointProximity` would lift to
+    -- `jointProximity`, contradicting the hypothesis `¬jointProximity`.
     intro h_pair
     apply hjp
     rw [← jointAgreement_iff_jointProximity]
@@ -250,10 +273,12 @@ theorem epsCA_le_epsMCA (MC : Submodule F (ι → A)) (δ : ℝ≥0) :
     refine ⟨S, hS_card_real, finMapTwoWords v₀ v₁, ?_⟩
     intro i
     refine ⟨?_, ?_⟩
-    · fin_cases i
+    · -- `(finMapTwoWords v₀ v₁) i ∈ MC` by cases on `i : Fin 2`.
+      fin_cases i
       · exact hv₀_mem
       · exact hv₁_mem
-    · intro j hj
+    · -- `S ⊆ filter (· = u i)` by cases on `i`.
+      intro j hj
       rw [Finset.mem_filter]
       refine ⟨Finset.mem_univ _, ?_⟩
       fin_cases i

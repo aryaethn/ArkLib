@@ -163,6 +163,8 @@ The overall effort is "done" when:
 | D7 | Where do paper-style notation aliases live? | pending; recommend `ArkLib/Data/CodingTheory/ABF26Notation.lean` | Phase 9. |
 | D8 | Computable vs noncomputable defaults for ε's? | **decided 2026-05-14**: `noncomputable def` for `Lambda`, `epsCA`, `epsCA'`, `epsMCA`; `def` for `Prop`-returning helpers (`pairJointAgreesOn`, `mcaEvent`) | Matches `distFromCode` and predicate-style conventions. |
 | D9 | One branch for the whole effort vs many PRs to `main`? | **decided 2026-05-14**: single branch `feat/abf26-plan` | User preference. Each "PR" in §8 becomes a commit (or small cluster) on this branch. |
+| D10 | `epsMCA` / `mcaEvent` interleaving width: `Fin 2` only, or general `Fin ℓ`? | **decided 2026-05-14**: `Fin 2` only for the initial pass | Paper Section 4 only uses lines (the affine-line case, `ℓ = 2`). F4.5, L4.6, and L4.7 do not require higher `ℓ`. Generalizing to `Fin ℓ` is tracked as a future extension, not in Phase 1. |
+| D11 | Linter suppression idiom for `unusedFintypeInType`/`unusedDecidableInType`/`unusedSectionVars` | **decided 2026-05-14**: file-level `set_option` block right after imports | Matches `ReedSolomon/FftDomain.lean` style; chosen over per-declaration `... in` because the section variables are needed proof-wide. |
 
 ### Conjecture / external-result ledger
 
@@ -1255,7 +1257,9 @@ convenience.
   without an associated PR number). New residual `sorry`s discovered in
   `BCIKS20/ListDecoding/*`, `BCIKS20/WeightedAgreement.lean`, and
   `DG25/MainResults.lean`. Phase 2 PR list below is re-scoped accordingly.
-- **Phase 1 PR 1**: D2.8 (Lambda), D4.1, D4.3, R4.2, R4.4, F4.5.
+- **Phase 1 PR 1**: ✅ D2.8 (Lambda, commit `7c913b3b`), ✅ D4.1 (`d18627fd`),
+  ✅ D4.3 (`10245caf`), R4.2 pending, ✅ R4.4 (`d18627fd`),
+  ✅ F4.5 (chain `c053b38d` → `71084417` → `bddcec81` → `1ec90bf1`).
 - **Phase 1 PR 2**: L4.6, L4.7.
 - **Phase 1 PR 3**: bridging lemmas + WHIR re-expression (does not touch the
   3 non-conjectural sorries in `Whir/MutualCorrAgreement.lean`, which stay

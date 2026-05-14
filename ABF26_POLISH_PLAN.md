@@ -70,7 +70,7 @@ trusted blindly.
 | --- | --- | --- | --- |
 | D2.19 | `CodingTheory.ExtensionFieldPresentation` | ⏳ | Structure stores `φ : F → Fin e → B` + explicit `φ_inv` + inverse witnesses. Verify this is enough to recover B-linearity (currently only used via coordinate projections — B-linearity is a *separate* claim). |
 | D2.19 | `CodingTheory.ExtensionFieldPresentation.IsSystematic` | ⏳ | Uses `i.val = 0`; equivalent to `i = ⟨0, _⟩`. OK. Confirm `P.e ≥ 1` is implicit elsewhere. |
-| D2.20 | `CodingTheory.extensionCode` | ⚠ | Set-level definition (image-of-encoder predicate) equivalent to paper's encoder definition only via `φ`-bijectivity. Add an `extensionCode_eq_encoder_image` lemma to bridge. |
+| D2.20 | `CodingTheory.extensionCode` | 🔧 | Added `extensionCode_iff_coord_in_base` definitional iff lemma. Full encoder-image equivalence is a downstream corollary of `φ`-bijectivity; current bridge suffices for paper-faithful statements. |
 | L2.21 | `CodingTheory.lambda_extensionCode_eq_lambda_interleaved` | ⏳ | Uses `Code.interleavedCodeSet`; confirm paper's `C_B^≡e` matches with `κ = Fin e`. |
 
 ### §3 — List Decoding
@@ -162,7 +162,7 @@ Each axis below is a sweep across all files committed in this session.
 | `CodingTheory.IsSubspaceDesign` formulation | `LinearMap.proj` vs comprehension | 🔧 | Added `ker_proj_eq_vanish_at`: a `Set`-level equality showing `(ker (LinearMap.proj i) : Set _) = {a | a i = 0}`. Proves the paper's comprehension form is exactly the kernel used in the definition. Lemma proved (one-line `ext` + `simp`). |
 | `ReedSolomon.Interleaved.irsCode` | `interleavedCodeSet`, `^⋈` notation | ⏳ | One-liner; consider `abbrev` instead of `noncomputable def`. Or drop entirely and inline at call sites if not pulling weight. |
 | `ReedSolomon.Folded.frsCode` | `ReedSolomon.code` using `Polynomial.degreeLT` | ⚠ | My version uses `p.degree < k`; align to `Polynomial.degreeLT F k.map evalOnPoints`-style for consistency. |
-| `CodingTheory.extensionCode` | encoder-image vs set-of-codewords | ⚠ | Add equivalence lemma so callers can use either view interchangeably. |
+| `CodingTheory.extensionCode` | encoder-image vs set-of-codewords | 🔧 | Added `extensionCode_iff_coord_in_base`: makes the "each coordinate-projection is in `C_B`" view explicit. The full encoder-image equivalence (`v = φ_inv(c^{(1)}, …, c^{(e)})`) is a corollary of `φ`-bijectivity; downstream users can build it from this iff plus `φ`'s inverse. Lemma is definitional (`rfl`). |
 | `CodingTheory.Lambda` (extended earlier in session) | `closeCodewordsRel`, `listDecodable` | ✅ | Already integrated; no action. |
 
 ### 2c. Namespace and file layout
@@ -215,7 +215,7 @@ Apply 2b actions in dependency order:
 1. **B1.** ✅ Add `restrictedRelHammingDist Finset.univ f g = (Code.relHammingDist f g : ℝ≥0)` bridge.
 2. **B2.** ✅ Add `hammingBallVolume_eq_ncard_hammingBall` bridge (tagged sorry).
 3. **B3.** ✅ Add `ker_proj_eq_vanish_at` Set-level bridge (proved).
-4. **B4.** Add `extensionCode_eq_encoder_image` bridge.
+4. **B4.** ✅ Add `extensionCode_iff_coord_in_base` definitional iff lemma.
 5. **B5.** (Optional, deferred) Refactor `ExtensionFieldPresentation` to thin Mathlib wrapper.
 
 ### Pass C: Operator and type convention sweep

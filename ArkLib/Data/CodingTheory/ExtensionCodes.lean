@@ -111,6 +111,28 @@ def extensionCode {ι : Type} [Fintype ι]
     (C_B : Set (ι → B)) : Set (ι → F) :=
   { v : ι → F | ∀ j : Fin P.e, (fun i => P.coord j (v i)) ∈ C_B }
 
+/-- **Bridge to paper's encoder-image view.** The paper writes
+`C_F(v) := φ⁻¹(C_B(φ_1(v)), …, C_B(φ_e(v)))` as an encoder, so
+`Im(C_F) = { φ_inv(c_B^{(1)}, …, c_B^{(e)}) | (c_B^{(j)})_j ∈ (C_B)^e }`.
+
+Under the bijection `φ : F ≃ Fin e → B` (componentwise) this is the same as our
+set-comprehension `extensionCode`: a vector `v : ι → F` is in `extensionCode P C_B`
+iff each of its `e` coordinate-projections lies in `C_B`. The equivalence holds because
+`φ` is bijective, so any tuple of base codewords lifts to a unique extension-field
+vector.
+
+Formal statement: `v ∈ extensionCode P C_B` iff there exist base codewords
+`(c^{(j)} : ι → B)` for each `j : Fin P.e` such that `(c^{(j)})_j ∈ C_B` and
+`P.coord j (v i) = c^{(j)} i` everywhere. -/
+lemma extensionCode_iff_coord_in_base
+    {ι : Type} [Fintype ι]
+    {B F : Type} [Field B] [Field F]
+    (P : ExtensionFieldPresentation B F)
+    (C_B : Set (ι → B)) (v : ι → F) :
+    v ∈ extensionCode P C_B ↔
+      ∀ j : Fin P.e, (fun i => P.coord j (v i)) ∈ C_B := by
+  rfl
+
 /-- **ABF26 Lemma 2.21 [BCFW25 Lemma D.3].** List size of an extension code equals the
 list size of the corresponding interleaved base code. Let `C_B : B^k → B^n` be a
 linear code and `P` be an extension-field presentation. For every `δ ∈ (0, 1)`:

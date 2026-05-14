@@ -110,15 +110,15 @@ migration and the still-open non-unique-decoding branch:
 | `T3.4` | τ-subspace-design list decoding | missing | none | `ABF26.subspaceDesign_list_decoding` (external) | CZ25 Thm B.5. |
 | `C3.5` | Folded RS up to capacity | missing | none | `ABF26.frs_list_decoding_capacity` | Derives from T3.4 + T2.18. |
 | `T3.6` | Random RS near capacity | missing | none | `ABF26.random_rs_list_decoding` (external) | AGL24 Thm 1.1. |
-| `L3.7` | Elias volume bound | missing | none | `ABF26.elias_volume_bound` | Eli57. Proof in paper short enough to formalize in-tree. |
-| `C3.8` | Volume-based lower bound | missing | none | `ABF26.volume_lower_bound` | Depends on D2.2 and D2.4. |
-| `T3.9` | Generalized Singleton bound | missing | none | `ABF26.generalized_singleton_bound` (external) | ST20 Thm 1.2. |
-| `T3.10` | Large-alphabet lower bound | missing | none | `ABF26.large_alphabet_lower_bound` (external) | BDG24, AGL23. |
-| `T3.11` | Random linear code lower bound | missing | none | `ABF26.random_linear_lower_bound` (external) | GLMRSW22 Thm 4.1. |
-| `T3.12` | RS superpoly over extensions | missing | none | `ABF26.rs_superpoly_extension` (external) | BKR06 Cor 2.2. |
-| `T3.13` | RS large list over prime fields | missing | none | `ABF26.rs_large_list_prime` (external) | GHSZ02 Cor 20. |
-| `T3.14` | Large-rate RS lower bound | missing | none | `ABF26.rs_large_rate_lower` (external) | JH01 Thm 2. |
-| `T3.15` | CW07 hardness barrier | missing | none | `ABF26.rs_dlog_barrier` (external) | Algorithmic, not combinatorial; admit only. |
+| `L3.7` | Elias volume bound | stated (external admit) | [ListDecodingBounds.lean](../../../ArkLib/Data/CodingTheory/ListDecodingBounds.lean) | `CodingTheory.linear_lambda_ge_elias_volume_eli57` | Eli57; tagged sorry. Uses `hammingBallVolume` from `ABF26Prelims.lean`. |
+| `C3.8` | Volume-based lower bound | stated (external admit) | [ListDecodingBounds.lean](../../../ArkLib/Data/CodingTheory/ListDecodingBounds.lean) | `CodingTheory.linear_lambda_ge_entropy_volume` | Uses `qEntropy`; tagged sorry. |
+| `T3.9` | Generalized Singleton bound | stated (external admit) | [ListDecodingBounds.lean](../../../ArkLib/Data/CodingTheory/ListDecodingBounds.lean) | `CodingTheory.linear_C_le_generalized_singleton_st20` | ST20 Thm 1.2; tagged sorry. |
+| `T3.10` | Large-alphabet lower bound | stated (external admit) | [ListDecodingBounds.lean](../../../ArkLib/Data/CodingTheory/ListDecodingBounds.lean) | `CodingTheory.large_alphabet_barrier_bdg24_agl23` | BDG24, AGL23; tagged sorry. |
+| `T3.11` | Random linear code lower bound | stated (external admit) | [ListDecodingBounds.lean](../../../ArkLib/Data/CodingTheory/ListDecodingBounds.lean) | `CodingTheory.random_linear_lambda_lower_glmrsw22` | GLMRSW22 Thm 4.1; tagged sorry. Probability over linear codes existentially packaged as "exists a witness code". |
+| `T3.12` | RS superpoly over extensions | stated (external admit) | [ListDecodingBounds.lean](../../../ArkLib/Data/CodingTheory/ListDecodingBounds.lean) | `CodingTheory.rs_lambda_superpoly_extension_bkr06` | BKR06 Cor 2.2; tagged sorry. "Infinitely many q" captured as `∃ qs : ℕ → ℕ, StrictMono qs ∧ ...`. |
+| `T3.13` | RS large list over prime fields | stated (external admit) | [ListDecodingBounds.lean](../../../ArkLib/Data/CodingTheory/ListDecodingBounds.lean) | `CodingTheory.rs_lambda_large_prime_ghsz02` | GHSZ02 Cor 20; tagged sorry. |
+| `T3.14` | Large-rate RS lower bound | stated (external admit) | [ListDecodingBounds.lean](../../../ArkLib/Data/CodingTheory/ListDecodingBounds.lean) | `CodingTheory.rs_lambda_high_rate_jh01` | JH01 Thm 2; tagged sorry. |
+| `T3.15` | CW07 hardness barrier | out of scope | none | `CodingTheory.rs_dlog_barrier` (external; not stated) | Algorithmic hardness (discrete-log reduction); per `ABF26_PLAN.md` §7 D2 we formalise combinatorial statements only. |
 
 ## Section 4 — Correlated Agreement Conjectures
 

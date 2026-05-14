@@ -719,83 +719,64 @@ diff.
 #### ABF26-L3.7 — Elias volume bound
 
 - **Paper location**: §3.2 page 14, Lemma 3.7 [Eli57].
-- **Status**: missing.
-- **Target Lean name**: `ABF26.elias_volume_bound`.
-- **Target file**: `ArkLib/Data/CodingTheory/ListDecodability.lean`.
+- **Status**: ✅ stated; admitted as external.
+- **Existing in ArkLib**: `CodingTheory.linear_lambda_ge_elias_volume_eli57` in `ArkLib/Data/CodingTheory/ListDecodingBounds.lean`. Uses `hammingBallVolume` (ABF26 D2.4).
 - **Direct dependencies (paper)**: D2.4, D2.8.
 - **Reverse dependencies**: C3.8.
-- **Target PR**: Phase 4 PR 4.
-- **Sub-tasks**:
-  1. State `|Λ(C,δ)| ≥ Vol_q(δ,n) / q^(n-k)`.
-  2. Prove via averaging argument from paper.
-  3. Update audit doc.
+- **Target PR**: Phase 4 PR 4 ✅ statement committed.
 
 #### ABF26-C3.8 — Volume-based lower bound
 
 - **Paper location**: §3.2 page 14, Corollary 3.8.
 - **Statement**: `|Λ(C,δ)| ≥ q^{n(ρ-1+H_q(δ))} / √(8nδ(1-δ))`.
-- **Status**: missing.
-- **Target Lean name**: `ABF26.volume_lower_bound`.
-- **Target file**: same.
-- **Direct dependencies (paper)**: D2.2, D2.4, L3.7.
-- **Reverse dependencies**: none.
-- **Target PR**: Phase 4 PR 4.
-- **Sub-tasks**:
-  1. State.
-  2. Prove using L3.7 + MS77 volume estimate (paper relies on this).
-  3. Update audit doc.
+- **Status**: ✅ stated; admitted as external (relies on MS77 volume estimate).
+- **Existing in ArkLib**: `CodingTheory.linear_lambda_ge_entropy_volume` in `ListDecodingBounds.lean`. Uses `qEntropy` (ABF26 D2.2).
+- **Target PR**: Phase 4 PR 4 ✅ statement committed.
 
 #### ABF26-T3.9 — Generalized Singleton bound for list decoding
 
 - **Paper location**: §3.2 page 14, Theorem 3.9 [ST20 Thm 1.2].
-- **Status**: missing.
-- **Target Lean name**: `ABF26.generalized_singleton_bound`.
-- **Target file**: `ArkLib/Data/CodingTheory/ListDecodability.lean`.
+- **Status**: ✅ stated; admitted as external.
+- **Existing in ArkLib**: `CodingTheory.linear_C_le_generalized_singleton_st20` in `ListDecodingBounds.lean`.
 - **Direct dependencies (paper)**: D2.8.
 - **Reverse dependencies**: T3.10.
-- **Target PR**: Phase 4 PR 4.
-- **Sub-tasks**:
-  1. State.
-  2. Prove or admit. Generalizes classical Singleton; should be tractable.
-  3. Update audit doc.
+- **Target PR**: Phase 4 PR 4 ✅ statement committed.
 
 #### ABF26-T3.10 — Large-alphabet barrier
 
 - **Paper location**: §3.2 page 14, Theorem 3.10 [BDG24, AGL23].
-- **Status**: missing. Ledger: external.
-- **Target Lean name**: `ABF26.large_alphabet_lower_bound`.
-- **Target PR**: Phase 4 PR 4.
-- **Sub-tasks**:
-  1. State.
-  2. Admit; tag.
-  3. Update audit doc.
+- **Status**: ✅ stated; admitted as external.
+- **Existing in ArkLib**: `CodingTheory.large_alphabet_barrier_bdg24_agl23` in `ListDecodingBounds.lean`. "Sufficiently large `n`" packaged as explicit `n₀ : ℕ` threshold.
+- **Target PR**: Phase 4 PR 4 ✅ statement committed.
 
 #### ABF26-T3.11 — Random linear-code lower bound
 
 - **Paper location**: §3.2 page 15, Theorem 3.11 [GLMRSW22 Thm 4.1].
-- **Status**: missing. Ledger: external.
-- **Target PR**: Phase 4 PR 4.
-- **Sub-tasks**: state + admit + audit.
+- **Status**: ✅ stated; admitted as external.
+- **Existing in ArkLib**: `CodingTheory.random_linear_lambda_lower_glmrsw22` in `ListDecodingBounds.lean`. The `1 - q^{-Ω(n)}` probability over linear codes is existentially packaged as "there exists a witness code" since ArkLib does not yet have a probability distribution over linear codes.
+- **Target PR**: Phase 4 PR 4 ✅ statement committed.
 
 #### ABF26-T3.12 — RS superpolynomial list size over extension fields
 
 - **Paper location**: §3.2 page 15, Theorem 3.12 [BKR06 Cor 2.2].
-- **Status**: missing. Ledger: external.
-- **Target file**: new `ArkLib/Data/CodingTheory/ReedSolomon/Bounds.lean`.
-- **Target PR**: Phase 4 PR 5.
-- **Sub-tasks**: state + admit + audit.
+- **Status**: ✅ stated; admitted as external.
+- **Existing in ArkLib**: `CodingTheory.rs_lambda_superpoly_extension_bkr06` in `ListDecodingBounds.lean`. "Infinitely many `q`" captured as `∃ qs : ℕ → ℕ, StrictMono qs ∧ ...`.
+- **Target file**: was originally planned for new `ArkLib/Data/CodingTheory/ReedSolomon/Bounds.lean`; consolidated into `ListDecodingBounds.lean` to keep all §3 admits in one place.
+- **Target PR**: Phase 4 PR 5 ✅ statement committed.
 
 #### ABF26-T3.13 — RS large list size over prime fields
 
 - **Paper location**: §3.2 page 15, Theorem 3.13 [GHSZ02 Cor 20].
-- **Status**: missing. Ledger: external.
-- **Target PR**: Phase 4 PR 5.
+- **Status**: ✅ stated; admitted as external.
+- **Existing in ArkLib**: `CodingTheory.rs_lambda_large_prime_ghsz02` in `ListDecodingBounds.lean`.
+- **Target PR**: Phase 4 PR 5 ✅ statement committed.
 
 #### ABF26-T3.14 — Large-rate RS lower bound
 
 - **Paper location**: §3.2 page 15, Theorem 3.14 [JH01 Thm 2].
-- **Status**: missing. Ledger: external.
-- **Target PR**: Phase 4 PR 5.
+- **Status**: ✅ stated; admitted as external.
+- **Existing in ArkLib**: `CodingTheory.rs_lambda_high_rate_jh01` in `ListDecodingBounds.lean`. "Infinitely many `q ≡ 1 (mod j+1)`" captured as `∃ qs : ℕ → ℕ, StrictMono qs ∧ ...` with side conditions.
+- **Target PR**: Phase 4 PR 5 ✅ statement committed.
 
 #### ABF26-T3.15 — CW07 hardness barrier
 

@@ -67,7 +67,10 @@ noncomputable def epsCA (C : Set (ι → A)) (δ_fld δ_int : ℝ≥0) : ENNReal
     else Pr_{let γ ← $ᵖ F}[δᵣ(u 0 + γ • u 1, C) ≤ δ_fld]
 
 /-- No-proximity-loss specialization: `ε_ca(C, δ) := ε_ca(C, δ, δ)`. Matches the paper's
-short-form notation when both fold-distance and interleaved-distance coincide. -/
+short-form notation when both fold-distance and interleaved-distance coincide.
+
+By definition `epsCA C δ δ ≡ epsCA' C δ`; no explicit `epsCA_self` simp lemma is needed
+because the two forms are definitionally equal. -/
 noncomputable def epsCA' (C : Set (ι → A)) (δ : ℝ≥0) : ENNReal :=
   epsCA (F := F) C δ δ
 

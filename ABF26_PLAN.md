@@ -154,14 +154,14 @@ The overall effort is "done" when:
 
 | ID | Decision | Status | Notes |
 | -- | -------- | ------ | ----- |
-| D1 | ε-error values: `ℝ≥0` or `ENNReal`? | pending; recommend `ℝ≥0` for ε's, `ℕ∞` for `Lambda` | Lock during Phase 1 PR 1. |
-| D2 | Paper `Λ(C,δ)` notation: `Λ` macro or descriptive Lean name? | pending; recommend descriptive name + `scoped notation` | Phase 1. |
+| D1 | ε-error values: `ℝ≥0` or `ENNReal`? | **decided 2026-05-14**: `ENNReal` for ε-return values (to match `Pr_{...}[...]`); `ℝ≥0` for `δ_fld`/`δ_int` inputs (to match the existing `δ_ε_*` predicate API in `Basic.lean`); `ℕ∞` for `Lambda`. | Locked in by the D2.8/D4.1/D4.3 commits. |
+| D2 | Paper `Λ(C,δ)` notation: `Λ` macro or descriptive Lean name? | **decided 2026-05-14**: descriptive Lean names (`Lambda_at`, `Lambda`, `epsCA`, `epsMCA`, etc.) only; no `Λ`/`ε` macros for now | Scoped notation can be added later in Phase 9 if useful, but the descriptive names are the canonical identifiers. |
 | D3 | Subspace-design: `class` or `Prop` predicate? | pending; recommend `Prop` predicate | Phase 3. |
 | D4 | External-result theorems: `sorry` or `axiom`? | decided: `sorry` with tagged comment | Axioms inflate `#print axioms`. |
 | D5 | `paper.pdf` vs `ABF26.pdf`: identical? | decided: yes | Confirmed against audit content. |
 | D6 | `Smooth` typeclass placement | decided: keep on `ι ↪ F` | Existing WHIR usage non-trivial. |
 | D7 | Where do paper-style notation aliases live? | pending; recommend `ArkLib/Data/CodingTheory/ABF26Notation.lean` | Phase 9. |
-| D8 | Computable vs noncomputable defaults for ε's? | pending; recommend noncomputable | Matches `distFromCode`. |
+| D8 | Computable vs noncomputable defaults for ε's? | **decided 2026-05-14**: `noncomputable def` for `Lambda`, `epsCA`, `epsCA'`, `epsMCA`; `def` for `Prop`-returning helpers (`pairJointAgreesOn`, `mcaEvent`) | Matches `distFromCode` and predicate-style conventions. |
 | D9 | One branch for the whole effort vs many PRs to `main`? | **decided 2026-05-14**: single branch `feat/abf26-plan` | User preference. Each "PR" in §8 becomes a commit (or small cluster) on this branch. |
 
 ### Conjecture / external-result ledger
@@ -357,7 +357,7 @@ diff.
 
 - **Paper location**: §2.3 page 8, Definition 2.8.
 - **Statement**: `Λ(C,δ,f) = {g ∈ C : Δ(f,g) ≤ δ}` and `|Λ(C,δ)| = max_f |Λ(C,δ,f)|`.
-- **Status**: present-but-different.
+- **Status**: ✅ present (closed by commit `7c913b3b`).
 - **Existing in ArkLib**: `closeCodewordsRel`, `listDecodable`, `uniqueDecodable` in `ArkLib/Data/CodingTheory/ListDecodability.lean`.
 - **Target Lean name**: `ListDecodable.Lambda_at (C : Set (ι → F)) (δ : ℝ≥0) (f : ι → F) : Set (ι → F) := closeCodewordsRel C f δ`; `ListDecodable.Lambda (C : Set (ι → F)) (δ : ℝ≥0) : ℕ∞ := ⨆ f, (Lambda_at C δ f).toFinset.card`.
 - **Target file**: `ArkLib/Data/CodingTheory/ListDecodability.lean` (append).
@@ -774,7 +774,7 @@ diff.
 
 - **Paper location**: §4.1 page 17, Definition 4.1.
 - **Statement**: `ε_ca(C, δ_fld, δ_int) := max_{f₁,f₂ ∈ (F^s)^n} Pr_{γ ← F}[Δ(f₁ + γ·f₂, C) ≤ δ_fld ∧ Δ((f₁,f₂), C^≡2) > δ_int]`.
-- **Status**: missing (paper-shape); existing predicate-style CA does not expose the numeric error.
+- **Status**: ✅ present (closed by commit `d18627fd`; monotonicity and bridging lemmas are open follow-ups).
 - **Target Lean name**: `ProximityGap.epsCA (C : Submodule F (ι → A)) (δ_fld δ_int : ℝ≥0) : ℝ≥0`.
 - **Target file**: new `ArkLib/Data/CodingTheory/ProximityGap/EpsilonErrors.lean`.
 - **Direct dependencies (paper)**: D2.3, D2.7.
@@ -810,7 +810,7 @@ diff.
 
 - **Paper location**: §4.1 page 17, Definition 4.3.
 - **Statement**: `ε_mca(C, δ) := max_{f₁,f₂} Pr_{γ ← F}[∃ S = S_γ ⊆ [n], |S| ≥ (1-δ)·n s.t. Δ_S(f₁ + γ·f₂, C) = 0 ∧ Δ_S((f₁,f₂), C^≡2) > 0]`.
-- **Status**: missing (WHIR has a generator-specific version only).
+- **Status**: ✅ present (closed by commit `10245caf`; WHIR `hasMutualCorrAgreement` re-expression is a follow-up).
 - **Target Lean name**: `ProximityGap.epsMCA (C : Submodule F (ι → A)) (δ : ℝ≥0) : ℝ≥0`.
 - **Target file**: same as D4.1.
 - **Direct dependencies (paper)**: D2.3, D2.7, D4.1.
@@ -826,7 +826,7 @@ diff.
 #### ABF26-R4.4 — No MCA-with-proximity-loss
 
 - **Paper location**: §4.1 page 18, Remark 4.4.
-- **Status**: missing (documentation only).
+- **Status**: ✅ present (closed by commit `d18627fd`; documentation only).
 - **Target**: file-level docstring in `EpsilonErrors.lean`.
 - **Target PR**: Phase 1 PR 1.
 - **Sub-tasks**:

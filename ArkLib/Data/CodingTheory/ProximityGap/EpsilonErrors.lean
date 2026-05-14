@@ -163,6 +163,57 @@ noncomputable def epsMCA (C : Set (ι → A)) (δ : ℝ≥0) : ENNReal :=
   ⨆ u : WordStack A (Fin 2) ι,
     Pr_{let γ ← $ᵖ F}[mcaEvent C δ (u 0) (u 1) γ]
 
+/-! ## Monotonicity of `epsCA` (ABF26 Definition 4.1 sub-tasks 4–5)
+
+These two lemmas, together with `epsCA_eq_of_floor_eq`, characterize how `epsCA` varies
+with its two distance arguments.
+
+- `epsCA` is **monotone** in `δ_fld`: a larger fold-distance means more `γ` satisfy the
+  "line `δ_fld`-close" event, so the inner `Pr` grows.
+- `epsCA` is **antitone** in `δ_int`: a larger interleaved-distance is a *weaker* condition
+  for `jointProximity`, so *more* pairs `(f₁, f₂)` are jointly close and contribute `0`
+  rather than a non-zero `Pr`, decreasing the supremum.
+
+The direction of the second one was a recurring confusion in the original plan; the proof
+makes it concrete. -/
+
+/-- **ABF26 Definition 4.1, sub-task 5.** `epsCA` is monotone in `δ_fld`. -/
+theorem epsCA_mono_δ_fld
+    (C : Set (ι → A)) {δ_fld δ_fld' : ℝ≥0} (δ_int : ℝ≥0) (h : δ_fld ≤ δ_fld') :
+    epsCA (F := F) C δ_fld δ_int ≤ epsCA (F := F) C δ_fld' δ_int := by
+  classical
+  unfold epsCA
+  apply iSup_mono
+  intro u
+  by_cases hjp : jointProximity (C := C) (u := u) δ_int
+  · rw [if_pos hjp, if_pos hjp]
+  · rw [if_neg hjp, if_neg hjp]
+    -- `Pr_γ[Δ ≤ δ_fld] ≤ Pr_γ[Δ ≤ δ_fld']` by event implication.
+    apply Pr_le_Pr_of_implies
+    intro _ h_close
+    exact le_trans h_close (by exact_mod_cast h)
+
+/-- **ABF26 Definition 4.1, sub-task 4.** `epsCA` is **antitone** in `δ_int`. -/
+theorem epsCA_antitone_δ_int
+    (C : Set (ι → A)) (δ_fld : ℝ≥0) {δ_int δ_int' : ℝ≥0} (h : δ_int ≤ δ_int') :
+    epsCA (F := F) C δ_fld δ_int' ≤ epsCA (F := F) C δ_fld δ_int := by
+  classical
+  unfold epsCA
+  apply iSup_mono
+  intro u
+  -- `jointProximity` is monotone in `δ` (the relative distance comparison `δᵣ ≤ δ`
+  -- becomes easier when `δ` grows), so `jointProximity_δ_int → jointProximity_δ_int'`.
+  have h_jp_mono :
+      jointProximity (C := C) (u := u) δ_int →
+      jointProximity (C := C) (u := u) δ_int' := by
+    intro h_jp
+    exact le_trans h_jp (by exact_mod_cast h)
+  by_cases hjp' : jointProximity (C := C) (u := u) δ_int'
+  · rw [if_pos hjp']; exact zero_le _
+  · -- Contrapositive of `h_jp_mono`: `¬jointProximity_δ_int' → ¬jointProximity_δ_int`.
+    have hjp : ¬ jointProximity (C := C) (u := u) δ_int := fun h_jp => hjp' (h_jp_mono h_jp)
+    rw [if_neg hjp', if_neg hjp]
+
 /-! ## Helpers toward ABF26 Fact 4.5
 
 Fact 4.5 says `ε_pg ≤ ε_ca ≤ ε_mca`. The first inequality requires the underlying code to

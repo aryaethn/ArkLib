@@ -786,11 +786,11 @@ diff.
   1. ✅ Create file `ProximityGap/EpsilonErrors.lean` (commit `d18627fd`).
   2. ✅ Define `ProximityGap.epsCA` as the supremum over pairs of words of the joint probability.
   3. ✅ Special-case alias `epsCA' C δ := epsCA C δ δ`.
-  4. **Pending**: prove `epsCA C δ_fld δ_int' ≤ epsCA C δ_fld δ_int` for `δ_int ≤ δ_int'` (**antitone** in `δ_int`; previous plan text gave the wrong direction).
-  5. **Pending**: prove `epsCA C δ_fld₁ δ_int ≤ epsCA C δ_fld₂ δ_int` for `δ_fld₁ ≤ δ_fld₂` (monotone in `δ_fld`).
-  6. ✅ Bridge `δ_ε_correlatedAgreementAffineLines_iff_epsCA_le` (commit follows; bridges to `Curves`/`AffineSpaces` predicates remain).
+  4. ✅ `epsCA_antitone_δ_int`: `δ_int ≤ δ_int' → epsCA C δ_fld δ_int' ≤ epsCA C δ_fld δ_int`.
+  5. ✅ `epsCA_mono_δ_fld`: `δ_fld ≤ δ_fld' → epsCA C δ_fld δ_int ≤ epsCA C δ_fld' δ_int`.
+  6. ✅ Bridge `δ_ε_correlatedAgreementAffineLines_iff_epsCA_le`. **Pending**: same-shape bridges to `Curves` and `AffineSpaces` predicates.
   7. ✅ Update audit doc.
-- **Acceptance**: definition + monotonicity + bridge. **Partial**: definition and `AffineLines` bridge met; monotonicity and the other-shape bridges still pending.
+- **Acceptance**: definition + monotonicity + bridge. **Met**: every sub-task closed except the `Curves` / `AffineSpaces` bridge variants.
 - **Open questions**: F-additive vs F-linear case — paper handles F-additive, ArkLib has both. Used `Module F A` (which subsumes both via choice of `A`).
 
 #### ABF26-R4.2 — ε_ca discretization

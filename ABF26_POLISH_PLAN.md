@@ -167,8 +167,9 @@ Each axis below is a sweep across all files committed in this session.
 - 🔧 **`extensionCode`** stays a `Set`, but `ExtensionFieldPresentation` now certifies
   `B`-linearity via `φ_add` + `φ_smul_psi` fields. Added `coord_add`,
   `coord_psi_smul`, `extensionCode_add_mem`, `extensionCode_psi_smul_mem` lemmas —
-  all proved. Full F-Submodule promotion requires `[Algebra B F]` + basis expansion;
-  deliberately deferred (it's a Mathlib-structural refactor, not a correctness fix).
+  all proved. **F-scalar closure** stated as `extensionCode_smul_mem` with a
+  tagged-sorry — proof needs F-algebra structure constants from `[Algebra B F]`
+  refactor (B5).
 
 The refactor lets T2.18, T4.14, C3.5 consume `frsCode` / `irsCode` directly without
 existential `∃ C, C = … ∧ …` wraps. T2.18 in particular collapses from a 3-conjunct
@@ -180,7 +181,7 @@ existential to a single `IsSubspaceDesign s τ (frsCode …)`.
 | `CodingTheory.hammingBallVolume` | `ListDecodable.hammingBall` in `ListDecodability.lean` | 🔧 | Added `hammingBallVolume_eq_ncard_hammingBall`: bridge to `.ncard` of `hammingBall y ⌊δ·n⌋`. Tagged-sorry — standard combinatorial identity, will be discharged alongside L3.7. |
 | `CodingTheory.qEntropy` | `Real.negMulLog`, Mathlib's binary-entropy lemmas | ✅ | Mathlib has `Real.binEntropy` (binary entropy) but no q-ary variant. Keep ours; revisit if Mathlib adds one. |
 | `JohnsonBound.Jcap` vs existing `J` (= paper's `J_q`) | `JohnsonBound.J` | ✅ | **Decision: keep both** with prominent docstring (Option A). Renaming existing `J → Jq` would break callers throughout `JohnsonBound/Basic.lean` and downstream — not worth the paper-name alignment given the docstring already disambiguates. |
-| `CodingTheory.ExtensionFieldPresentation` | `Algebra B F`, `Module.Finite`, `Basis` (Mathlib) | ⚠ | **B-linearity now certified (this commit)** via `φ_add` + `φ_smul_psi` fields. Full Mathlib refactor (replace `ψ, e, φ, φ_inv, …` with `[Algebra B F] + [Module.Finite B F] + Basis B F`) still possible — a structural simplification rather than a correctness fix. Defer until a downstream proof actually pulls on it. |
+| `CodingTheory.ExtensionFieldPresentation` | `Algebra B F`, `Module.Finite`, `Basis` (Mathlib) | ⏸ | **B5 deferred.** B-linearity certified via `φ_add` / `φ_smul_psi`. Full Mathlib refactor (replace `ψ, e, φ, φ_inv, …` with `[Algebra B F] + [Module.Finite B F] + Basis B F`) would unlock `extensionCode_smul_mem`'s proof (the structure constants come from `Basis.equivFun` applied to multiplication). Significant invasive change touching `Connections.lean`, `IsSystematic`, `coord`, and all closure lemmas. Deferred until a downstream proof actually pulls on it. |
 | `CodingTheory.IsSubspaceDesign` formulation | `LinearMap.proj` vs comprehension | 🔧 | Added `ker_proj_eq_vanish_at`: a `Set`-level equality showing `(ker (LinearMap.proj i) : Set _) = {a | a i = 0}`. Proves the paper's comprehension form is exactly the kernel used in the definition. Lemma proved (one-line `ext` + `simp`). |
 | `ReedSolomon.Interleaved.irsCode` | `interleavedCodeSet`, `^⋈` notation | 🔧 | **Refactored to `Submodule F (ι → Fin s → F)`** with explicit closure proofs delegating to the underlying RS code's `.add_mem` / `.zero_mem` / `.smul_mem`. Now first-class ModuleCode. |
 | `ReedSolomon.Folded.frsCode` | `ReedSolomon.code` using `Polynomial.degreeLT` | 🔧 | **Refactored to `Submodule F (ι → Fin s → F)`** via `(degreeLT F k).map frsEvalOnPoints`. Membership equivalence preserved by `mem_frsCode_iff`. Now first-class ModuleCode. |
@@ -238,7 +239,7 @@ Apply 2b actions in dependency order:
 2. **B2.** ✅ Add `hammingBallVolume_eq_ncard_hammingBall` bridge (tagged sorry).
 3. **B3.** ✅ Add `ker_proj_eq_vanish_at` Set-level bridge (proved).
 4. **B4.** ✅ Add `extensionCode_iff_coord_in_base` definitional iff lemma.
-5. **B5.** (Optional, deferred) Refactor `ExtensionFieldPresentation` to thin Mathlib wrapper.
+5. **B5.** ⏸ **Deferred.** Refactor `ExtensionFieldPresentation` to thin Mathlib wrapper (`[Algebra B F] + Basis`). Unlocks `extensionCode_smul_mem`'s proof but is a significant invasive change. Tracked as a known follow-up.
 
 ### Pass C: Operator and type convention sweep
 
@@ -256,6 +257,22 @@ Apply 2c–2e actions. Lowest priority — leave until A–C stable.
 2. **D2.** Deferred (cosmetic; not blocking).
 3. **D3.** Deferred (optional).
 4. **D4.** Deferred (optional).
+
+### Pass E: Post-refactor follow-ups (round 2)
+
+Items surfaced by the ModuleCode-unification review:
+
+1. **E1.** ✅ Dim lemmas `dim_frsCode` and `dim_irsCode` stated with tagged sorries
+   (proofs need `Submodule.finrank_map_of_injective` + `Polynomial.degreeLTEquiv`
+   for FRS; interleavedCodeSet-finrank API for IRS).
+2. **E2.** ✅ Strengthen `mem_frsCode_one_iff_mem_rsCode` to a Submodule-level
+   `frsCode_one_map_eq_rsCode` (proved, not admitted).
+3. **E3.** ✅ T3.2 alphabet generality — broadened `[Field F]` to
+   `[Fintype α] [DecidableEq α]`.
+4. **E4.** 🔧 `extensionCode_smul_mem` stated (full F-Submodule promotion) — proof
+   tagged-sorry, gated on B5 refactor or structure-constants field.
+5. **E5.** ⏸ B5 deferred (see above) — Mathlib structural refactor of
+   `ExtensionFieldPresentation`. Would unlock E4's proof.
 
 ### Final validation
 

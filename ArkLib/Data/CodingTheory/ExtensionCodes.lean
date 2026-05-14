@@ -210,6 +210,44 @@ lemma extensionCode_psi_smul_mem
   rw [hpt]
   exact h
 
+/-- **F-scalar closure of `extensionCode`** — full F-Submodule completion.
+
+When `C_B` is `B`-linear, `extensionCode P C_B` is `F`-linear (the paper's D2.20
+claim). Together with `extensionCode_add_mem`, this lemma promotes
+`extensionCode P C_B` to a `Submodule F (ι → F)` and closes the F-linearity gap that
+was flagged in the post-refactor review.
+
+**Proof strategy** (admitted as a tagged sorry; the proof requires structure constants
+not currently exposed by `ExtensionFieldPresentation`).
+
+Decompose `α : F` via the `φ`-basis as `α = ∑_l ψ(P.φ α l) * α_l`, where
+`α_l := P.φ_inv (Pi.single l 1)` is the `l`-th basis element of `F` over `B`. Then
+F-multiplication `α * x` rewrites coordinate-by-coordinate via the structure constants
+of `F` as a `B`-algebra wrt this basis: there exist
+`γ : Fin e → Fin e → Fin e → B` with `α_l · α_m = ∑_j γ_{l,m,j} · α_j`, giving
+
+  `P.coord j (α * x) = ∑_l ∑_m γ_{l,m,j} · P.φ α l · P.coord m x`.
+
+With this expansion every coordinate of `α · v` is a `B`-linear combination of the
+coordinates of `v`, which lie in `C_B` by hypothesis; `B`-linearity of `C_B` closes
+the sum.
+
+Closing requires either:
+- A structure-constants field `φ_mul` on `ExtensionFieldPresentation` recording `γ`, or
+- A refactor of `ExtensionFieldPresentation` using Mathlib's `[Algebra B F] + Basis`
+  (B5), in which case `γ` is computed from `Basis.equivFun` applied to multiplication.
+The latter is cleaner long-term. -/
+lemma extensionCode_smul_mem
+    {ι : Type} [Fintype ι]
+    {B F : Type} [Field B] [Field F]
+    (P : ExtensionFieldPresentation B F)
+    {C_B : Set (ι → B)}
+    (_hadd : ∀ {a b : ι → B}, a ∈ C_B → b ∈ C_B → a + b ∈ C_B)
+    (_hsmul : ∀ (b : B) {a : ι → B}, a ∈ C_B → b • a ∈ C_B)
+    (α : F) {v : ι → F} (_hv : v ∈ extensionCode P C_B) :
+    (fun i => α * v i) ∈ extensionCode P C_B := by
+  sorry -- ABF26-D2.20 F-scalar closure; needs F-algebra structure constants (B5 refactor).
+
 /-- **ABF26 Lemma 2.21 [BCFW25 Lemma D.3].** List size of an extension code equals the
 list size of the corresponding interleaved base code. Let `C_B : B^k → B^n` be a
 linear code and `P` be an extension-field presentation. For every `δ ∈ (0, 1)`:

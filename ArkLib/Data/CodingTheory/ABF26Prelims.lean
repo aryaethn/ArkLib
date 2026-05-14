@@ -10,6 +10,7 @@ import Mathlib.Algebra.Order.Floor.Defs
 import Mathlib.Algebra.Order.Floor.Semiring
 import Mathlib.Data.NNReal.Basic
 import ArkLib.Data.CodingTheory.Basic.RelativeDistance
+import ArkLib.Data.CodingTheory.ListDecodability
 
 /-!
 # Preliminaries specific to ABF26
@@ -109,5 +110,20 @@ noncomputable def hammingBallVolume (q : ℕ) (δ : ℝ) (n : ℕ) : ℕ :=
 @[simp]
 lemma hammingBallVolume_zero_radius (q n : ℕ) : hammingBallVolume q 0 n = 1 := by
   simp [hammingBallVolume]
+
+/-- **Bridge to `hammingBall`.** The volume function counts the cardinality of the
+existing `hammingBall` (set of words within radius `⌊δ·n⌋` of any fixed center). The
+identity collapses to the standard combinatorial fact
+`#{x ∈ F^n : Δ(x, y) ≤ r} = ∑_{i ≤ r} C(n, i) · (q-1)^i` independent of `y`.
+
+Admitted; needed by L3.7 (Elias volume bound) when that proof is closed. The proof
+strategy is: partition `hammingBall y r` by exact distance `i ∈ [0, r]`; show
+`#{x : Δ(x, y) = i} = C(n, i) · (q-1)^i` by choosing the `i` positions to change
+and the `q-1` non-`y i` symbols at each; sum. -/
+theorem hammingBallVolume_eq_ncard_hammingBall
+    {ι : Type} [Fintype ι] {F : Type} [Fintype F] (δ : ℝ) (y : ι → F) :
+    hammingBallVolume (Fintype.card F) δ (Fintype.card ι)
+      = (ListDecodable.hammingBall (F := F) y (⌊δ * Fintype.card ι⌋₊)).ncard := by
+  sorry -- ABF26-D2.4 bridge; standard combinatorial identity, needed by L3.7.
 
 end CodingTheory

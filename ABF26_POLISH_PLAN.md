@@ -155,7 +155,7 @@ Each axis below is a sweep across all files committed in this session.
 | New name | Existing peer | Status | Action |
 | --- | --- | --- | --- |
 | `CodingTheory.restrictedRelHammingDist` | `Code.relHammingDist`, `Code.relDistFromCode` in `Basic/RelativeDistance.lean` | 🔧 | Added `restrictedRelHammingDist_univ : restrictedRelHammingDist Finset.univ f g = (Code.relHammingDist f g : ℝ≥0)`. Lets downstream theorems convert freely between paper's `Δ_T` and existing `δᵣ(u, v)`. Bridge proved (not admitted). |
-| `CodingTheory.hammingBallVolume` | `hammingBall : Set` in `ListDecodability.lean` | ⏳ | Add bridge `hammingBallVolume q δ n = (hammingBall y ⌊δ·n⌋).toFinset.card`. Useful for L3.7's eventual proof anyway. |
+| `CodingTheory.hammingBallVolume` | `ListDecodable.hammingBall` in `ListDecodability.lean` | 🔧 | Added `hammingBallVolume_eq_ncard_hammingBall`: bridge to `.ncard` of `hammingBall y ⌊δ·n⌋`. Tagged-sorry — standard combinatorial identity, will be discharged alongside L3.7. |
 | `CodingTheory.qEntropy` | `Real.negMulLog`, Mathlib's binary-entropy lemmas | ⏳ | Confirm Mathlib has no q-ary entropy. If so, keep ours; if it grows one, alias. |
 | `JohnsonBound.Jcap` vs existing `J` (= paper's `J_q`) | `JohnsonBound.J` | ⏳ | Naming clash is documented in docstring. Option A: keep both with prominent docstring. Option B: rename existing `J` → `Jq`, then `J := Jcap` matches paper. Option B is a breaking change; defer decision. |
 | `CodingTheory.ExtensionFieldPresentation` | `Algebra B F`, `Module.Finite`, `Basis` (Mathlib) | ⏳ | Verify whether we can derive `(ψ, e, φ)` from `Algebra B F + FiniteDimensional B F + chooseBasis`. If yes, refactor to a thin wrapper, halving the structure size. |
@@ -213,7 +213,7 @@ After each fix: `./scripts/validate.sh` must pass.
 Apply 2b actions in dependency order:
 
 1. **B1.** ✅ Add `restrictedRelHammingDist Finset.univ f g = (Code.relHammingDist f g : ℝ≥0)` bridge.
-2. **B2.** Add `hammingBallVolume_eq_ncard_hammingBall` bridge.
+2. **B2.** ✅ Add `hammingBallVolume_eq_ncard_hammingBall` bridge (tagged sorry).
 3. **B3.** Add `IsSubspaceDesign_iff_comprehension` (settles 2b row).
 4. **B4.** Add `extensionCode_eq_encoder_image` bridge.
 5. **B5.** (Optional, deferred) Refactor `ExtensionFieldPresentation` to thin Mathlib wrapper.

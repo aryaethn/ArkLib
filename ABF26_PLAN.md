@@ -999,73 +999,78 @@ diff.
 #### ABF26-T4.11 — 1.5-Johnson regime for general linear codes
 
 - **Paper location**: §4.2.2 page 19, Theorem 4.11.
-- **Status**: missing.
-- **Target Lean name**: `ABF26.linear_1_5_johnson`.
-- **Target file**: new `ArkLib/Data/CodingTheory/ProximityGap/CapacityBounds.lean`.
+- **Status**: ✅ stated (both Items as external admits in CapacityBounds.lean).
+- **Existing in ArkLib**: `CodingTheory.linear_epsMCA_1_5_johnson_gkl24` (Item 1, [GKL24 Thm 3]) and `CodingTheory.linear_epsCA_1_5_johnson_bgks20` (Item 2, [BGKS20 Lem 3.2]) in `ArkLib/Data/CodingTheory/ProximityGap/CapacityBounds.lean`.
+- **Target file**: `ArkLib/Data/CodingTheory/ProximityGap/CapacityBounds.lean`.
 - **Direct dependencies (paper)**: D4.3.
 - **Reverse dependencies**: §6.
-- **Target PR**: Phase 6 PR 2.
+- **Target PR**: Phase 6 PR 2 ✅ statement committed.
 - **Sub-tasks**:
-  1. State both items (GKL24 form and BGKS20 form).
-  2. Admit as external if too long.
-  3. Update audit doc.
+  1. ✅ State both items (GKL24 form and BGKS20 form).
+  2. ❌ Closed as external admit; tagged `sorry`s in file body.
+  3. ✅ Update audit doc.
 
 #### ABF26-T4.12 — Johnson-range RS MCA bound
 
 - **Paper location**: §4.2.2 page 19, Theorem 4.12 [BCHKS25 Thm 4.6].
-- **Status**: missing. Ledger: external.
-- **Target PR**: Phase 6 PR 2.
+- **Status**: ✅ stated; admitted as external.
+- **Existing in ArkLib**: `CodingTheory.rs_epsMCA_johnson_range_bchks25` in `CapacityBounds.lean`.
+- **Target PR**: Phase 6 PR 2 ✅ statement committed.
 
 #### ABF26-T4.13 — MCA from τ-subspace-design codes
 
 - **Paper location**: §4.2.2 page 20, Theorem 4.13 [GG25 Cor 4.9].
-- **Status**: missing. Ledger: external.
+- **Status**: missing — deferred (blocked on missing `IsSubspaceDesign` predicate; Phase 3).
 - **Target PR**: Phase 6 PR 2.
 
 #### ABF26-T4.14 — Folded RS MCA up to capacity
 
 - **Paper location**: §4.2.2 page 20, Theorem 4.14 [GG25 Cor 4.10].
-- **Status**: missing. Ledger: external.
+- **Status**: missing — deferred (blocked on missing `FRS` folded Reed-Solomon code; Phase 3 D2.15).
 - **Target PR**: Phase 6 PR 2.
 
 #### ABF26-T4.15 — Random RS MCA up to capacity
 
 - **Paper location**: §4.2.2 page 20, Theorem 4.15 [GG25 Thm 5.15].
-- **Status**: missing. Ledger: external.
+- **Status**: missing — deferred (blocked on uniform distribution over size-`n` subsets of `F`).
 - **Target PR**: Phase 6 PR 2.
 
 #### ABF26-T4.16 — Lower bound on CA near capacity
 
 - **Paper location**: §4.3 page 21, Theorem 4.16 [BCHKS25/KK25].
-- **Status**: missing. Ledger: external.
-- **Target PR**: Phase 6 PR 3.
+- **Status**: ✅ stated; admitted as external.
+- **Existing in ArkLib**: `CodingTheory.rs_epsCA_lower_capacity_bchks25_kk25` in `CapacityBounds.lean`. The `Θ(1/log n)` slack is existentially-packaged as a real-valued knob since Lean lacks a direct `Θ` notation.
+- **Target PR**: Phase 6 PR 3 ✅ statement committed.
 
 #### ABF26-T4.17 — Complete CA breakdown
 
 - **Paper location**: §4.3 page 21, Theorem 4.17 [CS25 Cor 1].
-- **Status**: missing. Ledger: external.
-- **Target PR**: Phase 6 PR 3.
+- **Status**: ✅ stated; admitted as external. Uses `CodingTheory.qEntropy` from `ABF26Prelims.lean`.
+- **Existing in ArkLib**: `CodingTheory.rs_epsCA_breakdown_cs25` in `CapacityBounds.lean`.
+- **Target PR**: Phase 6 PR 3 ✅ statement committed.
 
 #### ABF26-T4.18 — CA jump at the Johnson bound
 
 - **Paper location**: §4.3 page 21, Theorem 4.18 [BCHKS25 Cor 1.7].
-- **Status**: missing. Ledger: external.
-- **Target PR**: Phase 6 PR 3.
+- **Status**: ✅ stated; admitted as external. Johnson radius `J(δ) := 1 - √(1-δ)` is inlined directly in the statement (no separate `johnsonRadius` definition yet).
+- **Existing in ArkLib**: `CodingTheory.rs_epsCA_johnson_jump_bchks25` in `CapacityBounds.lean`.
+- **Target PR**: Phase 6 PR 3 ✅ statement committed.
 
 #### ABF26-L4.19 — CA bounded below by sampling probability
 
 - **Paper location**: §4.3 page 21, Lemma 4.19 [DG25 Thm 2.5].
 - **Statement**: `ε_ca(C,δ) ≥ ((q-1)/q) · Pr_{u ← F^n}[Δ(u,C) ≤ δ]` for `δ < δ' = max_{u} Δ(u,C)`.
-- **Status**: missing.
-- **Target Lean name**: `ABF26.epsCA_ge_sampling`.
-- **Target file**: same as D4.1.
+- **Status**: ✅ stated; admitted as external.
+- **Existing in ArkLib**: `CodingTheory.linear_epsCA_ge_sampling_dg25` in `CapacityBounds.lean`.
+- **Target Lean name**: `CodingTheory.linear_epsCA_ge_sampling_dg25`.
+- **Target file**: `ArkLib/Data/CodingTheory/ProximityGap/CapacityBounds.lean`.
 - **Direct dependencies (paper)**: D4.1.
 - **Reverse dependencies**: T4.16, T4.17.
-- **Target PR**: Phase 6 PR 3.
+- **Target PR**: Phase 6 PR 3 ✅ statement committed.
 - **Sub-tasks**:
-  1. State.
-  2. Prove or admit.
-  3. Update audit doc.
+  1. ✅ State.
+  2. ❌ Closed as external admit; tagged `sorry` in file body.
+  3. ✅ Update audit doc.
 
 #### ABF26-D4.20 — Line-decoding
 

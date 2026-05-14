@@ -58,9 +58,9 @@ trusted blindly.
 
 | ID | Lean name | Status | Known issues / things to check |
 | --- | --- | --- | --- |
-| D2.13 | `ReedSolomon.Interleaved.irsCode` | 🔧 | **Rounding documented.** Decision: keep unguarded `k / s` (Nat truncated division) in the definition so degenerate regimes type-check; downstream paper-quoting theorems (e.g. `dim(IRS) = k`) must add `s ∣ k` themselves. Docstring spells out the convention. |
+| D2.13 | `ReedSolomon.Interleaved.irsCode` | 🔧 | **Rounding documented** + **promoted to `Submodule F (ι → Fin s → F)`**. Closure proofs delegate to underlying RS's `.add_mem` / `.zero_mem` / `.smul_mem`. Now consumable as ModuleCode. |
 | D2.14 | `ReedSolomon.Folded.Admissible` | ✅ | Equivalent: paper's `binom(L, 2)` (unordered) with asymmetric `α · ω^i ≠ β` means *both* `α · ω^i ≠ β` and `β · ω^i ≠ α` for each pair `{α, β}`. My ordered `∀ α β ∈ L, α ≠ β, …` quantifies over both orderings symmetrically. |
-| D2.15 | `ReedSolomon.Folded.frsCode` | 🔧 | **Aligned to `Polynomial.degreeLT`.** Changed `∃ p, p.degree < k ∧ …` to `∃ p ∈ Polynomial.degreeLT F k, …` matching `ReedSolomon.code`'s convention. The encoding `domain x * ω ^ j` matches the paper's `x · ω^j` (left-multiplication). |
+| D2.15 | `ReedSolomon.Folded.frsCode` | 🔧 | **Promoted to `Submodule F (ι → Fin s → F)`** via `(degreeLT F k).map frsEvalOnPoints`, exactly mirroring `ReedSolomon.code`. Paper-style membership preserved by the `mem_frsCode_iff` iff lemma. |
 | D2.16 | `CodingTheory.IsSubspaceDesign` | 🔧 | **Equivalence bridge added** (`ker_proj_eq_vanish_at`): `(ker(LinearMap.proj i) : Set _) = {a | a i = 0}`, proving the paper's comprehension form is exactly the kernel used in the definition. Outstanding concern (now isolated): paper's `dim A ≤ r` for `r : ℕ` rules out infinite-dim by construction; `Module.finrank` returns `0` for infinite-dim modules which makes the constraint vacuous there. Document if it bites downstream. |
 | L2.17 | `CodingTheory.subspaceDesign_tau_lower` | ✅ | Matches `LinearCode.rate`: both expand to `(dim MC : ℝ) / (length MC : ℝ)` for an F-linear code, modulo `ℚ≥0` vs `ℝ` type. Mathematically the same rate. |
 | T2.18 | `CodingTheory.frs_is_subspaceDesign_gk16` | 🔧 | **Off-by-one in τ profile fixed.** Changed `Finset.range s` → `Finset.Icc 1 s` so `r ∈ {1, …, s}` matches paper's `[s]`. Docstring updated to call out the one-based convention. |
@@ -119,7 +119,7 @@ trusted blindly.
 | R4.10 | `CodingTheory.rs_epsCA_small_loss_r4_10` | ✅ | `γ ∈ (0, 1)` parameter matches paper's dimensionless slack convention `(δ_int - δ_fld) = γ/n`. My bound formula uses `γ` (not `γ/n`) directly; consistent with paper. |
 | T4.12 | `CodingTheory.rs_epsMCA_johnson_range_bchks25` | ✅ | All `^` with real exponents elaborate to `Real.rpow` (verified by C2 sweep). `max ⌈x⌉ 3 : ℝ` with `⌈⌉` going through `Nat.ceil` cast to ℝ; Lean unifies via the `letI` target. |
 | T4.13 | `CodingTheory.subspaceDesign_epsMCA_gg25` | ✅ | `τ (t + 1)` matches paper's `r = t + 1` substitution. |
-| T4.14 | `CodingTheory.frs_epsMCA_capacity_gg25` | 🔧 | **Refactored.** Dropped the existential wrap — `epsMCA` takes a `Set` and `frsCode` returns a `Set`, so we call directly: `epsMCA (frsCode …) … ≤ ENNReal.ofReal (…)`. |
+| T4.14 | `CodingTheory.frs_epsMCA_capacity_gg25` | 🔧 | **Refactored** (existential dropped) **+ submodule-aware** (frsCode is now a Submodule, coerced to Set via `(… : Set _)` for `epsMCA`'s argument). |
 | T4.16 | `CodingTheory.rs_epsCA_lower_capacity_bchks25_kk25` | 🔧 | **Added power-of-two `n` constraint** as `∃ p : ℕ, Fintype.card ιC = 2 ^ p` in the existential body. "|F| = poly(n)" stays in the docstring (no polynomial-time predicate in Mathlib). |
 | T4.17 | `CodingTheory.rs_epsCA_breakdown_cs25` | ✅ | Paper's regime `1 - H_q(δ) + 2/n + √((H_q(δ) - δ)/n) ≤ ρ` implicitly assumes `H_q(δ) ≥ δ` (else the sqrt argument is negative). Outside this regime my hypothesis becomes a tighter inequality (sqrt → 0), making the bound stricter — vacuously consistent. |
 | T4.18 | `CodingTheory.rs_epsCA_johnson_jump_bchks25` | 🔧 | **Relaxed exact-equality to a two-sided bound** `|F|^{(1+ε)/2} - 1 ≤ n ≤ |F|^{(1+ε)/2} + 1`, which is the natural reading of paper's `n = |F|^{(1+ε)/2}` when the RHS is generally non-integral. Docstring spells out the choice. |
@@ -153,6 +153,22 @@ Each axis below is a sweep across all files committed in this session.
 
 ### 2b. Existing-vs-new definitions
 
+**ModuleCode unification.** ArkLib's canonical F-linear-code abstraction is
+`ModuleCode ι F A := Submodule F (ι → A)`. Three new defs were initially set-typed:
+`irsCode`, `frsCode`, `extensionCode`. Of these:
+
+- 🔧 **`frsCode`** refactored to `Submodule F (ι → Fin s → F)` via a new linear encoder
+  map `frsEvalOnPoints : F[X] →ₗ[F] (ι → Fin s → F)` and `(degreeLT F k).map`, exactly
+  mirroring `ReedSolomon.code`. Added paper-style membership iff lemma `mem_frsCode_iff`.
+- 🔧 **`irsCode`** refactored to `Submodule F (ι → Fin s → F)` with explicit closure
+  proofs `(rs.add_mem (hU j) (hV j))` style — short, no machinery.
+- ⏸ **`extensionCode`** stays as `Set` pending D2.19 B-linearity certification (gated
+  follow-up). Promoting requires a B-linear witness for `P.coord j`.
+
+The refactor lets T2.18, T4.14, C3.5 consume `frsCode` / `irsCode` directly without
+existential `∃ C, C = … ∧ …` wraps. T2.18 in particular collapses from a 3-conjunct
+existential to a single `IsSubspaceDesign s τ (frsCode …)`.
+
 | New name | Existing peer | Status | Action |
 | --- | --- | --- | --- |
 | `CodingTheory.restrictedRelHammingDist` | `Code.relHammingDist`, `Code.relDistFromCode` in `Basic/RelativeDistance.lean` | 🔧 | Added `restrictedRelHammingDist_univ : restrictedRelHammingDist Finset.univ f g = (Code.relHammingDist f g : ℝ≥0)`. Lets downstream theorems convert freely between paper's `Δ_T` and existing `δᵣ(u, v)`. Bridge proved (not admitted). |
@@ -161,8 +177,8 @@ Each axis below is a sweep across all files committed in this session.
 | `JohnsonBound.Jcap` vs existing `J` (= paper's `J_q`) | `JohnsonBound.J` | ✅ | **Decision: keep both** with prominent docstring (Option A). Renaming existing `J → Jq` would break callers throughout `JohnsonBound/Basic.lean` and downstream — not worth the paper-name alignment given the docstring already disambiguates. |
 | `CodingTheory.ExtensionFieldPresentation` | `Algebra B F`, `Module.Finite`, `Basis` (Mathlib) | ⚠ | **Refactor candidate (B5).** Could derive `(ψ, e, φ)` from `Algebra B F + FiniteDimensional B F + Basis B F`. Deferred — significant structural change, useful but not blocking. Tracked here as a follow-up. |
 | `CodingTheory.IsSubspaceDesign` formulation | `LinearMap.proj` vs comprehension | 🔧 | Added `ker_proj_eq_vanish_at`: a `Set`-level equality showing `(ker (LinearMap.proj i) : Set _) = {a | a i = 0}`. Proves the paper's comprehension form is exactly the kernel used in the definition. Lemma proved (one-line `ext` + `simp`). |
-| `ReedSolomon.Interleaved.irsCode` | `interleavedCodeSet`, `^⋈` notation | ✅ | Keep as `noncomputable def` — `ReedSolomon.code` it builds on is itself `noncomputable`, so `abbrev` would not help. The named definition serves as the paper-IDed anchor for D2.13. Inlining at call sites would obscure the paper reference. |
-| `ReedSolomon.Folded.frsCode` | `ReedSolomon.code` using `Polynomial.degreeLT` | ⚠ | My version uses `p.degree < k`; align to `Polynomial.degreeLT F k.map evalOnPoints`-style for consistency. |
+| `ReedSolomon.Interleaved.irsCode` | `interleavedCodeSet`, `^⋈` notation | 🔧 | **Refactored to `Submodule F (ι → Fin s → F)`** with explicit closure proofs delegating to the underlying RS code's `.add_mem` / `.zero_mem` / `.smul_mem`. Now first-class ModuleCode. |
+| `ReedSolomon.Folded.frsCode` | `ReedSolomon.code` using `Polynomial.degreeLT` | 🔧 | **Refactored to `Submodule F (ι → Fin s → F)`** via `(degreeLT F k).map frsEvalOnPoints`. Membership equivalence preserved by `mem_frsCode_iff`. Now first-class ModuleCode. |
 | `CodingTheory.extensionCode` | encoder-image vs set-of-codewords | 🔧 | Added `extensionCode_iff_coord_in_base`: makes the "each coordinate-projection is in `C_B`" view explicit. The full encoder-image equivalence (`v = φ_inv(c^{(1)}, …, c^{(e)})`) is a corollary of `φ`-bijectivity; downstream users can build it from this iff plus `φ`'s inverse. Lemma is definitional (`rfl`). |
 | `CodingTheory.Lambda` (extended earlier in session) | `closeCodewordsRel`, `listDecodable` | ✅ | Already integrated; no action. |
 

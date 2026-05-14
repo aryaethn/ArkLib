@@ -385,7 +385,7 @@ theorem frs_epsMCA_capacity_gg25
     let n : ℝ := Fintype.card ι
     let ρ : ℝ := k / n
     epsMCA (F := F) (A := Fin s → F)
-        (ReedSolomon.Folded.frsCode domain k s ω)
+        ((ReedSolomon.Folded.frsCode domain k s ω : Set (ι → Fin s → F)))
         ((1 - ρ - η).toNNReal) ≤
       ENNReal.ofReal (2 * n / (η * Fintype.card F)
         + 24 / (η ^ 3 * Fintype.card F)) := by

@@ -61,8 +61,14 @@ namespace Interleaved
 
   `IRS[F, L, k, s] := (RS[F, L, k/s])^≡s`
 
-Each codeword is an `s`-tuple of base RS codewords arranged column-wise. Matches the
-existing `interleavedCodeSet` API with the `s = Fin s` index type.
+Each codeword is an `s`-tuple of base RS codewords arranged column-wise. The carrier is
+`Code.interleavedCodeSet (RS[F, L, k/s])`; closure under addition and scalar
+multiplication follows from the same closure of the underlying RS code applied
+column-by-column.
+
+**Submodule structure.** Returns `Submodule F (ι → Fin s → F)` (equivalently
+`ModuleCode ι F (Fin s → F)`) directly, so downstream theorems (e.g. T4.14) consume
+it as an F-linear code without an existential wrap.
 
 **Rounding convention.** The paper writes `k/s` and implicitly assumes `s ∣ k` so that
 the message length divides cleanly into `s` blocks of size `k/s`. In Lean `k / s` is
@@ -72,9 +78,12 @@ the use site; we keep the definition itself unguarded so degenerate parameter re
 type-check uniformly. -/
 noncomputable def irsCode {ι : Type} [Fintype ι] [DecidableEq ι]
     {F : Type} [Field F] [DecidableEq F]
-    (domain : ι ↪ F) (k s : ℕ) : Set (Matrix ι (Fin s) F) :=
-  Code.interleavedCodeSet (κ := Fin s)
+    (domain : ι ↪ F) (k s : ℕ) : Submodule F (ι → Fin s → F) where
+  carrier := Code.interleavedCodeSet (κ := Fin s)
     ((ReedSolomon.code domain (k / s) : Set (ι → F)))
+  add_mem' hU hV j := (ReedSolomon.code domain (k / s)).add_mem (hU j) (hV j)
+  zero_mem' _ := (ReedSolomon.code domain (k / s)).zero_mem
+  smul_mem' c _ hV j := (ReedSolomon.code domain (k / s)).smul_mem c (hV j)
 
 end Interleaved
 
@@ -90,6 +99,15 @@ def Admissible {F : Type} [Field F] [DecidableEq F]
     (L : Finset F) (s : ℕ) (ω : F) : Prop :=
   ∀ α ∈ L, ∀ β ∈ L, α ≠ β → ∀ i : ℕ, i < s → α * ω ^ i ≠ β
 
+/-- The FRS evaluation map as an `F`-linear map from polynomials to `ι → Fin s → F`,
+mirroring `ReedSolomon.evalOnPoints` (which is the `s = 1` special case). -/
+def frsEvalOnPoints {ι : Type} [Fintype ι]
+    {F : Type} [CommSemiring F]
+    (domain : ι ↪ F) (s : ℕ) (ω : F) : Polynomial F →ₗ[F] (ι → Fin s → F) where
+  toFun p := fun x j => p.eval (domain x * ω ^ (j : ℕ))
+  map_add' p q := by ext; simp
+  map_smul' c p := by ext; simp
+
 /-- **ABF26 Definition 2.15 [GR08].** The folded Reed-Solomon code:
 
   `FRS[F, L, k, s, ω] := { f : L → F^s | ∃ f̂ ∈ F^{<k}[X],`
@@ -101,14 +119,35 @@ into the definition itself — admissibility is left as a side condition for dow
 statements about distance / list decoding. Note that `FRS[F, L, k, 1, ω] = RS[F, L, k]`
 for any `ω`.
 
-The "polynomial of degree < `k`" condition is expressed via Mathlib's
-`Polynomial.degreeLT F k` (an `R`-submodule of `R[X]`), matching the convention used by
-`ReedSolomon.code` in `ArkLib/Data/CodingTheory/ReedSolomon.lean`. -/
+**Submodule structure.** Defined as `(Polynomial.degreeLT F k).map (frsEvalOnPoints …)`,
+exactly mirroring `ReedSolomon.code`. This makes `frsCode` a `Submodule F (ι → Fin s → F)`
+directly — `F`-linear by construction — so downstream theorems (e.g. T2.18, T4.14)
+consume it as a `ModuleCode ι F (Fin s → F)` without an existential wrap. -/
 noncomputable def frsCode {ι : Type} [Fintype ι] [DecidableEq ι]
     {F : Type} [Field F] [DecidableEq F]
-    (domain : ι ↪ F) (k s : ℕ) (ω : F) : Set (ι → Fin s → F) :=
-  { f | ∃ p ∈ Polynomial.degreeLT F k,
-        ∀ x : ι, ∀ j : Fin s, f x j = p.eval (domain x * ω ^ (j : ℕ)) }
+    (domain : ι ↪ F) (k s : ℕ) (ω : F) : Submodule F (ι → Fin s → F) :=
+  (Polynomial.degreeLT F k).map (frsEvalOnPoints domain s ω)
+
+/-- **Membership of `frsCode` in paper-style form.** A vector `f : ι → Fin s → F` is
+in `frsCode domain k s ω` iff there is a polynomial of degree `< k` whose folded
+evaluations match `f`. This is the original paper-shaped membership predicate, kept
+as a `simp`-able iff lemma. -/
+lemma mem_frsCode_iff {ι : Type} [Fintype ι] [DecidableEq ι]
+    {F : Type} [Field F] [DecidableEq F]
+    (domain : ι ↪ F) (k s : ℕ) (ω : F) (f : ι → Fin s → F) :
+    f ∈ frsCode domain k s ω ↔
+      ∃ p ∈ Polynomial.degreeLT F k,
+        ∀ x : ι, ∀ j : Fin s, f x j = p.eval (domain x * ω ^ (j : ℕ)) := by
+  simp only [frsCode, Submodule.mem_map]
+  constructor
+  · rintro ⟨p, hp, rfl⟩
+    refine ⟨p, hp, ?_⟩
+    intro x j
+    rfl
+  · rintro ⟨p, hp, hf⟩
+    refine ⟨p, hp, ?_⟩
+    ext x j
+    exact (hf x j).symm
 
 end Folded
 
@@ -192,9 +231,7 @@ theorem frs_is_subspaceDesign_gk16
       if r ∈ Finset.Icc 1 s then
         (s : ℝ) * (k : ℝ) / Fintype.card ι / (s - r + 1)
       else 1
-    ∃ C : Submodule F (ι → Fin s → F),
-      (C : Set (ι → Fin s → F)) = ReedSolomon.Folded.frsCode domain k s ω ∧
-      IsSubspaceDesign s τ C := by
+    IsSubspaceDesign s τ (ReedSolomon.Folded.frsCode domain k s ω) := by
   sorry -- ABF26-T2.18 (FRS half); external admit [GK16].
 
 end CodingTheory

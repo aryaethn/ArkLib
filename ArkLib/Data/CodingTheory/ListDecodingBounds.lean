@@ -325,7 +325,8 @@ theorem frs_list_decoding_capacity_cz25
     let ρ : ℝ := k / n
     let δ : ℝ := 1 - ρ * s / (s - 1 / η + 1) - η
     let bound : ℝ := (s * (1 - ρ) + 1 - 1 / η) / (η * (s + 1 - 1 / η))
-    (Lambda (ReedSolomon.Folded.frsCode domain k s ω) δ : ENNReal) ≤
+    (Lambda ((ReedSolomon.Folded.frsCode domain k s ω : Set (ι → Fin s → F))) δ
+        : ENNReal) ≤
       ENNReal.ofReal bound := by
   sorry -- ABF26-C3.5; external admit [CZ25 Cor 2.21].
 

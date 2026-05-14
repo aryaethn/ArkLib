@@ -776,7 +776,7 @@ diff.
 
 - **Paper location**: §4.1 page 17, Definition 4.1.
 - **Statement**: `ε_ca(C, δ_fld, δ_int) := max_{f₁,f₂ ∈ (F^s)^n} Pr_{γ ← F}[Δ(f₁ + γ·f₂, C) ≤ δ_fld ∧ Δ((f₁,f₂), C^≡2) > δ_int]`.
-- **Status**: ✅ present (closed by commit `d18627fd`; monotonicity and bridging lemmas are open follow-ups).
+- **Status**: ✅ present (closed by commit `d18627fd`; monotonicity in both arguments and the `AffineLines` bridge subsequently added in `cbb08f5c`, `39cd9a67`. `Curves` and `AffineSpaces` bridges remain as follow-ups).
 - **Target Lean name**: `ProximityGap.epsCA (C : Submodule F (ι → A)) (δ_fld δ_int : ℝ≥0) : ℝ≥0`.
 - **Target file**: new `ArkLib/Data/CodingTheory/ProximityGap/EpsilonErrors.lean`.
 - **Direct dependencies (paper)**: D2.3, D2.7.

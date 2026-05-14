@@ -20,10 +20,12 @@ predicate-style API in [`Basic.lean`](Basic.lean); each predicate has a bridging
 
 ## Main definitions
 
+- `ProximityGap.epsPG` — proximity gap error, introduced informally in paper §4.1.
 - `ProximityGap.epsCA` — ABF26 Definition 4.1: correlated agreement error
   `ε_ca(C, δ_fld, δ_int)`.
 - `ProximityGap.epsCA'` — Convenience alias for the no-proximity-loss case
   `ε_ca(C, δ) := ε_ca(C, δ, δ)`.
+- `ProximityGap.epsMCA` — ABF26 Definition 4.3: mutual correlated agreement error.
 
 ## Note on MCA with proximity loss (ABF26 Remark 4.4)
 
@@ -80,6 +82,22 @@ section
 variable {ι : Type} [Fintype ι] [Nonempty ι] [DecidableEq ι]
 variable {F : Type} [Field F] [Fintype F] [DecidableEq F]
 variable {A : Type} [Fintype A] [DecidableEq A] [AddCommGroup A] [Module F A]
+
+open Classical in
+/-- **ABF26 Section 4.1 (proximity gap error).** Worst-case "bad fraction" of `γ`-points
+for which a line `f₁ + γ·f₂` is `δ`-close to `C` while the line is *not* entirely `δ`-close.
+
+Paper §4.1 page 17 introduces this informally: a code has proximity gap `ε_pg(C, δ)` if
+every line is either entirely `δ`-close to `C` (i.e. every `γ ∈ F` gives a δ-close point)
+or at most `ε_pg` fraction of it is — a dichotomy. The strict comparison with `ε_ca`
+(`epsPG ≤ epsCA`, paper Fact 4.5) is that the "bad" set for `epsPG` (`¬ ∀ γ, line close`)
+is contained in the "bad" set for `epsCA` (`¬ jointProximity`) when `C` is closed under
+linear combination, since any joint codeword pair `(v₀, v₁)` produces a line of codewords
+`v₀ + γ·v₁ ∈ C`. -/
+noncomputable def epsPG (C : Set (ι → A)) (δ : ℝ≥0) : ENNReal :=
+  ⨆ u : WordStack A (Fin 2) ι,
+    if (∀ γ : F, δᵣ(u 0 + γ • u 1, C) ≤ δ) then (0 : ENNReal)
+    else Pr_{let γ ← $ᵖ F}[δᵣ(u 0 + γ • u 1, C) ≤ δ]
 
 open Classical in
 /-- **ABF26 Definition 4.1.** Correlated agreement (CA) error of an `F`-additive code `C`

@@ -6,6 +6,8 @@ Authors: Mirco Richter, Poulami Das (Least Authority)
 import ArkLib.Data.CodingTheory.ReedSolomon
 import ArkLib.Data.CodingTheory.ListDecodability
 import CompPoly.Data.MvPolynomial.Notation
+import CompPoly.Univariate.Lagrange
+import CompPoly.Univariate.ToPoly.Impl
 
 open Polynomial NNReal ReedSolomon ListDecodable
 
@@ -66,5 +68,33 @@ lemma quotienting {degree : ℕ} {domain : ι ↪ F} [Nonempty ι]
     δᵣ((funcQuotient f S Ans Fill), (code domain (degree - S.card))) +
       ((disagreementSet f S Ans).card) / (ι.card) > δ := by
   sorry
+
+/-- Computable version of `ansPoly`: the unique interpolating polynomial of degree `< |S|`
+agreeing with `Ans` on `S`. Built on CompPoly's `CLagrange.interpolate`. -/
+def cpolyAnsPoly (S : Finset F) (Ans : S → F) : CompPoly.CPolynomial F :=
+  CompPoly.CPolynomial.CLagrange.interpolate S.attach (fun i => (i : F)) Ans
+
+/-- Bridge lemma: `cpolyAnsPoly` and `ansPoly` agree under `toPoly`. -/
+@[simp]
+lemma cpolyAnsPoly_toPoly (S : Finset F) (Ans : S → F) :
+    (cpolyAnsPoly S Ans).toPoly = ansPoly S Ans := by
+  unfold cpolyAnsPoly ansPoly
+  exact CompPoly.CPolynomial.CLagrange.cinterpolate_eq_interpolate
+
+/-- Computable version of `vanishingPoly`: `∏ s ∈ S, (X - C s)`, built on CompPoly's
+`CPolynomial`. -/
+def cpolyVanishingPoly (S : Finset F) : CompPoly.CPolynomial F :=
+  ∏ s ∈ S, (CompPoly.CPolynomial.X - CompPoly.CPolynomial.C s)
+
+/-- Bridge lemma: `cpolyVanishingPoly` and `vanishingPoly` agree under `toPoly`. -/
+@[simp]
+lemma cpolyVanishingPoly_toPoly (S : Finset F) :
+    (cpolyVanishingPoly S).toPoly = vanishingPoly S := by
+  unfold cpolyVanishingPoly vanishingPoly
+  rw [CompPoly.CPolynomial.toPoly_prod]
+  refine Finset.prod_congr rfl ?_
+  intro s _
+  rw [CompPoly.CPolynomial.toPoly_sub, CompPoly.CPolynomial.X_toPoly,
+      CompPoly.CPolynomial.C_toPoly]
 
 end Quotienting

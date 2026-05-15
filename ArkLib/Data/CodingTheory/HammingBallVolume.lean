@@ -66,6 +66,11 @@ lemma card_filter_hammingDist_eq
     {F : Type} [Fintype F] [DecidableEq F] (y : ι → F) (i : ℕ) :
     (Finset.univ.filter (fun x : ι → F => hammingDist y x = i)).card
       = Nat.choose (Fintype.card ι) i * (Fintype.card F - 1) ^ i := by
+  -- in-tree; combinatorial bijection to `(S : powersetCard i univ) × (S → F\{y _})`.
+  -- Outline: split filter by disagreement set via `card_eq_sum_card_fiberwise`, then for
+  -- each `S` of size `i`, count `{x | dis x = S} = (|F|-1)^i` via a `Finset.pi`-based
+  -- bijection. The full proof is mechanical but ~80 lines of Finset.pi /
+  -- Finset.image manipulation; deferred for a focused proof session.
   sorry -- combinatorial; bijection to powersetCard × (F \ {y _})
 
 /-- **Bridge to `hammingBall`.** The volume function counts the cardinality of the

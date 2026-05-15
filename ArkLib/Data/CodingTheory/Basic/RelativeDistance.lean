@@ -619,6 +619,31 @@ end
 -/
 notation "δᵣ" C => minRelHammingDistCode C
 
+/-- **Bridge: `Code.minDist C / n = δᵣ C` (cast to `ℚ`).**
+
+The raw `Code.minDist C / Fintype.card ι` form (used in ABF26 §3 theorems
+T3.2, C3.3, etc. as `δ_min`) coincides with the existing `minRelHammingDistCode C =
+δᵣ C` defined via `Finset.min'` over the rational-valued image. Both equal
+`min { hammingDist u v / n | u, v ∈ C, u ≠ v }`.
+
+**Boundary case.** When `C` is a subsingleton (no distinct codewords), both sides
+are `0` by the empty-`sInf` / else-branch conventions.
+
+**Proof sketch.** Case on whether `possibleRelHammingDists C` is nonempty.
+- Empty: both sides reduce to `0`.
+- Nonempty: use the bijection `possibleRelHammingDists C = (·/n) '' {hammingDist u v
+  | distinct pair}` plus monotonicity of `·/n` for `n > 0` to commute the minimum
+  with division.
+
+Tagged as an in-tree proof obligation. -/
+lemma minDist_div_card_eq_minRelHammingDistCode
+    {ι : Type*} [Fintype ι] [Nonempty ι]
+    {F : Type*} [DecidableEq F]
+    (C : Set (ι → F)) :
+    ((Code.minDist C : ℚ) / (Fintype.card ι : ℚ))
+      = ((minRelHammingDistCode C : ℚ≥0) : ℚ) := by
+  sorry -- in-tree; commute `min` with `· / n` on `possibleRelHammingDists C`.
+
 /-- The range set of possible relative Hamming distances from a vector to a code is a subset
   of the range of the relative Hamming distance function.
 -/

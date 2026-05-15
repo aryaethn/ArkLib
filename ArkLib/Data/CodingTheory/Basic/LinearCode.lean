@@ -508,6 +508,40 @@ def IsMDS {ι : Type} [Fintype ι] {F : Type} [Field F] [DecidableEq F]
   (Code.minDist ((C : Set (ι → F))) : ℝ) / Fintype.card ι
     = 1 - ρ + 1 / Fintype.card ι
 
+/-- **Bridge: `IsMDS` (rate-distance form) ↔ Singleton bound is tight (Nat form).**
+
+`IsMDS C (k / n)` (where `k = dim C`, `n = card ι`) is exactly the statement that the
+Singleton bound `dim C + Code.minDist C ≤ n + 1` (from `singleton_bound_linear`) is
+attained as equality. The additive form `dim C + Code.minDist C = n + 1` avoids
+`Nat.sub` truncation entirely.
+
+Requires `[Nonempty ι]` so `(Fintype.card ι : ℝ) ≠ 0`. -/
+lemma IsMDS_iff_singleton_bound_tight
+    {ι : Type} [Fintype ι] [Nonempty ι]
+    {F : Type} [Field F] [DecidableEq F]
+    (C : Submodule F (ι → F)) :
+    IsMDS C ((Module.finrank F C : ℝ) / Fintype.card ι) ↔
+      Module.finrank F C + Code.minDist ((C : Set (ι → F))) = Fintype.card ι + 1 := by
+  have hn_pos : (0 : ℝ) < (Fintype.card ι : ℝ) := by
+    exact_mod_cast Fintype.card_pos
+  have hn_ne : (Fintype.card ι : ℝ) ≠ 0 := ne_of_gt hn_pos
+  unfold IsMDS
+  constructor
+  · intro h
+    have h' : (Code.minDist ((C : Set (ι → F))) : ℝ) =
+        (Fintype.card ι : ℝ) - (Module.finrank F C : ℝ) + 1 := by
+      have := (div_eq_iff hn_ne).mp h
+      field_simp at this
+      linarith
+    have : (Module.finrank F C : ℝ) + (Code.minDist ((C : Set (ι → F))) : ℝ) =
+        (Fintype.card ι : ℝ) + 1 := by linarith
+    exact_mod_cast this
+  · intro h
+    have h' : (Module.finrank F C : ℝ) + (Code.minDist ((C : Set (ι → F))) : ℝ) =
+        (Fintype.card ι : ℝ) + 1 := by exact_mod_cast h
+    field_simp
+    linarith
+
 end LinearCode
 
 lemma poly_eq_zero_of_dist_lt {n k : ℕ} {F : Type*} [DecidableEq F] [CommRing F] [IsDomain F]

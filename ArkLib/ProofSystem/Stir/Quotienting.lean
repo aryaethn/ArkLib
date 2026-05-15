@@ -97,4 +97,49 @@ lemma cpolyVanishingPoly_toPoly (S : Finset F) :
   rw [CompPoly.CPolynomial.toPoly_sub, CompPoly.CPolynomial.X_toPoly,
       CompPoly.CPolynomial.C_toPoly]
 
+/-- Computable version of `funcQuotient`. Uses the cpoly versions of `ansPoly` and
+`vanishingPoly` for the off-`S` branch; the on-`S` branch is identical to the Mathlib spec. -/
+def cpolyFuncQuotient (f : ι → F) (S : Finset F) (Ans Fill : S → F) : ι → F :=
+  fun x =>
+    if hx : x.val ∈ S then Fill ⟨x.val, hx⟩
+    else (f x - (cpolyAnsPoly S Ans).eval x.val) / (cpolyVanishingPoly S).eval x.val
+
+/-- Function equality: `cpolyFuncQuotient` agrees with `funcQuotient`. -/
+@[simp]
+lemma cpolyFuncQuotient_eq_funcQuotient
+    (f : ι → F) (S : Finset F) (Ans Fill : S → F) :
+    cpolyFuncQuotient f S Ans Fill = funcQuotient f S Ans Fill := by
+  funext x
+  unfold cpolyFuncQuotient funcQuotient
+  by_cases hx : x.val ∈ S
+  · simp [hx]
+  · simp only [hx, dif_neg, not_false_eq_true]
+    rw [CompPoly.CPolynomial.eval_toPoly, cpolyAnsPoly_toPoly,
+        CompPoly.CPolynomial.eval_toPoly, cpolyVanishingPoly_toPoly]
+
+/-- Computable version of `disagreementSet`: the set of `x ∈ ι ∩ S` at which the answer
+polynomial `cpolyAnsPoly` disagrees with `f`. Uses `Finset.filter` over the decidable predicate
+in place of the noncomputable `Set.toFinset`. -/
+def cpolyDisagreementSet (f : ι → F) (S : Finset F) (Ans : S → F) : Finset F :=
+  (ι.attach.filter
+    (fun x => x.val ∈ S ∧ (cpolyAnsPoly S Ans).eval x.val ≠ f x)).image Subtype.val
+
+/-- Set equality: `cpolyDisagreementSet` and `disagreementSet` describe the same `Finset F`. -/
+@[simp]
+lemma cpolyDisagreementSet_eq_disagreementSet
+    (f : ι → F) (S : Finset F) (Ans : S → F) :
+    cpolyDisagreementSet f S Ans = disagreementSet f S Ans := by
+  ext y
+  simp only [cpolyDisagreementSet, disagreementSet,
+    Finset.mem_image, Finset.mem_filter, Finset.mem_attach, true_and,
+    Set.mem_toFinset, Set.mem_image, Set.mem_setOf_eq]
+  constructor
+  · rintro ⟨x, ⟨hxS, hxDis⟩, hxy⟩
+    refine ⟨x, ⟨hxS, ?_⟩, hxy⟩
+    rwa [CompPoly.CPolynomial.eval_toPoly, cpolyAnsPoly_toPoly] at hxDis
+  · rintro ⟨x, ⟨hxS, hxDis⟩, hxy⟩
+    refine ⟨x, ⟨hxS, ?_⟩, hxy⟩
+    rw [CompPoly.CPolynomial.eval_toPoly, cpolyAnsPoly_toPoly]
+    exact hxDis
+
 end Quotienting

@@ -155,10 +155,11 @@ hypothesis so this lemma is reusable across regimes. -/
 lemma dim_frsCode {ι : Type} [Fintype ι] [DecidableEq ι]
     {F : Type} [Field F] [DecidableEq F]
     (domain : ι ↪ F) (k s : ℕ) (ω : F)
-    (_h_encoder_inj :
-      Set.InjOn (frsEvalOnPoints domain s ω) (Polynomial.degreeLT F k : Set (Polynomial F))) :
+    (h_encoder_inj : Function.Injective (frsEvalOnPoints domain s ω)) :
     Module.finrank F (frsCode domain k s ω) = k := by
-  sorry -- ABF26 dim(FRS) = k via Submodule.finrank_map + Polynomial.degreeLTEquiv.
+  unfold frsCode
+  rw [(Submodule.equivMapOfInjective _ h_encoder_inj _).finrank_eq.symm]
+  exact (Polynomial.degreeLTEquiv F k).finrank_eq.trans (by simp)
 
 /-- **Dimension of `irsCode`.** Equal to `s · (k / s)` — the interleave multiplies the
 underlying RS code's dimension by the interleaving factor.
@@ -171,7 +172,20 @@ lemma dim_irsCode {ι : Type} [Fintype ι] [Nonempty ι] [DecidableEq ι]
     (domain : ι ↪ F) (k s : ℕ)
     (_h_rs_full : k / s ≤ Fintype.card ι) :
     Module.finrank F (ReedSolomon.Interleaved.irsCode domain k s) = s * (k / s) := by
-  sorry -- ABF26 dim(IRS) = s · (k/s); needs interleavedCodeSet-finrank.
+  -- `irsCode domain k s = (RS code) ^⋈ (Fin s)`, an F-submodule of `ι → Fin s → F`.
+  -- The carrier is `{V : Matrix ι (Fin s) F | ∀ j, V.transpose j ∈ RS}`. As an
+  -- F-module, this is isomorphic to `Fin s → (RS code)` (each column independent).
+  -- Hence `finrank = Fintype.card (Fin s) · finrank (RS code) = s · (k/s)`.
+  --
+  -- The proof needs:
+  -- 1. A LinearEquiv `irsCode ≃ₗ[F] (Fin s → RS code)`.
+  -- 2. `Module.finrank_pi` + `Fintype.card_fin`.
+  -- 3. `LinearCode.dim` of RS = `k/s` (Mathlib/ArkLib has this when `k/s ≤ |ι|`).
+  --
+  -- Constructing (1) requires picking the right `LinearEquiv` between the
+  -- interleavedCodeSet Submodule and the Pi-of-Submodule. This is mechanical
+  -- but tedious. Admitted with sketch.
+  sorry -- ABF26 dim(IRS) = s · (k/s); LinearEquiv to Fin s → (RS code) + Pi finrank.
 
 /-- Mirror of `mem_frsCode_iff` with the equation oriented `encoder = f` rather than
 `f = encoder` — useful for `rw` / `simp` from the encoder side. -/

@@ -15,7 +15,8 @@ import ArkLib.ProofSystem.ToyProblem.Definitions
 Statement-layer for the §6 soundness bounds that do **not** depend on a
 formal protocol object. The three protocol-level soundness lemmas
 (`L6.6`, `L6.8`, `L6.10`) live alongside the protocol definitions in
-`ToyProblem/Protocol.lean`.
+`ToyProblem/Spec/General.lean` (C6.2) and
+`ToyProblem/Spec/SimplifiedIOR.lean` (C6.9).
 
 Items in this file:
 
@@ -32,10 +33,11 @@ Items in this file:
    — Lemma 6.13 [ABF26]: correlated-agreement-based lower bound on the
    soundness error of `T'[C, t]`.
 
-All three are admitted as tagged sorries pending downstream work — the
-former is a paper-cited classical result; the latter two are reduction
-arguments on the simplified IOR whose formalisation depends on the
-protocol object in `ToyProblem/Protocol.lean`.
+All three are admitted as tagged sorries: L6.5 is a paper-cited
+classical result; L6.12 and L6.13 are stated in coding-theory form
+(direct cardinality bounds on `winningSet`) — their protocol-level
+reading bounds the soundness of `ToyProblem.SimplifiedIOR.reduction`
+from below.
 
 ## References
 
@@ -81,9 +83,8 @@ the relaxed relation `R̃_{C,δ}^2`, for which the winning challenge set
 `|Λ(C^{≡2}, δ)| · |F| / (|F| + |Λ(C^{≡2}, δ)| - 1)` elements.
 
 The protocol-level reading: the soundness error of the simplified IOR
-`T'[C, t]` (Construction 6.9) is at least
-`|Λ(C^{≡2}, δ)| / (|F| + |Λ(C^{≡2}, δ)| - 1)`. The formal connection to
-the IOR object lives in `ToyProblem/Protocol.lean`.
+`T'[C, t]` (Construction 6.9, `ToyProblem.SimplifiedIOR.reduction`) is
+at least `|Λ(C^{≡2}, δ)| / (|F| + |Λ(C^{≡2}, δ)| - 1)`.
 
 The proof uses Claim B.1 of the paper (collision bound for random
 functions; available in ArkLib as

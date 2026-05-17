@@ -168,15 +168,8 @@ theorem simplifiedIOR_knowledgeSound
       (verifier (ι := ι) (F := F) (k := k)).knowledgeSoundness
         (WitOut := OutputWitness (F := F) k)
         init impl
-        -- relIn: the relaxed 2-arity input relation (we extract a
-        -- witness for `R̃²_{C,δ}` from a successful reduction output).
         (ToyProblem.Spec.outputRelation k C δ)
-        -- relOut: the relaxed 1-arity output relation on
-        -- `((v, μ_new) × f_new) × M_new`. Stated as `Set.univ` here
-        -- as a placeholder pending an `outputRelation₁` companion to
-        -- `outputRelation` in `Spec/General.lean`.
-        (Set.univ : Set ((OutputStatement (F := F) k ×
-          (∀ i, OutputOracleStatement ι F i)) × OutputWitness (F := F) k))
+        (ToyProblem.Spec.outputRelation₁ (ι := ι) (F := F) k C δ)
         knowledgeError := by
   -- ABF26-L6.10; the intended `knowledgeError` is
   -- `epsMCA C δ + Lambda (interleavedCodeSet C) δ / |F|`.

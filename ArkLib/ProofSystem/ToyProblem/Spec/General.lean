@@ -172,6 +172,20 @@ def outputRelation (C : Set (ι → F)) (δ : ℝ≥0) :
     ToyProblem.relaxedRelation (k := k) (ℓ := 2) C δ input.1.1.1
       ![input.1.1.2.1, input.1.1.2.2] input.1.2
 
+omit [Fintype ι] [DecidableEq ι] [Fintype F] [DecidableEq F] in
+/-- The 1-arity relaxed relation `R̃¹_{C,δ}`, used as the *output*
+relation of Construction 6.9 (`Spec/SimplifiedIOR.lean`). Identical to
+`outputRelation` but with `ℓ = 1` and a single oracle codeword + single
+constraint value `μ` instead of the pair `(μ₁, μ₂)`.
+
+The C6.9 reduction `R̃²_{C,δ} → R̃¹_{C,δ}` is stated against this
+relation; we expose it here so the two protocol files can share it. -/
+def outputRelation₁ (C : Set (ι → F)) (δ : ℝ≥0) :
+    Set ((((Fin k → F) × F) × (∀ _ : Fin 1, ι → F)) × (Fin k → F)) :=
+  fun input ↦
+    ToyProblem.relaxedRelation (k := k) (ℓ := 1) C δ input.1.1.1
+      ![input.1.1.2] (fun _ ↦ input.1.2 0)
+
 /-! ### Honest prover, verifier, and reduction
 
 This section mirrors the `foldProver` / `foldVerifier` / `foldOracleReduction`

@@ -306,26 +306,34 @@ def oracleProver :
 
   output := fun _ ↦ pure (((), nofun), ())
 
-/-- Oracle verifier for Construction 6.2. Body deferred to a follow-up
-commit: this lands the API surface (`embed` empty, `hEq` trivial, since
-the IOR has no output oracle statements) so that downstream
-`OracleReduction`-using code can target it now.
+/-- Oracle verifier for Construction 6.2.
 
-The intended `verify` body queries the prover's message `g` once and the
-two oracle codewords `f₁, f₂` at each of the `t` spot-check positions
-(query complexity: `2t + 1`), then runs the §6.1 decision via `accepts`.
-That body involves `OracleSpec.query` + `liftM` plumbing across the
-combined spec `oSpec + [OStmtIn]ₒ + [pSpec.Message]ₒ`; see
-`Fri/Spec/SingleRound.lean :: queryVerifier` for the established
-template (in particular the local `queryCodeword` / `getConst`
-helpers). -/
+**Intended body (deferred).** Query the prover's `g` once and the two
+oracle codewords `f₁, f₂` at each spot-check position (total query
+complexity: `2t + 1`), then `guard (accepts …)`. The query plumbing
+needs the FRI-style template:
+
+```lean
+-- Helpers (cf. FRI's `getConst` / `queryCodeword`):
+def queryG : OracleComp [(pSpec …).Message]ₒ (Fin k → F) :=
+  liftM <| cast (β := OracleQuery _ (Fin k → F)) (by simp)
+    (OracleSpec.query (show _ from ⟨⟨1, by decide⟩, (by simpa using ())⟩))
+def queryF (i : Fin 2) (x : ι) : OracleComp [OracleStatement ι F]ₒ F :=
+  liftM <| cast (β := OracleQuery _ F) (by simp)
+    (OracleSpec.query (⟨i, x⟩ : _))
+```
+
+Currently a stub `pure ()` so the `OracleReduction` value typechecks
+and downstream consumers can target it. The `embed` and `hEq` fields
+are real (the `OutputOracleStatement` family is `Fin 0`-indexed, so
+`embed` is the empty injection and `hEq` is vacuously true). -/
 def oracleVerifier (_encode : (Fin k → F) → (ι → F)) :
     OracleVerifier []ₒ
       (Statement (F := F) k) (OracleStatement ι F)
       OutputStatement OutputOracleStatement
       (pSpec (ι := ι) (F := F) k t) where
   verify := fun _ _ ↦ do
-    -- ABF26 C6.2; query body deferred to follow-up. Cf. FRI queryVerifier.
+    -- ABF26 C6.2; query-based verify body deferred. See docstring.
     pure ()
   embed := ⟨fun i ↦ i.elim0, fun a _ _ ↦ a.elim0⟩
   hEq := fun i ↦ i.elim0

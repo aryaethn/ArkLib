@@ -354,17 +354,35 @@ theorem accepts_of_inputRelation {k t : ℕ}
     {encode : (Fin k → F) →ₗ[F] (ι → F)}
     (stmt : Statement (F := F) k)
     (M : Witness (F := F) k)
-    (_hM : ∀ i, ∑ j, M i j * stmt.1 j =
+    (hM : ∀ i, ∑ j, M i j * stmt.1 j =
         (if i = (0 : Fin 2) then stmt.2.1 else stmt.2.2))
     (f : ∀ i, OracleStatement ι F i)
-    (_hf : ∀ i, f i = encode (M i))
+    (hf : ∀ i, f i = encode (M i))
     (γ : F) (xs : Fin t → ι) :
     accepts (k := k) (t := t) (encode := (encode : (Fin k → F) → (ι → F)))
       stmt f γ (fun j ↦ M 0 j + γ * M 1 j) xs := by
-  -- ABF26 C6.2 honest-completeness; bookkeeping deferred (ring +
-  -- `Finset.sum_add_distrib`/`Finset.mul_sum` on the linear-constraint
-  -- side, linearity of `encode` on the spot-check side).
-  sorry
+  refine ⟨?_, ?_⟩
+  · -- Linear-constraint: ∑ j, (M 0 j + γ * M 1 j) * v j = μ₁ + γ * μ₂.
+    have h0 : ∑ j, M 0 j * stmt.1 j = stmt.2.1 := by
+      have := hM 0; simpa using this
+    have h1 : ∑ j, M 1 j * stmt.1 j = stmt.2.2 := by
+      have := hM 1
+      have hne : (1 : Fin 2) ≠ 0 := by decide
+      simpa [if_neg hne] using this
+    calc ∑ j, (M 0 j + γ * M 1 j) * stmt.1 j
+        = ∑ j, (M 0 j * stmt.1 j + γ * (M 1 j * stmt.1 j)) := by
+          apply Finset.sum_congr rfl; intros j _; ring
+      _ = (∑ j, M 0 j * stmt.1 j) + ∑ j, γ * (M 1 j * stmt.1 j) :=
+          Finset.sum_add_distrib
+      _ = (∑ j, M 0 j * stmt.1 j) + γ * ∑ j, M 1 j * stmt.1 j := by
+          rw [← Finset.mul_sum]
+      _ = stmt.2.1 + γ * stmt.2.2 := by rw [h0, h1]
+  · -- Spot-check: encode(g) x = f 0 x + γ * f 1 x.
+    intro j
+    have hg_eq : (fun i ↦ M 0 i + γ * M 1 i) = M 0 + γ • M 1 := by
+      funext i; simp [Pi.add_apply, Pi.smul_apply, smul_eq_mul]
+    rw [hg_eq, map_add, map_smul, hf 0, hf 1]
+    simp [Pi.add_apply, Pi.smul_apply, smul_eq_mul]
 
 omit [DecidableEq ι] [Fintype F] in
 /-- **Lemma 6.6 of [ABF26]** (knowledge soundness of Construction 6.2).

@@ -210,10 +210,25 @@ def prover :
 
   output := fun _ ↦ pure ((), ())
 
+/-- The §6.1 decision predicate is decidable: it's a finite conjunction
+of equalities in `F` (decidable via `DecidableEq F`) and a `Fin t`
+universally-quantified equality (decidable via the `Fintype` `Decidable`
+instance). Marking explicitly so the `verifier` below can stay
+computable (cf. FRI's `foldVerifier`, which is plain `def`). -/
+instance accepts.instDecidable
+    (encode : (Fin k → F) → (ι → F))
+    (stmt : Statement (F := F) k) (f : ∀ i, OracleStatement ι F i)
+    (γ : F) (g : Fin k → F) (xs : Fin t → ι) :
+    Decidable (accepts (k := k) (t := t) encode stmt f γ g xs) := by
+  unfold accepts; infer_instance
+
 /-- Honest verifier for Construction 6.2. Takes the bundled input
 `(stmt, oStmt) = ((v, μ₁, μ₂), (f₁, f₂))` and the full transcript
-`(γ, g, xs)`; accepts iff `accepts` holds for the supplied encoding. -/
-noncomputable def verifier (encode : (Fin k → F) → (ι → F)) :
+`(γ, g, xs)`; accepts iff `accepts` holds for the supplied encoding.
+
+Computable — `accepts` is decidable, so no `Classical.dec` is needed.
+This mirrors FRI's `foldVerifier`, which is also a plain `def`. -/
+def verifier (encode : (Fin k → F) → (ι → F)) :
     Verifier []ₒ
       (Statement (F := F) k × (∀ i, OracleStatement ι F i))
       OutputStatement
@@ -222,19 +237,12 @@ noncomputable def verifier (encode : (Fin k → F) → (ι → F)) :
     let γ : F := tr ⟨0, by decide⟩
     let g : Fin k → F := tr ⟨1, by decide⟩
     let xs : Fin t → ι := tr ⟨2, by decide⟩
-    -- `accepts` is a finite conjunction of equalities in `F` and a
-    -- per-`Fin t` quantifier over the same. The conjunction is decidable
-    -- in principle, but the syntactic `Decidable` instance has to be
-    -- summoned classically here (we won't run this code; the verifier
-    -- object is consumed by soundness proofs, not by execution).
-    have : Decidable (accepts (k := k) (t := t) encode stmt oStmt γ g xs) :=
-      Classical.dec _
     if accepts (k := k) (t := t) encode stmt oStmt γ g xs
     then pure () else failure
 
 /-- Honest reduction for Construction 6.2: the package
 `{prover, verifier}` over the bundled-input `Reduction` type. -/
-noncomputable def reduction (encode : (Fin k → F) → (ι → F)) :
+def reduction (encode : (Fin k → F) → (ι → F)) :
     Reduction []ₒ
       (Statement (F := F) k × (∀ i, OracleStatement ι F i)) (Witness (F := F) k)
       OutputStatement OutputWitness

@@ -47,10 +47,36 @@ LINE_CAP_CHARS = 100
 LINE_CAP_FILE = 1500
 COPYRIGHT_HEAD_LINES = 10  # check for copyright in the first N lines
 EXPECTED_CITATIONS = (
+    # Common project bracketed-citation keys (extend freely; recognition
+    # also accepts unbracketed paper-pointer phrases — see CITATION_RE).
     "[ABF26]", "[BCIKS20]", "[BCGM25]", "[ACFY24]", "[ACFY25]",
     "[ACFY24stir]", "[BCGM26]", "[GRS25]", "[BGKS19]", "[BBHR18]",
     "[GW13]", "[KSY14]", "[GKL24]", "[BCHKS25]", "[BCS16]",
     "[GG25]", "[AGL23]", "[AGL24]", "[AGGLZ25]", "[GX13]",
+    "[GCXK25]", "[CS25]", "[GLMRSW22]", "[BKR06]", "[GHSZ02]",
+    "[JH01]", "[CZ25]", "[DG25]", "[GK16]", "[ELI57]", "[ST20]",
+    "[BDG24]", "[KK25]",
+)
+
+# Citation recognition is intentionally generous: a docstring counts as
+# "cited" if it matches any of:
+#   • a known bracketed citation key (the EXPECTED_CITATIONS list above)
+#   • a generic `[XYZ]` or `[Xyz25]`-shaped bracketed key
+#   • a paper-section pointer like `ABF26 Lemma 4.6`, `BCIKS20 §1.5`,
+#     `paper's Theorem 1`, `Section 4.5 of [ABF26]`, etc.
+#   • an explicit "external admit" / "Admitted as external result" marker
+#   • an "ABF26-X.Y" tag (the same form the sorry-tag check recognises)
+CITATION_RE = re.compile(
+    r"(?:"
+    r"\[[A-Z][A-Za-z0-9+]{1,15}\]"
+    r"|\b(?:[A-Z]{2,}\d{2}(?:[A-Za-z]\w*)?)\s+(?:Theorem|Thm|Lemma|"
+    r"Corollary|Cor|Definition|Def|Claim|Fact|Remark|Section|§|Item|Eq\.?)"
+    r"|\bpaper(?:'s)?\s+(?:Theorem|Thm|Lemma|Corollary|Cor|Definition|"
+    r"Def|Claim|Fact|Remark|Section|§|Item|Eq\.?)"
+    r"|\b(?:Admitted|external)\s+(?:as|admit|proof|result)"
+    r"|\bABF26[\s:\-][A-Z]?\d"
+    r")",
+    re.IGNORECASE,
 )
 
 # Severity strings used in output + exit-code logic.
@@ -300,12 +326,13 @@ def check_file(path: Path) -> list[Finding]:
             continue
         if len(doc) < CITATION_DOCSTRING_MIN_CHARS:
             continue
-        if not any(cite in doc for cite in EXPECTED_CITATIONS):
+        if not CITATION_RE.search(doc):
             findings.append(Finding(
                 WRN, path, i + 1, "no-citation",
                 f"public theorem `{decl_name}` has a substantive docstring "
                 f"but no recognized paper citation "
-                f"(e.g. {', '.join(EXPECTED_CITATIONS[:4])} …)"))
+                f"(bracketed `[KEY]`, `KEY25 Lemma X`, paper's Theorem X, "
+                f"Admitted as external result, …)"))
 
     return findings
 

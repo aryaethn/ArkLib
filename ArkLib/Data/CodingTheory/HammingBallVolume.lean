@@ -151,6 +151,9 @@ existing `hammingBall` (set of words within radius `⌊δ·n⌋` of any fixed ce
 identity collapses to the standard combinatorial fact
 `#{x ∈ F^n : Δ(x, y) ≤ r} = ∑_{i ≤ r} C(n, i) · (q-1)^i` independent of `y`.
 
+This links the ArkLib `ListDecodability.hammingBall` (set-form, used elsewhere in the
+list-decoding development) to ABF26 Definition 2.4's `Vol_q(δ, n)` (cardinality form).
+
 Proof: partition `hammingBall y r` by exact distance via `card_filter_hammingDist_eq`,
 then sum. -/
 theorem hammingBallVolume_eq_ncard_hammingBall

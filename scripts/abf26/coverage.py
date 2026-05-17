@@ -434,15 +434,19 @@ def main(argv=None):
     if drift_rows or missing_rows:
         return 1
     if args.strict:
-        # Strict: ◐ stubs allowed only if status_core in
-        # {present-but-incomplete, deferred}.
-        bad = [row for row, _ in stub_rows
-               if row.status_core not in ("present-but-incomplete", "deferred")]
+        # Strict: ◐ stubs are tolerated only if the row's status is one of
+        # {present-but-incomplete, deferred} or a "stated (external admit*)"
+        # variant (paper-cited result with an intentional placeholder).
+        def stub_ok(row):
+            s = row.status.lower()
+            return (row.status_core in ("present-but-incomplete", "deferred")
+                    or "external admit" in s or "external proof" in s)
+        bad = [row for row, _ in stub_rows if not stub_ok(row)]
         if bad:
             print()
             print(YEL("Strict mode: stub rows with non-stub status:"))
             for row in bad:
-                print(f"  {row.id} ({row.status_core})")
+                print(f"  {row.id} ({row.status})")
             return 1
     return 0
 

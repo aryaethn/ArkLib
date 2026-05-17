@@ -59,7 +59,10 @@ verifier-first / verifier-last bracket.
   Round 0: `V → P` sends `γ : F` (combination randomness).
   Round 1: `P → V` sends `g : Fin k → F` (combined message claim).
   Round 2: `V → P` sends `(x₁, …, xₜ) : Fin t → ι` (spot-check positions).
--/
+
+Marked `@[reducible]` so the per-round type access in the verifier
+(`transcript ⟨0, _⟩ : F`, …) reduces transparently. -/
+@[reducible]
 def pSpec : ProtocolSpec 3 :=
   { dir := ![.V_to_P, .P_to_V, .V_to_P]
     «Type» := ![F, Fin k → F, Fin t → ι] }

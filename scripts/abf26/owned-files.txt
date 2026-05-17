@@ -24,3 +24,4 @@ ArkLib/Data/Probability/Combinatorial.lean
 ArkLib/ProofSystem/ToyProblem/Definitions.lean
 ArkLib/ProofSystem/ToyProblem/SoundnessBounds.lean
 ArkLib/ProofSystem/ToyProblem/Spec/General.lean
+ArkLib/ProofSystem/ToyProblem/Spec/SimplifiedIOR.lean

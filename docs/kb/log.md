@@ -320,3 +320,42 @@ Coverage snapshot moves from 30/11/11/3 (post-revert) to **31/10/11/3**.
 Per the no-duplication rule, the new declarations all chain through
 the same Mathlib base (`MvPolynomial.schwartz_zippel_totalDegree`) —
 no parallel implementation.
+
+## [2026-05-20] phase 2 | ExtensionFieldPresentation refactor
+
+Refactored `CodingTheory.ExtensionFieldPresentation` (ABF26 D2.19) to wrap
+Mathlib's `[Algebra B F]` + `Basis (Fin e) B F` directly, removing the
+custom struct that duplicated this machinery. Net change in
+`ExtensionCodes.lean`:
+
+- Structure went from 9 fields (`e`, `ψ`, `ψ_injective`, `φ`, `φ_inv`,
+  `φ_left_inv`, `φ_right_inv`, `φ_add`, `φ_smul_psi`) to **2** (`e`,
+  `basis : Basis (Fin e) B F`), with `[Algebra B F]` as an instance.
+- `ψ` is now `algebraMap B F` (derived via `@[reducible]` alias).
+- `ψ_injective` is `FaithfulSMul.algebraMap_injective B F` (Mathlib).
+- `φ` is `basis.equivFun` (Mathlib's `B`-linear coordinate iso).
+- `coord j` is `LinearMap.proj j ∘ₗ φ` — a `LinearMap`, so `coord_add`
+  becomes `LinearMap.map_add` and `coord_psi_smul` becomes a one-liner
+  via `Algebra.smul_def` + `LinearMap.map_smul`.
+
+The downstream lemmas `extensionCode_add_mem` and
+`extensionCode_psi_smul_mem` are unchanged in shape but now proven via
+Mathlib's `LinearMap` API rather than the custom field-by-field proof.
+
+`extensionCode_smul_mem` (F-scalar closure) is still a tagged sorry,
+**but the obstruction has shifted from structural to mechanical**:
+pre-refactor it required "F-algebra structure constants `γ_{l,m,j}`"
+not exposed by the custom struct; post-refactor those constants are
+`P.coord j (α * P.basis m)`, directly computable from `P.basis`. The
+remaining proof is a routine `Finset.sum_induction` chain through
+`hadd + hsmul` (with `hsmul 0 (hv m₀)` giving `0 ∈ C_B` for the
+empty-sum case when `e ≥ 1`; `e = 0` is vacuous since `∀ j : Fin 0`
+is trivially true).
+
+Audit doc D2.19 promoted to clarify the Algebra/Basis underpinning;
+D2.20 status note updated to reflect the unblocked path.
+
+Per the no-duplication rule: this is an *improve/generalise safely*
+move (zero external consumers of `ExtensionFieldPresentation` —
+verified via grep — so the struct-shape change is local), not a
+parallel implementation.

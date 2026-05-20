@@ -12,15 +12,15 @@ on top of ArkLib.
 - lint + drift harness: `scripts/abf26/{coverage,lint}.py`,
   `scripts/abf26/owned-files.txt`
 
-## State snapshot (2026-05-20, post Phase 2 starts)
+## State snapshot (2026-05-20, mid Phase 2)
 
 87 paper items audited; coverage:
 
 | Status | Count | Δ since 2026-05-18 |
 |---|---|---|
-| present | **31** | **+1** (L2.1 closed via generalised SZ wrapper) |
+| present | **32** | **+2** (L2.1 via generalised SZ wrapper; D2.20 via Algebra/Basis refactor + basis-expansion proof close) |
 | present-but-different | **10** | **−1** |
-| present-but-incomplete | 11 (paper-cited external admits) | 0 |
+| present-but-incomplete | **10** | **−1** |
 | deferred | 3 (blocked on missing primitives) | 0 |
 
 The 11 `present-but-different` rows are **intentional**: each one is
@@ -86,17 +86,31 @@ The harness got two defensive fixes during the sweep that *stay*:
 
 ### Phase 2 — close in-tree provables (1–2 days each)
 
-- `ToyProblem.Spec.oracleReduction_perfectCompleteness` —
+- ✅ `prob_polynomial_identity_le` (ABF26 L2.1, paper individual-degree
+  shape `m·(d-1)/|F|`) — landed 2026-05-20 via safe generalisation of
+  the legacy `prob_schwartz_zippel_mv_polynomial` wrapper.
+- ✅ `CodingTheory.extensionCode_smul_mem` (ABF26 D2.20 F-linearity) —
+  landed 2026-05-20 via Algebra/Basis refactor of
+  `ExtensionFieldPresentation` (commit `f190de47`) + basis-expansion +
+  `Finset.sum_induction` proof close (commit `6124b8a7`).
+- ⏳ `ToyProblem.Spec.oracleReduction_perfectCompleteness` —
   protocol-level wrapper around the already-closed
-  `accepts_of_inputRelation`. Mostly `OracleReduction.toReduction`
-  plumbing.
-- `CodingTheory.extensionCode_smul_mem` — F-scalar closure of the
-  extension code, currently sorry'd. Needs the
-  `[Algebra B F] + Basis B F` refactor of `ExtensionFieldPresentation`.
+  `accepts_of_inputRelation`. ~50-100 lines of bespoke
+  `simulateQ_bind` / `StateT.run_bind` unfold for the 3-round protocol
+  (cf. Sumcheck `SingleRound.reduction_perfectCompleteness` for the
+  2-round template). Better as a focused proof PR.
+- ⏳ `Probability.exists_large_image_of_pairwise_collision_bound`
+  (ABF26 B.1) — Cauchy-Schwarz + Jensen + averaging. Pure analysis,
+  but ~100+ lines through PMF expectations and `ENNReal` arithmetic.
+  Unblocks `L6.12` downstream.
+- ⏳ `T4.8` (AHIV17 general-code unique-decoding, paper-shape `ε_ca`
+  form) — ε-wrap AHIV22's `prob_of_bad_pts` (PMF-over-rowspan) into
+  `epsCA`'s PMF-over-γ form. ~50+ lines including the indexing
+  translation.
 - Predicate↔numeric bridges in
-  `ArkLib/Data/CodingTheory/ProximityGap/Errors.lean` (L4.6, L4.7,
-  others).
-- Paper-shaped aliases sweep (Phase 1 leftovers).
+  `ArkLib/Data/CodingTheory/ProximityGap/Errors.lean` (L4.6 etc.).
+- ~~Paper-shaped aliases sweep~~ (rejected — see
+  [`abf26-review-2026-05.md`](abf26-review-2026-05.md)).
 
 ### Phase 3 — deferred & stretch (optional for this PR)
 

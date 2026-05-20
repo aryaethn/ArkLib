@@ -221,7 +221,7 @@ framework gaps being closed. Plan Phase 8 holds these.
 
 | ABF26 ID | Paper item | Status | Lean refs | Lean target | Notes |
 | --- | --- | --- | --- | --- | --- |
-| `B.1` | Collision bound for random functions | present-but-incomplete | `Probability.exists_large_image_of_pairwise_collision_bound` in [Combinatorial.lean](../../../ArkLib/Data/Probability/Combinatorial.lean) | `Probability.exists_large_image_of_pairwise_collision_bound` | Statement landed; proof deferred (tagged sorry, full paper proof outline in docstring: Cauchy–Schwarz on fibres + Jensen on `x ↦ |S|²/(2x+|S|)` + averaging). |
+| `B.1` | Collision bound for random functions | present | `Probability.exists_large_image_of_pairwise_collision_bound` in [Combinatorial.lean](../../../ArkLib/Data/Probability/Combinatorial.lean) | `Probability.exists_large_image_of_pairwise_collision_bound` | Closed 2026-05-20. Proof route: helper lemmas `sum_fiber_sq_eq` (fiber-partition + diagonal decomposition) and `cauchy_schwarz_fiber` (`sq_sum_le_card_mul_sum_sq` over `ℝ` via cast); main theorem by contradiction (avoids Jensen): `PMF.bind`-unfolded linearity gives `E[numColls] ≤ N(N-1)ε`, while per-`φ ∈ supp` Cauchy-Schwarz + ENNReal cross-multiplication gives `numColls φ > N(N-1)ε`; `ENNReal.tsum_lt_tsum` strict-averaging closes the loop. |
 
 ## Existing Inconsistencies
 

@@ -199,43 +199,158 @@ theorem exists_large_image_of_pairwise_collision_bound
         Pr_{ let φ ← Φ }[(decide (φ x = φ y) : Prop)] ≤ ε) :
     ∃ φ ∈ Φ.support, ((Finset.univ.image φ).card : ENNReal) ≥
       (Fintype.card S : ENNReal) / (1 + (Fintype.card S - 1) * ε) := by
-  -- ABF26 Claim B.1. Contradiction-form proof avoiding Jensen explicitly:
-  -- if every `φ ∈ support` has `|φ(S)| < K := |S|/(1 + (|S|−1)ε)`, then
-  -- Cauchy-Schwarz forces every `φ` to have *more* colliding pairs than the
-  -- hypothesis's `E[colls] ≤ (|S| choose 2)·ε` bound permits — contradiction.
-  --
-  -- ## Proof skeleton (full closure deferred — bounded follow-up)
-  --
-  -- Let `numColls φ : ℕ` be the count of unordered pairs `{x,y}` with
-  -- `x ≠ y ∧ φ x = φ y` (paper's `|C_φ|`). The chain:
-  --
-  -- Step 1 (pointwise Cauchy-Schwarz):  for every `φ : S → T`,
-  --    `|S|² ≤ |φ(S)| · (2 · numColls φ + |S|)`
-  --   via `Finset.sq_sum_le_card_mul_sum_sq` applied to fiber-cardinalities
-  --   `μ ↦ |φ⁻¹(μ)|` over the image `φ(S)`. The `Σ |φ⁻¹(μ)|²` decomposes
-  --   into `2 · numColls + |S|` by counting ordered same-image pairs.
-  --
-  -- Step 2 (rearrange):  if `|φ(S)| < K`, then
-  --    `numColls φ > (|S| choose 2) · ε`
-  --   from Step 1's bound + the explicit value of K.
-  --
-  -- Step 3 (averaging):  if `∀ φ ∈ support, numColls φ > c`,
-  --   then `E_{φ←Φ}[numColls φ] > c`. Standard.
-  --
-  -- Step 4 (linearity of expectation):  the hypothesis sums to
-  --    `E_{φ←Φ}[numColls φ] ≤ (|S| choose 2) · ε`
-  --   (pairwise-collision bound, summed over `(|S| choose 2)` unordered
-  --   pairs). The `decide` wrapper in `hΦ` unwraps via `decide_iff`.
-  --
-  -- Step 5 (contradict):  Steps 3 + 4 together force
-  --    `(|S| choose 2) · ε < E[…] ≤ (|S| choose 2) · ε`,
-  --   a contradiction.
-  --
-  -- Each step is a stand-alone proof; closure of all 5 steps is a focused
-  -- proof-PR (~100-200 lines through PMF expectations and ENNReal /
-  -- ℕ casts; also needs an auxiliary `numColls` definition that handles
-  -- the unordered-pair count canonically, e.g. via `Sym2` or by
-  -- requiring `[LinearOrder S]` and using `p.1 < p.2`).
-  sorry
+  classical
+  set N : ℕ := Fintype.card S with hN_def
+  -- Pairs of distinct elements.
+  set P : Finset (S × S) := Finset.univ.filter (fun p : S × S => p.1 ≠ p.2) with hP_def
+  -- `|P| = N · (N - 1)` (Finset count of off-diagonal pairs).
+  have hP_card : P.card = N * (N - 1) := by
+    have h_eq : P = Finset.offDiag (Finset.univ : Finset S) := by
+      rw [hP_def]
+      ext ⟨x, y⟩
+      simp [Finset.mem_offDiag]
+    rw [h_eq, Finset.offDiag_card]
+    simp [hN_def, Nat.mul_sub_one]
+  -- ## Step A — Pointwise Cauchy-Schwarz, in ENNReal.
+  -- For every `φ : S → T`,  `N² ≤ |image φ| · (N + numCollsOrdered φ)` in ENNReal.
+  have hCS_E : ∀ φ : S → T,
+      (N : ENNReal)^2 ≤ ((Finset.univ.image φ).card : ENNReal) *
+        ((N : ENNReal) + (numCollsOrdered φ : ENNReal)) := by
+    intro φ
+    have h := cauchy_schwarz_fiber φ
+    -- h : N^2 ≤ #image · (N + numColls) in ℕ; cast to ENNReal.
+    exact_mod_cast h
+  -- ## Step B — Linearity of expectation.
+  -- `∑' φ, Φ φ * (numCollsOrdered φ : ENNReal) ≤ N · (N - 1) · ε`.
+  -- numCollsOrdered φ = #{(x, y) ∈ P : φ x = φ y}; unfold as a sum of indicators,
+  -- swap with the outer tsum, and apply hΦ pointwise.
+  have h_lin : ∑' φ : S → T, Φ φ * (numCollsOrdered φ : ENNReal) ≤
+      ((N * (N - 1) : ℕ) : ENNReal) * ε := by
+    -- Step B.1: numCollsOrdered φ = ∑ p ∈ P, (if φ p.1 = φ p.2 then 1 else 0).
+    have h_numCard : ∀ φ : S → T,
+        (numCollsOrdered φ : ENNReal) =
+          ∑ p ∈ P, (if φ p.1 = φ p.2 then (1 : ENNReal) else 0) := by
+      intro φ
+      rw [show numCollsOrdered φ =
+          (P.filter (fun p : S × S => φ p.1 = φ p.2)).card by
+        unfold numCollsOrdered
+        rw [hP_def]
+        congr 1
+        ext ⟨x, y⟩
+        simp only [Finset.mem_filter, Finset.mem_univ, true_and]]
+      rw [Finset.card_filter]
+      push_cast
+      rfl
+    -- Step B.2: ∑' φ, Φ φ * (Σ p, indicator) = Σ p, ∑' φ, Φ φ * indicator.
+    simp_rw [h_numCard, Finset.mul_sum]
+    rw [Summable.tsum_finsetSum (fun _ _ ↦ ENNReal.summable)]
+    -- Goal: ∑ p ∈ P, ∑' φ, Φ φ * (if φ p.1 = φ p.2 then 1 else 0) ≤ N(N-1) · ε.
+    -- Step B.3: each inner sum is `Pr_{φ←Φ}[φ p.1 = φ p.2] ≤ ε`.
+    have h_inner : ∀ p ∈ P,
+        ∑' φ : S → T, Φ φ * (if φ p.1 = φ p.2 then (1 : ENNReal) else 0) ≤ ε := by
+      intro p hp
+      simp only [hP_def, Finset.mem_filter, Finset.mem_univ, true_and] at hp
+      have h := hΦ p.1 p.2 hp
+      -- Unfold `Pr_{...}[(decide P : Prop)]` in h via the same identity used in
+      -- `Notation.lean`'s example: it equals `∑' φ, Φ φ * (if P then 1 else 0)`.
+      simp only [Bind.bind, Pure.pure, PMF.bind, PMF.pure, DFunLike.coe,
+        eq_iff_iff, true_iff, decide_eq_true_iff] at h
+      exact h
+    -- Step B.4: bound termwise.
+    calc ∑ p ∈ P, ∑' φ : S → T, Φ φ * (if φ p.1 = φ p.2 then (1 : ENNReal) else 0)
+        ≤ ∑ _p ∈ P, ε := Finset.sum_le_sum h_inner
+      _ = (P.card : ENNReal) * ε := by rw [Finset.sum_const, nsmul_eq_mul]
+      _ = ((N * (N - 1) : ℕ) : ENNReal) * ε := by rw [hP_card]
+  -- ## Step C — Contradiction route.
+  -- Assume `∀ φ ∈ supp Φ, |image φ| < K = N / (1 + (N-1) ε)`.
+  -- Then for each such φ:  numCollsOrdered φ > N(N-1) ε  (via Cauchy-Schwarz + algebra).
+  -- Averaging: `∑' φ, Φ φ * numColls φ > N(N-1) ε`, contradicting h_lin.
+  by_contra h_neg
+  push Not at h_neg
+  -- h_neg : ∀ φ ∈ Φ.support, ((|image φ|) : ENNReal) < K
+  -- Derive a strict per-φ lower bound on numCollsOrdered φ for φ ∈ supp.
+  have h_pointwise :
+      ∀ φ ∈ Φ.support,
+        ((N * (N - 1) : ℕ) : ENNReal) * ε <
+          (numCollsOrdered φ : ENNReal) := by
+    intro φ hφ
+    set A : ENNReal := ((Finset.univ.image φ).card : ENNReal) with hA_def
+    set C : ENNReal := (numCollsOrdered φ : ENNReal) with hC_def
+    set δ : ENNReal := 1 + ((N : ENNReal) - 1) * ε with hδ_def
+    -- From `h_neg φ hφ`.
+    have hA_lt_K : A < (N : ENNReal) / δ := h_neg φ hφ
+    -- A < K = N/δ ⇒ K > 0 ⇒ N ≠ 0 ∧ δ ≠ ⊤.
+    have hK_pos : (0 : ENNReal) < (N : ENNReal) / δ :=
+      lt_of_le_of_lt (zero_le _) hA_lt_K
+    obtain ⟨hN_ne, _hδ_ne_top⟩ := ENNReal.div_pos_iff.mp hK_pos
+    have hN_ne_top : (N : ENNReal) ≠ ⊤ := ENNReal.natCast_ne_top _
+    -- A · δ < N (from A < N/δ).
+    have hAδ : A * δ < (N : ENNReal) := mul_lt_of_lt_div hA_lt_K
+    have hCS : (N : ENNReal) ^ 2 ≤ A * ((N : ENNReal) + C) := hCS_E φ
+    rw [sq] at hCS
+    -- Helper: ℕ-cast vs ENNReal arithmetic on `N(N-1)`.
+    have hN_sub_cast : ((N - 1 : ℕ) : ENNReal) = (N : ENNReal) - 1 := by
+      rw [ENNReal.natCast_sub]; simp
+    have h_NC_cast : ((N * (N - 1) : ℕ) : ENNReal) =
+        (N : ENNReal) * ((N : ENNReal) - 1) := by
+      rw [Nat.cast_mul, hN_sub_cast]
+    -- By contradiction: assume C ≤ N(N-1)·ε.
+    by_contra h_not
+    push Not at h_not
+    -- h_not : C ≤ ((N * (N - 1) : ℕ) : ENNReal) * ε
+    -- Show N + C ≤ N · δ.
+    have h_NC_le : (N : ENNReal) + C ≤ (N : ENNReal) * δ := by
+      have h_arith : (N : ENNReal) + ((N * (N - 1) : ℕ) : ENNReal) * ε
+          = (N : ENNReal) * δ := by
+        rw [hδ_def, mul_add, mul_one, h_NC_cast]; ring
+      calc (N : ENNReal) + C
+          ≤ (N : ENNReal) + ((N * (N - 1) : ℕ) : ENNReal) * ε := by gcongr
+        _ = (N : ENNReal) * δ := h_arith
+    -- A · (N + C) ≤ A · N · δ = (A · δ) · N.
+    have h_step : A * ((N : ENNReal) + C) ≤ A * δ * (N : ENNReal) := by
+      calc A * ((N : ENNReal) + C)
+          ≤ A * ((N : ENNReal) * δ) := by gcongr
+        _ = A * δ * (N : ENNReal) := by ring
+    -- (A · δ) · N < N · N = N² (since A · δ < N and N ≠ 0, N ≠ ⊤).
+    have h_strict_lt : A * δ * (N : ENNReal) < (N : ENNReal) * (N : ENNReal) :=
+      ENNReal.mul_lt_mul_left hN_ne hN_ne_top hAδ
+    -- Chain: N² ≤ A·(N+C) ≤ (A·δ)·N < N². Contradiction.
+    exact absurd (hCS.trans h_step) (not_le_of_gt h_strict_lt)
+  -- Sum to contradict h_lin.
+  have h_strict :
+      ((N * (N - 1) : ℕ) : ENNReal) * ε <
+        ∑' φ : S → T, Φ φ * (numCollsOrdered φ : ENNReal) := by
+    obtain ⟨φ₀, hφ₀⟩ := Φ.support_nonempty
+    -- We need ∑' g > c where c := N(N-1)ε. Reformulate c as ∑' (Φ * c).
+    -- This requires `tsum f ≠ ⊤`, which forces a case-split on `c = ⊤`.
+    set c : ENNReal := ((N * (N - 1) : ℕ) : ENNReal) * ε with hc_def
+    by_cases h_top : c = ⊤
+    · -- c = ⊤: h_pointwise gives ⊤ < numCollsOrdered φ₀, but numCollsOrdered is finite.
+      exfalso
+      have h_pt := h_pointwise φ₀ hφ₀
+      rw [h_top] at h_pt
+      exact absurd h_pt (not_lt.mpr le_top)
+    -- Express c as ∑' φ, Φ φ * c.
+    have h_eq : ∑' φ : S → T, Φ φ * c = c := by
+      rw [ENNReal.tsum_mul_right, Φ.tsum_coe, one_mul]
+    rw [show c = ∑' φ : S → T, Φ φ * c from h_eq.symm]
+    -- Apply tsum_lt_tsum.
+    apply ENNReal.tsum_lt_tsum (i := φ₀)
+    · rw [h_eq]; exact h_top
+    · -- Pointwise: Φ φ * c ≤ Φ φ * numCollsOrdered φ.
+      intro φ
+      by_cases hφ_supp : φ ∈ Φ.support
+      · gcongr
+        exact (h_pointwise φ hφ_supp).le
+      · -- Outside support, Φ φ = 0.
+        have : Φ φ = 0 := by
+          rwa [Φ.mem_support_iff, not_not] at hφ_supp
+        simp [this]
+    · -- Strict at φ₀: Φ φ₀ > 0 and (numCollsOrdered φ₀ > c).
+      have hΦ_pos : (0 : ENNReal) < Φ φ₀ := (Φ.apply_pos_iff _).mpr hφ₀
+      have hΦ_ne_top : Φ φ₀ ≠ ⊤ := PMF.apply_ne_top Φ φ₀
+      exact ENNReal.mul_lt_mul_right (ne_of_gt hΦ_pos) hΦ_ne_top
+        (h_pointwise φ₀ hφ₀)
+  exact absurd (h_strict.trans_le h_lin) (lt_irrefl _)
 
 end Probability

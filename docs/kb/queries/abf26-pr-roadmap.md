@@ -18,9 +18,9 @@ on top of ArkLib.
 
 | Status | Count | Δ since 2026-05-18 |
 |---|---|---|
-| present | **32** | **+2** (L2.1 via generalised SZ wrapper; D2.20 via Algebra/Basis refactor + basis-expansion proof close) |
+| present | **33** | **+3** (L2.1 via generalised SZ wrapper; D2.20 via Algebra/Basis refactor + basis-expansion proof close; B.1 via Cauchy-Schwarz + ENNReal contradiction route) |
 | present-but-different | **10** | **−1** |
-| present-but-incomplete | **10** | **−1** |
+| present-but-incomplete | **9** | **−2** |
 | deferred | 3 (blocked on missing primitives) | 0 |
 
 The 11 `present-but-different` rows are **intentional**: each one is
@@ -99,9 +99,11 @@ The harness got two defensive fixes during the sweep that *stay*:
   `simulateQ_bind` / `StateT.run_bind` unfold for the 3-round protocol
   (cf. Sumcheck `SingleRound.reduction_perfectCompleteness` for the
   2-round template). Better as a focused proof PR.
-- ⏳ `Probability.exists_large_image_of_pairwise_collision_bound`
-  (ABF26 B.1) — Cauchy-Schwarz + Jensen + averaging. Pure analysis,
-  but ~100+ lines through PMF expectations and `ENNReal` arithmetic.
+- ✅ `Probability.exists_large_image_of_pairwise_collision_bound`
+  (ABF26 B.1) — landed 2026-05-20. Contradiction-form proof
+  (Cauchy-Schwarz + ENNReal cross-multiplication + averaging, avoids
+  Jensen). Helpers `sum_fiber_sq_eq` and `cauchy_schwarz_fiber`
+  live alongside in [`Combinatorial.lean`](../../../ArkLib/Data/Probability/Combinatorial.lean).
   Unblocks `L6.12` downstream.
 - ⏳ `T4.8` (AHIV17 general-code unique-decoding, paper-shape `ε_ca`
   form) — ε-wrap AHIV22's `prob_of_bad_pts` (PMF-over-rowspan) into
@@ -117,9 +119,8 @@ The harness got two defensive fixes during the sweep that *stay*:
 - Resolve the 3 deferred rows (T3.6, T4.15, T3.6) — need
   `Data/Probability/UniformSubset` primitive or explicit
   out-of-scope marker.
-- `Probability.Combinatorial.exists_large_image_of_pairwise_collision_bound`
-  (Claim B.1) — Cauchy-Schwarz + Jensen + averaging. Proof sketch is
-  already in the docstring.
+- ~~`Probability.Combinatorial.exists_large_image_of_pairwise_collision_bound`
+  (Claim B.1)~~ closed 2026-05-20 (see Phase 2 entry above).
 
 ## Items not in scope for this PR
 

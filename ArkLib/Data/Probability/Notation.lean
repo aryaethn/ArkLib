@@ -77,8 +77,17 @@ scoped macro_rules (kind := prStx)
   | `(Pr_{$items*}[$t]) => `((((do $items:doSeqItem*
                                      return $t:term) True) : ENNReal))
 
+/-- Unfold `Pr_{ let a ← p }[P a]` as the standard indicator-weighted PMF tsum,
+for a `Prop`-valued predicate `P`. -/
+lemma Pr_eq_tsum_indicator {α : Type} (p : PMF α) (P : α → Prop)
+    [DecidablePred P] :
+    Pr_{ let a ← p }[P a] = ∑' a, p a * (if P a then (1 : ENNReal) else 0) := by
+  simp only [Bind.bind, Pure.pure, PMF.bind, PMF.pure, DFunLike.coe,
+    eq_iff_iff, true_iff]
+
 /-- Unfold `Pr_{ let a ← p }[(decide (P a) : Prop)]` as the standard
-indicator-weighted PMF tsum. -/
+indicator-weighted PMF tsum. Specialisation of [`Pr_eq_tsum_indicator`]
+that also peels off the `Bool ↪ Prop` coercion via `decide_eq_true_iff`. -/
 lemma Pr_decide_eq_tsum_indicator {α : Type} (p : PMF α) (P : α → Prop)
     [DecidablePred P] :
     Pr_{ let a ← p }[(decide (P a) : Prop)] =

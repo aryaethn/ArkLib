@@ -23,7 +23,7 @@ on top of ArkLib.
 | present-but-incomplete | **9** | **−2** |
 | deferred | 3 (blocked on missing primitives) | 0 |
 
-The 11 `present-but-different` rows are **intentional**: each one is
+The 10 `present-but-different` rows are **intentional**: each one is
 either (a) realised by a more general ArkLib abstraction whose name
 differs from the paper's, or (b) using ArkLib's matrix-/Submodule-based
 shape rather than the paper's `Σ^n`-set shape. The paper↔Lean name
@@ -75,7 +75,7 @@ The harness got two defensive fixes during the sweep that *stay*:
   the companion artefacts list above.*
 - Decide `references/` disposition: vendor the PDFs (~20 MB) as a
   corpus, or `.gitignore` and rely on `MANIFEST.md` as a fetch script.
-- ~~Walk the 11 `present-but-different` rows for cheap paper-shaped
+- ~~Walk the 10 `present-but-different` rows for cheap paper-shaped
   aliases that promote them to `present`.~~ **Reverted 2026-05-19**:
   paper-shape aliases are anti-integration; the in-tree ArkLib name
   IS the canonical Lean name, and the audit's Notes column already

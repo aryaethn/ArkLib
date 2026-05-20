@@ -40,7 +40,7 @@ This equals twice the number of distinct (unordered) colliding pairs;
 working ordered avoids needing a `LinearOrder S` to canonicalise unordered
 pairs. Paper's `|C_φ|` is `numCollsOrdered φ / 2`. -/
 def numCollsOrdered (φ : S → T) : ℕ :=
-  (Finset.univ.filter (fun p : S × S => p.1 ≠ p.2 ∧ φ p.1 = φ p.2)).card
+  (Finset.univ.filter (fun p : S × S ↦ p.1 ≠ p.2 ∧ φ p.1 = φ p.2)).card
 
 /-- Sum of squared fiber-cardinalities = `|S| + numCollsOrdered`.
 
@@ -49,24 +49,24 @@ Each ordered pair `(x, y)` with `φ x = φ y` is counted once on the LHS
 `numCollsOrdered` off-diagonal pairs partition them. -/
 lemma sum_fiber_sq_eq (φ : S → T) :
     ∑ μ ∈ Finset.univ.image φ,
-        ((Finset.univ.filter (fun x : S => φ x = μ)).card)^2 =
+        ((Finset.univ.filter (fun x : S ↦ φ x = μ)).card)^2 =
       Fintype.card S + numCollsOrdered φ := by
   classical
   -- Step 1: LHS = #{(x, y) : φ x = φ y}.
   -- Each μ ∈ image contributes |fiber μ|² = |fiber μ × fiber μ| = #{(x,y) : φ x = φ y = μ}.
   have step1 :
       ∑ μ ∈ Finset.univ.image φ,
-          ((Finset.univ.filter (fun x : S => φ x = μ)).card)^2 =
-        (Finset.univ.filter (fun p : S × S => φ p.1 = φ p.2)).card := by
+          ((Finset.univ.filter (fun x : S ↦ φ x = μ)).card)^2 =
+        (Finset.univ.filter (fun p : S × S ↦ φ p.1 = φ p.2)).card := by
     -- The matching-pair set D = univ.filter (φ p.1 = φ p.2) partitions by φ p.1 ∈ image.
-    set D := Finset.univ.filter (fun p : S × S => φ p.1 = φ p.2)
+    set D := Finset.univ.filter (fun p : S × S ↦ φ p.1 = φ p.2)
     -- D maps into image φ via the projection p ↦ φ p.1
-    have hMaps : (D : Set (S × S)).MapsTo (fun p : S × S => φ p.1)
+    have hMaps : (D : Set (S × S)).MapsTo (fun p : S × S ↦ φ p.1)
                   (Finset.univ.image φ : Finset T) := by
       intros p _
       simp only [Finset.coe_image, Finset.coe_univ, Set.image_univ, Set.mem_range]
       exact ⟨p.1, rfl⟩
-    rw [Finset.card_eq_sum_card_fiberwise (f := fun p : S × S => φ p.1)
+    rw [Finset.card_eq_sum_card_fiberwise (f := fun p : S × S ↦ φ p.1)
         (t := Finset.univ.image φ) hMaps]
     apply Finset.sum_congr rfl
     intros μ _
@@ -85,9 +85,9 @@ lemma sum_fiber_sq_eq (φ : S → T) :
   -- Step 2: #{(x, y) : φ x = φ y} = |diag| + |off-diag matching|.
   -- diag = {(x, x)}; off-diag matching = numCollsOrdered's filter set.
   have step2 :
-      (Finset.univ.filter (fun p : S × S => φ p.1 = φ p.2)).card =
-        (Finset.univ.filter (fun p : S × S => p.1 = p.2)).card +
-        (Finset.univ.filter (fun p : S × S => p.1 ≠ p.2 ∧ φ p.1 = φ p.2)).card := by
+      (Finset.univ.filter (fun p : S × S ↦ φ p.1 = φ p.2)).card =
+        (Finset.univ.filter (fun p : S × S ↦ p.1 = p.2)).card +
+        (Finset.univ.filter (fun p : S × S ↦ p.1 ≠ p.2 ∧ φ p.1 = φ p.2)).card := by
     rw [← Finset.card_union_of_disjoint]
     · congr 1
       ext ⟨x, y⟩
@@ -102,15 +102,15 @@ lemma sum_fiber_sq_eq (φ : S → T) :
   rw [step2]
   -- Step 3: diag count = |S| via the (x : S) ↔ ((x, x) ∈ diag) bijection.
   congr 1
-  -- diag = (Finset.univ : Finset S).image (fun x => (x, x))
-  rw [show (Finset.univ.filter (fun p : S × S => p.1 = p.2)) =
-        (Finset.univ : Finset S).image (fun x => (x, x)) by
+  -- diag = (Finset.univ : Finset S).image (fun x ↦ (x, x))
+  rw [show (Finset.univ.filter (fun p : S × S ↦ p.1 = p.2)) =
+        (Finset.univ : Finset S).image (fun x ↦ (x, x)) by
     ext ⟨x, y⟩
     simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_image, Prod.mk.injEq]
     constructor
     · intro h_eq; exact ⟨x, ⟨rfl, h_eq⟩⟩
     · rintro ⟨a, ⟨rfl, rfl⟩⟩; rfl]
-  rw [Finset.card_image_of_injective _ (fun a b h => (Prod.mk.injEq _ _ _ _).mp h |>.1)]
+  rw [Finset.card_image_of_injective _ (fun a b h ↦ (Prod.mk.injEq _ _ _ _).mp h |>.1)]
   rfl
 
 /-- Cauchy-Schwarz applied to fiber cardinalities.
@@ -126,28 +126,28 @@ lemma cauchy_schwarz_fiber (φ : S → T) :
   -- Fiber decomposition: Σ μ ∈ image, |fiber μ| = |S|.
   have h_sum_card :
       ∑ μ ∈ Finset.univ.image φ,
-          (Finset.univ.filter (fun x : S => φ x = μ)).card = Fintype.card S := by
+          (Finset.univ.filter (fun x : S ↦ φ x = μ)).card = Fintype.card S := by
     have := Finset.card_eq_sum_card_image φ (Finset.univ : Finset S)
     simpa using this.symm
   -- Cast inequality through ℝ since Chebyshev requires LinearOrderedSemifield.
   have h_cs := sq_sum_le_card_mul_sum_sq
     (s := Finset.univ.image φ)
-    (f := fun μ => ((Finset.univ.filter (fun x : S => φ x = μ)).card : ℝ))
+    (f := fun μ ↦ ((Finset.univ.filter (fun x : S ↦ φ x = μ)).card : ℝ))
   -- LHS in ℝ: (Σ μ, |fiber μ|)² = |S|² (via h_sum_card cast).
   have h_lhs :
       (∑ μ ∈ Finset.univ.image φ,
-          ((Finset.univ.filter (fun x : S => φ x = μ)).card : ℝ))
+          ((Finset.univ.filter (fun x : S ↦ φ x = μ)).card : ℝ))
         = (Fintype.card S : ℝ) := by
     rw [← Nat.cast_sum, h_sum_card]
   -- RHS sum in ℝ: Σ μ, |fiber μ|² = |S| + numCollsOrdered φ (via sum_fiber_sq_eq cast).
   have h_rhs :
       (∑ μ ∈ Finset.univ.image φ,
-          (((Finset.univ.filter (fun x : S => φ x = μ)).card : ℝ))^2)
+          (((Finset.univ.filter (fun x : S ↦ φ x = μ)).card : ℝ))^2)
         = ((Fintype.card S + numCollsOrdered φ : ℕ) : ℝ) := by
     rw [show (∑ μ ∈ Finset.univ.image φ,
-          (((Finset.univ.filter (fun x : S => φ x = μ)).card : ℝ))^2)
+          (((Finset.univ.filter (fun x : S ↦ φ x = μ)).card : ℝ))^2)
         = (∑ μ ∈ Finset.univ.image φ,
-          (((Finset.univ.filter (fun x : S => φ x = μ)).card)^2 : ℕ) : ℝ) by
+          (((Finset.univ.filter (fun x : S ↦ φ x = μ)).card)^2 : ℕ) : ℝ) by
       push_cast; rfl]
     rw [← Nat.cast_sum, sum_fiber_sq_eq]
   rw [h_lhs, h_rhs] at h_cs
@@ -202,7 +202,7 @@ theorem exists_large_image_of_pairwise_collision_bound
   classical
   set N : ℕ := Fintype.card S with hN_def
   -- Pairs of distinct elements.
-  set P : Finset (S × S) := Finset.univ.filter (fun p : S × S => p.1 ≠ p.2) with hP_def
+  set P : Finset (S × S) := Finset.univ.filter (fun p : S × S ↦ p.1 ≠ p.2) with hP_def
   -- `|P| = N · (N - 1)` (Finset count of off-diagonal pairs).
   have hP_card : P.card = N * (N - 1) := by
     have h_eq : P = Finset.offDiag (Finset.univ : Finset S) := by
@@ -232,7 +232,7 @@ theorem exists_large_image_of_pairwise_collision_bound
           ∑ p ∈ P, (if φ p.1 = φ p.2 then (1 : ENNReal) else 0) := by
       intro φ
       rw [show numCollsOrdered φ =
-          (P.filter (fun p : S × S => φ p.1 = φ p.2)).card by
+          (P.filter (fun p : S × S ↦ φ p.1 = φ p.2)).card by
         unfold numCollsOrdered
         rw [hP_def]
         congr 1
@@ -251,11 +251,7 @@ theorem exists_large_image_of_pairwise_collision_bound
       intro p hp
       simp only [hP_def, Finset.mem_filter, Finset.mem_univ, true_and] at hp
       have h := hΦ p.1 p.2 hp
-      -- Unfold `Pr_{...}[(decide P : Prop)]` in h via the same identity used in
-      -- `Notation.lean`'s example: it equals `∑' φ, Φ φ * (if P then 1 else 0)`.
-      simp only [Bind.bind, Pure.pure, PMF.bind, PMF.pure, DFunLike.coe,
-        eq_iff_iff, true_iff, decide_eq_true_iff] at h
-      exact h
+      rwa [Pr_decide_eq_tsum_indicator] at h
     -- Step B.4: bound termwise.
     calc ∑ p ∈ P, ∑' φ : S → T, Φ φ * (if φ p.1 = φ p.2 then (1 : ENNReal) else 0)
         ≤ ∑ _p ∈ P, ε := Finset.sum_le_sum h_inner

@@ -77,6 +77,15 @@ scoped macro_rules (kind := prStx)
   | `(Pr_{$items*}[$t]) => `((((do $items:doSeqItem*
                                      return $t:term) True) : ENNReal))
 
+/-- Unfold `Pr_{ let a ← p }[(decide (P a) : Prop)]` as the standard
+indicator-weighted PMF tsum. -/
+lemma Pr_decide_eq_tsum_indicator {α : Type} (p : PMF α) (P : α → Prop)
+    [DecidablePred P] :
+    Pr_{ let a ← p }[(decide (P a) : Prop)] =
+      ∑' a, p a * (if P a then (1 : ENNReal) else 0) := by
+  simp only [Bind.bind, Pure.pure, PMF.bind, PMF.pure, DFunLike.coe,
+    eq_iff_iff, true_iff, decide_eq_true_iff]
+
 end ProbabilityTheory
 
 example {F} [Fintype F] [Nonempty F] :

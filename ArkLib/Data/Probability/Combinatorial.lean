@@ -5,6 +5,7 @@ Authors: Alexander Hicks
 -/
 
 import Mathlib.Probability.ProbabilityMassFunction.Basic
+import Mathlib.Algebra.Order.Chebyshev
 import ArkLib.Data.Probability.Notation
 
 /-!
@@ -45,34 +46,113 @@ def numCollsOrdered (φ : S → T) : ℕ :=
 
 Each ordered pair `(x, y)` with `φ x = φ y` is counted once on the LHS
 (via its common image μ); the `|S|` diagonal pairs `(x, x)` and the
-`numCollsOrdered` off-diagonal pairs partition them.
-
-**Tagged sorry — bounded follow-up.** Proof chains: `|fiber μ|² =
-|fiber μ × fiber μ|` (via `Finset.card_product`); sum-over-image
-collects to `#{(x, y) : φ x = φ y}` (via `Finset.card_biUnion` with
-disjointness); split diagonal vs. off-diagonal (via
-`Finset.card_union_of_disjoint`); diagonal-count = `|S|` (via the
-`fun x ↦ (x, x)` bijection from `S` to the diagonal filter). ~40-60
-lines. -/
+`numCollsOrdered` off-diagonal pairs partition them. -/
 lemma sum_fiber_sq_eq (φ : S → T) :
     ∑ μ ∈ Finset.univ.image φ,
         ((Finset.univ.filter (fun x : S => φ x = μ)).card)^2 =
       Fintype.card S + numCollsOrdered φ := by
-  sorry
+  classical
+  -- Step 1: LHS = #{(x, y) : φ x = φ y}.
+  -- Each μ ∈ image contributes |fiber μ|² = |fiber μ × fiber μ| = #{(x,y) : φ x = φ y = μ}.
+  have step1 :
+      ∑ μ ∈ Finset.univ.image φ,
+          ((Finset.univ.filter (fun x : S => φ x = μ)).card)^2 =
+        (Finset.univ.filter (fun p : S × S => φ p.1 = φ p.2)).card := by
+    -- The matching-pair set D = univ.filter (φ p.1 = φ p.2) partitions by φ p.1 ∈ image.
+    set D := Finset.univ.filter (fun p : S × S => φ p.1 = φ p.2)
+    -- D maps into image φ via the projection p ↦ φ p.1
+    have hMaps : (D : Set (S × S)).MapsTo (fun p : S × S => φ p.1)
+                  (Finset.univ.image φ : Finset T) := by
+      intros p _
+      simp only [Finset.coe_image, Finset.coe_univ, Set.image_univ, Set.mem_range]
+      exact ⟨p.1, rfl⟩
+    rw [Finset.card_eq_sum_card_fiberwise (f := fun p : S × S => φ p.1)
+        (t := Finset.univ.image φ) hMaps]
+    apply Finset.sum_congr rfl
+    intros μ _
+    -- {p ∈ D | φ p.1 = μ} = fiber μ × fiber μ.
+    rw [sq, ← Finset.card_product]
+    congr 1
+    ext ⟨x, y⟩
+    simp only [D, Finset.mem_filter, Finset.mem_univ, Finset.mem_product, true_and]
+    -- Goal: (φ x = μ ∧ φ y = μ) ↔ φ x = φ y ∧ φ x = μ
+    constructor
+    · rintro ⟨hx, hy⟩
+      exact ⟨hx.trans hy.symm, hx⟩
+    · rintro ⟨h_match, hx⟩
+      exact ⟨hx, h_match.symm.trans hx⟩
+  rw [step1]
+  -- Step 2: #{(x, y) : φ x = φ y} = |diag| + |off-diag matching|.
+  -- diag = {(x, x)}; off-diag matching = numCollsOrdered's filter set.
+  have step2 :
+      (Finset.univ.filter (fun p : S × S => φ p.1 = φ p.2)).card =
+        (Finset.univ.filter (fun p : S × S => p.1 = p.2)).card +
+        (Finset.univ.filter (fun p : S × S => p.1 ≠ p.2 ∧ φ p.1 = φ p.2)).card := by
+    rw [← Finset.card_union_of_disjoint]
+    · congr 1
+      ext ⟨x, y⟩
+      simp only [Finset.mem_filter, Finset.mem_union, Finset.mem_univ, true_and]
+      by_cases hxy : x = y
+      · simp [hxy]
+      · constructor
+        · intro hφ; right; exact ⟨hxy, hφ⟩
+        · rintro (h_eq | ⟨_, hφ⟩) <;> [exact (hxy h_eq).elim; exact hφ]
+    · rw [Finset.disjoint_filter]
+      intros _ _ h_eq h_ne_and; exact h_ne_and.1 h_eq
+  rw [step2]
+  -- Step 3: diag count = |S| via the (x : S) ↔ ((x, x) ∈ diag) bijection.
+  congr 1
+  -- diag = (Finset.univ : Finset S).image (fun x => (x, x))
+  rw [show (Finset.univ.filter (fun p : S × S => p.1 = p.2)) =
+        (Finset.univ : Finset S).image (fun x => (x, x)) by
+    ext ⟨x, y⟩
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_image, Prod.mk.injEq]
+    constructor
+    · intro h_eq; exact ⟨x, ⟨rfl, h_eq⟩⟩
+    · rintro ⟨a, ⟨rfl, rfl⟩⟩; rfl]
+  rw [Finset.card_image_of_injective _ (fun a b h => (Prod.mk.injEq _ _ _ _).mp h |>.1)]
+  rfl
 
 /-- Cauchy-Schwarz applied to fiber cardinalities.
 
 Equivalent to `Finset.sq_sum_le_card_mul_sum_sq` over the image of `φ`,
 combined with `sum_fiber_sq_eq` to rewrite the squared-sum side and
-with `Finset.card_eq_sum_card_image` (or an explicit fiber count) to
-identify `Σ μ ∈ image, |fiber μ| = |S|`.
-
-**Tagged sorry — bounded follow-up.** ~10-20 lines through the named
-Mathlib lemmas listed. -/
+with `Finset.card_eq_sum_card_image` to identify
+`Σ μ ∈ image, |fiber μ| = |S|`. -/
 lemma cauchy_schwarz_fiber (φ : S → T) :
     (Fintype.card S)^2 ≤
       (Finset.univ.image φ).card * (Fintype.card S + numCollsOrdered φ) := by
-  sorry
+  classical
+  -- Fiber decomposition: Σ μ ∈ image, |fiber μ| = |S|.
+  have h_sum_card :
+      ∑ μ ∈ Finset.univ.image φ,
+          (Finset.univ.filter (fun x : S => φ x = μ)).card = Fintype.card S := by
+    have := Finset.card_eq_sum_card_image φ (Finset.univ : Finset S)
+    simpa using this.symm
+  -- Cast inequality through ℝ since Chebyshev requires LinearOrderedSemifield.
+  have h_cs := sq_sum_le_card_mul_sum_sq
+    (s := Finset.univ.image φ)
+    (f := fun μ => ((Finset.univ.filter (fun x : S => φ x = μ)).card : ℝ))
+  -- LHS in ℝ: (Σ μ, |fiber μ|)² = |S|² (via h_sum_card cast).
+  have h_lhs :
+      (∑ μ ∈ Finset.univ.image φ,
+          ((Finset.univ.filter (fun x : S => φ x = μ)).card : ℝ))
+        = (Fintype.card S : ℝ) := by
+    rw [← Nat.cast_sum, h_sum_card]
+  -- RHS sum in ℝ: Σ μ, |fiber μ|² = |S| + numCollsOrdered φ (via sum_fiber_sq_eq cast).
+  have h_rhs :
+      (∑ μ ∈ Finset.univ.image φ,
+          (((Finset.univ.filter (fun x : S => φ x = μ)).card : ℝ))^2)
+        = ((Fintype.card S + numCollsOrdered φ : ℕ) : ℝ) := by
+    rw [show (∑ μ ∈ Finset.univ.image φ,
+          (((Finset.univ.filter (fun x : S => φ x = μ)).card : ℝ))^2)
+        = (∑ μ ∈ Finset.univ.image φ,
+          (((Finset.univ.filter (fun x : S => φ x = μ)).card)^2 : ℕ) : ℝ) by
+      push_cast; rfl]
+    rw [← Nat.cast_sum, sum_fiber_sq_eq]
+  rw [h_lhs, h_rhs] at h_cs
+  -- h_cs : (Fintype.card S : ℝ)² ≤ (#image : ℝ) * (Fintype.card S + numColls : ℝ)
+  exact_mod_cast h_cs
 
 end CollidingPairs
 

@@ -61,33 +61,33 @@ section IteratedSumcheckStep
 
 /-! ## Per-round prover / verifier (re-exported from `Sumcheck.Structured.SingleRound`)
 
-The per-round protocol code (`iteratedSumcheck{PrvState, OracleProver, OracleVerifier,
-OracleReduction}`, the helper `getIteratedSumcheckProverFinalOutput`, and the error bound
-`iteratedSumcheckRoundKnowledgeError`) was lifted to
-`ArkLib.ProofSystem.Sumcheck.Structured.SingleRound`, parameterized over a generic
+The per-round protocol code was lifted to `ArkLib.ProofSystem.Sumcheck.Structured.SingleRound`
+as `round{PrvState, OracleProver, OracleVerifier, OracleReduction}`,
+`getRoundProverFinalOutput`, and `roundKnowledgeError`, parameterized over a generic
 `Context : Type` and `OStmtIn : ιₛᵢ → Type`.
 
 For backwards compatibility, the wrappers below preserve the original autobound signature
 (via the surrounding variable block — `κ L K ℓ ℓ' (𝓑 := 𝓑) aOStmtIn`) by specializing
-`Context := RingSwitchingBaseContext κ L K ℓ` and `OStmtIn := aOStmtIn.OStmtIn`. They are
+`Context := RingSwitchingBaseContext κ L K ℓ` and `OStmtIn := aOStmtIn.OStmtIn`. They keep
+the `iteratedSumcheck*` names (these are what the sumcheck loop iterates over) and are
 `@[reducible]` so that subsequent soundness proofs and the seqCompose loop can still
 access fields like `.KnowledgeStateFunction` / `.rbrKnowledgeSoundness` through them. -/
 
 @[reducible]
 def iteratedSumcheckPrvState (i : Fin ℓ') : Fin (2 + 1) → Type :=
-  Sumcheck.Structured.iteratedSumcheckPrvState (L := L) ℓ'
+  Sumcheck.Structured.roundPrvState (L := L) ℓ'
     (RingSwitchingBaseContext κ L K ℓ) (OStmtIn := aOStmtIn.OStmtIn) i
 
 @[reducible]
-noncomputable def getIteratedSumcheckProverFinalOutput (i : Fin ℓ')
+def getIteratedSumcheckProverFinalOutput (i : Fin ℓ')
     (finalPrvState : iteratedSumcheckPrvState κ L K ℓ ℓ' aOStmtIn i 2) :
     ((Statement (L := L) (ℓ := ℓ') (RingSwitchingBaseContext κ L K ℓ) i.succ
       × (∀ j, aOStmtIn.OStmtIn j)) × SumcheckWitness L ℓ' i.succ) :=
-  Sumcheck.Structured.getIteratedSumcheckProverFinalOutput (L := L) ℓ'
+  Sumcheck.Structured.getRoundProverFinalOutput (L := L) ℓ'
     (RingSwitchingBaseContext κ L K ℓ) (OStmtIn := aOStmtIn.OStmtIn) i finalPrvState
 
 @[reducible]
-noncomputable def iteratedSumcheckOracleProver (i : Fin ℓ') :
+def iteratedSumcheckOracleProver (i : Fin ℓ') :
   OracleProver (oSpec := []ₒ)
     (StmtIn := Statement (L := L) (ℓ := ℓ') (RingSwitchingBaseContext κ L K ℓ) i.castSucc)
     (OStmtIn := aOStmtIn.OStmtIn)
@@ -96,11 +96,11 @@ noncomputable def iteratedSumcheckOracleProver (i : Fin ℓ') :
     (OStmtOut := aOStmtIn.OStmtIn)
     (WitOut := SumcheckWitness L ℓ' i.succ)
     (pSpec := pSpecSumcheckRound L) :=
-  Sumcheck.Structured.iteratedSumcheckOracleProver (L := L) ℓ' 𝓑
+  Sumcheck.Structured.roundOracleProver (L := L) ℓ' 𝓑
     (RingSwitchingBaseContext κ L K ℓ) (OStmtIn := aOStmtIn.OStmtIn) i
 
 @[reducible]
-noncomputable def iteratedSumcheckOracleVerifier (i : Fin ℓ') :
+def iteratedSumcheckOracleVerifier (i : Fin ℓ') :
   OracleVerifier
     (oSpec := []ₒ)
     (StmtIn := Statement (L := L) (ℓ := ℓ') (RingSwitchingBaseContext κ L K ℓ) i.castSucc)
@@ -108,11 +108,11 @@ noncomputable def iteratedSumcheckOracleVerifier (i : Fin ℓ') :
     (StmtOut := Statement (L := L) (ℓ := ℓ') (RingSwitchingBaseContext κ L K ℓ) i.succ)
     (OStmtOut := aOStmtIn.OStmtIn)
     (pSpec := pSpecSumcheckRound L) :=
-  Sumcheck.Structured.iteratedSumcheckOracleVerifier (L := L) ℓ'
+  Sumcheck.Structured.roundOracleVerifier (L := L) ℓ'
     (RingSwitchingBaseContext κ L K ℓ) (OStmtIn := aOStmtIn.OStmtIn) i
 
 @[reducible]
-noncomputable def iteratedSumcheckOracleReduction (i : Fin ℓ') :
+def iteratedSumcheckOracleReduction (i : Fin ℓ') :
   OracleReduction (oSpec := []ₒ)
     (StmtIn := Statement (L := L) (ℓ := ℓ') (RingSwitchingBaseContext κ L K ℓ) i.castSucc)
     (OStmtIn := aOStmtIn.OStmtIn)
@@ -121,7 +121,7 @@ noncomputable def iteratedSumcheckOracleReduction (i : Fin ℓ') :
     (OStmtOut := aOStmtIn.OStmtIn)
     (WitOut := SumcheckWitness L ℓ' i.succ)
     (pSpec := pSpecSumcheckRound L) :=
-  Sumcheck.Structured.iteratedSumcheckOracleReduction (L := L) ℓ' 𝓑
+  Sumcheck.Structured.roundOracleReduction (L := L) ℓ' 𝓑
     (RingSwitchingBaseContext κ L K ℓ) (OStmtIn := aOStmtIn.OStmtIn) i
 
 variable {R : Type} [CommSemiring R] [DecidableEq R] [SampleableType R]
@@ -129,6 +129,7 @@ variable {R : Type} [CommSemiring R] [DecidableEq R] [SampleableType R]
 
 variable {σ : Type} {init : ProbComp σ} {impl : QueryImpl []ₒ (StateT σ ProbComp)}
 
+omit [Fintype L] [Fintype K] [DecidableEq K] in
 theorem iteratedSumcheckOracleReduction_perfectCompleteness (i : Fin ℓ') :
     OracleReduction.perfectCompleteness
       (pSpec := pSpecSumcheckRound L)
@@ -144,9 +145,9 @@ theorem iteratedSumcheckOracleReduction_perfectCompleteness (i : Fin ℓ') :
 
 open scoped NNReal
 
--- Lifted to `Sumcheck.Structured.iteratedSumcheckRoundKnowledgeError`.
--- Re-exported so existing references resolve unchanged.
-export Sumcheck.Structured (iteratedSumcheckRoundKnowledgeError)
+-- Lifted to `Sumcheck.Structured.roundKnowledgeError`.
+-- Re-exported into this namespace for local use.
+export Sumcheck.Structured (roundKnowledgeError)
 
 noncomputable def iteratedSumcheckRbrExtractor (i : Fin ℓ') :
   Extractor.RoundByRound []ₒ
@@ -267,7 +268,7 @@ theorem iteratedSumcheckOracleVerifier_rbrKnowledgeSoundness (i : Fin ℓ') :
     (iteratedSumcheckOracleVerifier κ L K ℓ ℓ' aOStmtIn i).rbrKnowledgeSoundness init impl
       (relIn := sumcheckRoundRelation κ L K β ℓ ℓ' h_l (𝓑:=𝓑) aOStmtIn i.castSucc)
       (relOut := sumcheckRoundRelation κ L K β ℓ ℓ' h_l (𝓑:=𝓑) aOStmtIn i.succ)
-      (fun j => iteratedSumcheckRoundKnowledgeError L ℓ' i) := by
+      (fun j => roundKnowledgeError L ℓ' i) := by
   use fun _ => SumcheckWitness L ℓ' i.castSucc
   use iteratedSumcheckRbrExtractor κ L K β ℓ ℓ' h_l aOStmtIn i
   use iteratedSumcheckKnowledgeStateFunction κ L K β ℓ ℓ' h_l aOStmtIn i

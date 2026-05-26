@@ -19,17 +19,16 @@ the polynomial `H = m · t` is the prover's *witness*: `t` is a committed multil
 is a context-dependent multilinear multiplier, and `H` is their degree-2 product. The
 verifier sees only the prover's round polynomials `pᵢ`, not `H` directly.
 
-The two modes coexist as parallel primitives under `Sumcheck`. See
-`GENERIC_RING_SWITCHING_PLAN.md` §1.5 for the design discussion.
+The two modes coexist as parallel primitives under `Sumcheck`.
 
 ## TODO (option C, tracked separately)
 
-After the structured-sumcheck protocol code lands (PR 2 of the same plan), an issue should
-be opened to prove the structured-mode soundness is derivable from the canonical-mode
-soundness via the refinement `H = m · t`. Until then, the two modes carry independent
-proofs.
+A refinement theorem connecting the two modes — given `H = m · t`, derive structured-mode
+soundness from canonical-mode soundness — is left for follow-up work. Until then, the two
+modes carry independent proofs.
 
-## Contents (lifted verbatim from `Binius.BinaryBasefold.Basic` § `SumcheckOperations`)
+## Contents (lifted from `Binius.BinaryBasefold.Basic` § `SumcheckOperations` and
+`Binius.RingSwitching.SumcheckWitness`)
 
 - `MultilinearPoly`, `MultiquadraticPoly` — degree-1 / degree-2 `MvPolynomial` abbreviations.
 - `SumcheckMultiplierParam` — bundles a `Context → MultilinearPoly` (the multiplier `m`).
@@ -39,6 +38,8 @@ proofs.
 - `SumcheckBaseContext` — `(t_eval_point, original_claim)` shared input.
 - `Statement Context i` — per-round state: `(sumcheck_target, challenges, ctx)`.
 - `sumcheckConsistencyProp` — claim equals hypercube sum.
+- `SumcheckWitness` — per-round witness `(t', H)` (the committed multilinear + projected
+  round polynomial).
 -/
 
 noncomputable section

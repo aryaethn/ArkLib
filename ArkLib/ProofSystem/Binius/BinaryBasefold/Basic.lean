@@ -900,7 +900,8 @@ def oracleWitnessConsistency
       ϑ (i := oracleIdx) j)) : Prop :=
   let witnessStructuralInvariant: Prop := witnessStructuralInvariant (mp := mp) (i:=stmtIdx) 𝔽q β
     (h_ℓ_add_R_rate := h_ℓ_add_R_rate) stmt wit
-  let sumCheckConsistency: Prop := sumcheckConsistencyProp (𝓑 := 𝓑) stmt.sumcheck_target wit.H
+  let sumCheckConsistency: Prop := sumcheckConsistencyProp (SumcheckDomain.uniform 𝓑 _)
+    stmt.sumcheck_target wit.H
   let firstOracleConsistency: Prop := firstOracleWitnessConsistencyProp 𝔽q β
     wit.t (getFirstOracle 𝔽q β oStmt)
   let oracleFoldingConsistency: Prop := oracleFoldingConsistencyProp 𝔽q β oracleIdx

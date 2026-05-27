@@ -40,7 +40,24 @@ noncomputable section
 
 section RoundPoly
 
-variable {L : Type} [CommRing L] (ℓ : ℕ) [NeZero ℓ] (𝓑 : Fin 2 ↪ L)
+variable {L : Type} [CommRing L] (ℓ : ℕ) [NeZero ℓ] (D : SumcheckDomain L ℓ)
+
+/-- Degree bound for the prover's round polynomial over an **arbitrary** summation set `S`.
+This is the heterogeneous generalisation of `Spec.SingleRound.sumcheck_roundPoly_degreeLE`, which
+fixes `S` to a uniform cube `(univ.map D) ^ᶠ (n - i)`. The per-round / hyperprism sumcheck sums over
+heterogeneous cubes `(SumcheckDomain.drop …).cube`, so the degree bound must not depend on the shape
+of `S` — and indeed it doesn't: each summand has degree `≤ deg` in the free variable, and a finite
+sum preserves that. -/
+theorem roundPoly_degreeLE_finset {R : Type*} [CommSemiring R] {n deg : ℕ} (i : Fin (n + 1))
+    {challenges : Fin i.castSucc → R} {poly : R[X Fin (n + 1)]}
+    (hp : poly ∈ R⦃≤ deg⦄[X Fin (n + 1)]) (S : Finset (Fin (n - i) → R)) :
+    ∑ x ∈ S, poly ⸨X ⦃i⦄, challenges, x⸩' (by simp; omega) ∈ R⦃≤ deg⦄[X] := by
+  refine mem_degreeLE.mpr (le_trans (degree_sum_le S _) ?_)
+  simp only [Finset.sup_le_iff]
+  intro x _
+  refine le_trans degree_map_le (natDegree_le_iff_degree_le.mp ?_)
+  rw [natDegree_finSuccEquivNth]
+  exact degreeOf_le_iff.mpr fun m a ↦ hp a i
 
 /- `H_i(X_i, ..., X_{ℓ-1})` -> `g_i(X)` derivation. Degree-generic: the round polynomial
 `h` and the resulting univariate `g_i` share the degree bound `d` (inferred from `h`). -/
@@ -54,13 +71,14 @@ def getSumcheckRoundPoly {d : ℕ} (i : Fin ℓ) (h : ↥L⦃≤ d⦄[X Fin (ℓ
   let challenges : Fin 0 → L := fun (j : Fin 0) => j.elim0
   let curH_cast : L[X Fin ((ℓ - ↑i.castSucc - 1) + 1)] := by
     convert h.val
-  let g := ∑ x ∈ (univ.map 𝓑) ^ᶠ (ℓ - ↑i.castSucc - 1), curH_cast ⸨X ⦃0⦄, challenges, x⸩' (by omega)
+  let g := ∑ x ∈ (D.drop (↑i.castSucc + 1)).cube, curH_cast ⸨X ⦃0⦄, challenges, x⸩' (by omega)
   exact ⟨g, by
     have h_deg_le_d : g ∈ L⦃≤ d⦄[X] := by
       simp only [g]
-      let hDegIn := Sumcheck.Spec.SingleRound.sumcheck_roundPoly_degreeLE
-        (R := L) (D := 𝓑) (n := ℓ - ↑i.castSucc - 1) (deg := d) (i := ⟨0, by omega⟩)
+      let hDegIn := roundPoly_degreeLE_finset
+        (R := L) (n := ℓ - ↑i.castSucc - 1) (deg := d) (i := ⟨0, by omega⟩)
         (challenges := fun j => j.elim0) (poly := curH_cast)
+        (S := (D.drop (↑i.castSucc + 1)).cube)
       have h_in_degLE : curH_cast ∈ L⦃≤ d⦄[X Fin (ℓ - ↑i.castSucc - 1 + 1)] := by
         rw! (castMode := .all) [h_count_eq]
         dsimp only [Fin.val_castSucc, eq_mpr_eq_cast, curH_cast]
@@ -120,7 +138,7 @@ Schwartz–Zippel bound; it doesn't depend on `Context` or `OStmtIn`. -/
 
 section SingleRound
 
-variable {L : Type} [CommRing L] [DecidableEq L] (ℓ : ℕ) [NeZero ℓ] (𝓑 : Fin 2 ↪ L)
+variable {L : Type} [CommRing L] [DecidableEq L] (ℓ : ℕ) [NeZero ℓ] (D : SumcheckDomain L ℓ)
 variable (Context : Type) {ιₛᵢ : Type} {OStmtIn : ιₛᵢ → Type}
   [Oₛᵢ : ∀ j, OracleInterface (OStmtIn j)]
 -- Round-polynomial degree bound. `d = 2` for the `H = P · t` case (Binius, ring-switching);
@@ -196,7 +214,7 @@ def roundOracleProver (i : Fin ℓ) :
   | ⟨0, _⟩ => fun ⟨⟨stmt, oStmt⟩, wit⟩ => do
     let curH : ↥L⦃≤ d⦄[X Fin (ℓ - ↑i.castSucc)] := wit.H
     let h_i : L⦃≤ d⦄[X] := by
-      exact getSumcheckRoundPoly ℓ 𝓑 (i := i) curH
+      exact getSumcheckRoundPoly ℓ D (i := i) curH
     pure ⟨h_i, (stmt, oStmt, wit, h_i)⟩
   | ⟨1, _⟩ => by contradiction
 
@@ -213,9 +231,9 @@ def roundOracleProver (i : Fin ℓ) :
 /-- The oracle verifier for the `i`-th round of the structured sumcheck.
 
 Receives the degree-`d` univariate `h_i(X)` from the prover, checks
-`s_i ?= h_i(𝓑 0) + h_i(𝓑 1)` (summing the round polynomial over the hypercube domain `𝓑`, to
-match how the prover builds it), samples `r'_i ∈ L`, and outputs the updated statement with
-`s_{i+1} := h_i(r'_i)`. -/
+`s_i ?= ∑ b ∈ D.points i, h_i(b)` (summing the round polynomial over coordinate `i`'s evaluation
+domain, to match how the prover builds it; for the boolean hypercube this is `h_i(0) + h_i(1)`),
+samples `r'_i ∈ L`, and outputs the updated statement with `s_{i+1} := h_i(r'_i)`. -/
 def roundOracleVerifier (i : Fin ℓ) :
   OracleVerifier
     (oSpec := []ₒ)
@@ -229,8 +247,9 @@ def roundOracleVerifier (i : Fin ℓ) :
     -- Message 0: receive h_i(X) from prover.
     let h_i : L⦃≤ d⦄[X] ← query (spec := [(pSpecSumcheckRound L d).Message]ₒ)
       ⟨⟨0, rfl⟩, ()⟩
-    -- Sumcheck check: s_i ?= h_i(𝓑 0) + h_i(𝓑 1), i.e. ∑_{y ∈ univ.map 𝓑} h_i(y).
-    let sumcheck_check := h_i.val.eval (𝓑 0) + h_i.val.eval (𝓑 1) = stmtIn.sumcheck_target
+    -- Sumcheck check: s_i ?= ∑_{b ∈ D.points i} h_i(b), summing the round polynomial over the
+    -- evaluation domain of coordinate `i` (for the boolean hypercube this is `h_i(0) + h_i(1)`).
+    let sumcheck_check := (∑ b ∈ D.points i, h_i.val.eval b) = stmtIn.sumcheck_target
     unless sumcheck_check do
       let dummyStmt : Statement (L := L) (ℓ := ℓ) Context i.succ := {
         ctx := stmtIn.ctx,
@@ -259,8 +278,8 @@ def roundOracleReduction (i : Fin ℓ) :
     (OStmtOut := OStmtIn)
     (WitOut := SumcheckWitness L ℓ i.succ d)
     (pSpec := pSpecSumcheckRound L d) where
-  prover := roundOracleProver (L := L) ℓ 𝓑 Context (OStmtIn := OStmtIn) d i
-  verifier := roundOracleVerifier (L := L) ℓ 𝓑 Context (OStmtIn := OStmtIn) d i
+  prover := roundOracleProver (L := L) ℓ D Context (OStmtIn := OStmtIn) d i
+  verifier := roundOracleVerifier (L := L) ℓ D Context (OStmtIn := OStmtIn) d i
 
 end SingleRound
 

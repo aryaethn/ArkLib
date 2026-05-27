@@ -99,7 +99,7 @@ def iteratedSumcheckOracleProver (i : Fin ℓ') :
     (OStmtOut := aOStmtIn.OStmtIn)
     (WitOut := SumcheckWitness L ℓ' i.succ)
     (pSpec := pSpecSumcheckRound L) :=
-  Sumcheck.Structured.roundOracleProver (L := L) ℓ' 𝓑
+  Sumcheck.Structured.roundOracleProver (L := L) ℓ' (SumcheckDomain.uniform 𝓑 ℓ')
     (RingSwitchingBaseContext κ L K ℓ) (OStmtIn := aOStmtIn.OStmtIn) (d := 2) i
 
 @[reducible]
@@ -111,7 +111,7 @@ def iteratedSumcheckOracleVerifier (i : Fin ℓ') :
     (StmtOut := Statement (L := L) (ℓ := ℓ') (RingSwitchingBaseContext κ L K ℓ) i.succ)
     (OStmtOut := aOStmtIn.OStmtIn)
     (pSpec := pSpecSumcheckRound L) :=
-  Sumcheck.Structured.roundOracleVerifier (L := L) ℓ' 𝓑
+  Sumcheck.Structured.roundOracleVerifier (L := L) ℓ' (SumcheckDomain.uniform 𝓑 ℓ')
     (RingSwitchingBaseContext κ L K ℓ) (OStmtIn := aOStmtIn.OStmtIn) (d := 2) i
 
 @[reducible]
@@ -124,7 +124,7 @@ def iteratedSumcheckOracleReduction (i : Fin ℓ') :
     (OStmtOut := aOStmtIn.OStmtIn)
     (WitOut := SumcheckWitness L ℓ' i.succ)
     (pSpec := pSpecSumcheckRound L) :=
-  Sumcheck.Structured.roundOracleReduction (L := L) ℓ' 𝓑
+  Sumcheck.Structured.roundOracleReduction (L := L) ℓ' (SumcheckDomain.uniform 𝓑 ℓ')
     (RingSwitchingBaseContext κ L K ℓ) (OStmtIn := aOStmtIn.OStmtIn) (d := 2) i
 
 variable {R : Type} [CommSemiring R] [DecidableEq R] [SampleableType R]
@@ -179,7 +179,8 @@ def iteratedSumcheckKStateProp (i : Fin ℓ') (m : Fin (2 + 1))
     (oStmt : ∀ j, aOStmtIn.OStmtIn j) :
     Prop :=
   -- Ground-truth polynomial from witness
-  let h_star : ↥L⦃≤ 2⦄[X] := getSumcheckRoundPoly ℓ' 𝓑 (i := i) (h := witMid.H)
+  let h_star : ↥L⦃≤ 2⦄[X] := getSumcheckRoundPoly ℓ' (SumcheckDomain.uniform 𝓑 ℓ') (i := i)
+    (h := witMid.H)
   -- Checks available after message 1 (P -> V : hᵢ(X))
   let get_Hᵢ := fun (m: Fin (2 + 1)) (tr: Transcript m (pSpecSumcheckRound L)) (hm: 1 ≤ m.val) =>
     let ⟨msgsUpTo, _⟩ := Transcript.equivMessagesChallenges (k := m)
@@ -213,7 +214,8 @@ def iteratedSumcheckKStateProp (i : Fin ℓ') (m : Fin (2 + 1))
       (stmt := stmt) (oStmt := oStmt) (wit := witMid)
       (localChecks :=
         let h_i := get_Hᵢ (m := ⟨1, h1⟩) (tr := tr) (hm := by simp only [le_refl])
-        let explicitVCheck := h_i.val.eval (𝓑 0) + h_i.val.eval (𝓑 1) = stmt.sumcheck_target
+        let explicitVCheck :=
+          (∑ b ∈ (SumcheckDomain.uniform 𝓑 ℓ').points i, h_i.val.eval b) = stmt.sumcheck_target
         let localizedRoundPolyCheck := h_i = h_star
         explicitVCheck ∧ localizedRoundPolyCheck
       )

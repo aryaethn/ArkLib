@@ -123,7 +123,7 @@ noncomputable def foldOracleProver (i : Fin ℓ) :
   | ⟨0, _⟩ => fun ⟨stmt, oStmt, wit⟩ => do
     let curH : ↥L⦃≤ 2⦄[X Fin (ℓ - ↑i.castSucc)] := wit.H
     let h_i : L⦃≤ 2⦄[X] := by
-      exact getSumcheckRoundPoly ℓ 𝓑 (i := i) curH
+      exact getSumcheckRoundPoly ℓ (SumcheckDomain.uniform 𝓑 ℓ) (i := i) curH
     pure ⟨h_i, (stmt, oStmt, wit, h_i)⟩
   | ⟨1, _⟩ => by contradiction
 
@@ -283,7 +283,8 @@ def foldKStateProp {i : Fin ℓ} (m : Fin (2 + 1))
     (oStmt : ∀ j, OracleStatement 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) ϑ i.castSucc j) :
     Prop :=
   -- Ground-truth polynomial from witness
-  let h_star : ↥L⦃≤ 2⦄[X] := getSumcheckRoundPoly ℓ 𝓑 (i := i) (h := witMid.H)
+  let h_star : ↥L⦃≤ 2⦄[X] := getSumcheckRoundPoly ℓ (SumcheckDomain.uniform 𝓑 ℓ) (i := i)
+    (h := witMid.H)
   -- Checks available after message 1 (P -> V : hᵢ(X))
   let get_Hᵢ := fun (m: Fin (2 + 1)) (tr: Transcript m pSpecFold) (hm: 1 ≤ m.val) =>
     let ⟨msgsUpTo, _⟩ := Transcript.equivMessagesChallenges (k := m)

@@ -425,7 +425,7 @@ def masterKStateProp (aOStmtIn : AbstractOStmtIn L ℓ') (stmtIdx : Fin (ℓ' + 
     (localChecks : Prop := True) : Prop :=
   localChecks
   ∧ witnessStructuralInvariant κ L K β ℓ ℓ' h_l stmt wit
-  ∧ sumcheckConsistencyProp (𝓑:=𝓑) stmt.sumcheck_target wit.H
+  ∧ sumcheckConsistencyProp (SumcheckDomain.uniform 𝓑 _) stmt.sumcheck_target wit.H
   ∧ aOStmtIn.initialCompatibility ⟨wit.t', oStmt⟩
 
 def sumcheckRoundRelationProp (aOStmtIn : AbstractOStmtIn L ℓ') (i : Fin (ℓ' + 1))

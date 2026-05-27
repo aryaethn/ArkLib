@@ -5,6 +5,7 @@ Authors: Chung Thai Nguyen, Quang Dao
 -/
 
 import ArkLib.Data.MvPolynomial.RestrictDegree
+import ArkLib.ProofSystem.Sumcheck.Domain
 
 /-!
 # Structured (Witness-Mode) Sumcheck — Types and Helpers
@@ -179,11 +180,13 @@ end ContextAndStatement
 section ConsistencyProp
 
 variable {L : Type} [CommRing L]
-variable {𝓑 : Fin 2 ↪ L}
 
-/-- Sumcheck consistency: the claimed sum equals the actual polynomial evaluation sum -/
-def sumcheckConsistencyProp {k : ℕ} (sumcheckTarget : L) (H : L⦃≤ 2⦄[X Fin (k)]) : Prop :=
-  sumcheckTarget = ∑ x ∈ (univ.map 𝓑) ^ᶠ (k), H.val.eval x
+/-- Sumcheck consistency: the claimed sum equals the actual polynomial evaluation sum over the
+evaluation domain `D`'s cube. For the boolean hypercube (`D = boolDomain` / `uniform 𝓑`) this is the
+sum over `{0,1}^k`. -/
+def sumcheckConsistencyProp {k : ℕ} (D : SumcheckDomain L k) (sumcheckTarget : L)
+    (H : L⦃≤ 2⦄[X Fin (k)]) : Prop :=
+  sumcheckTarget = ∑ x ∈ D.cube, H.val.eval x
 
 end ConsistencyProp
 

@@ -184,6 +184,9 @@ every coordinate. This is the plain multilinear sum-check domain (Binius, Hachi,
 def boolDomain (R : Type u) [CommSemiring R] [Nontrivial R] (k : ℕ) : SumcheckDomain R k :=
   SumcheckDomain.uniform (boolEmbedding R) k
 
+@[simp] lemma points_boolDomain (R : Type u) [CommSemiring R] [Nontrivial R] {k : ℕ}
+    (i : Fin k) : (boolDomain R k).points i = Finset.univ.map (boolEmbedding R) := rfl
+
 /-- A *hyperprism* domain `𝔻 = D × {0,1}^k` (SWIRL): coordinate `0` ranges over a given `2^ℓ`-point
 univariate "skip" domain `Dskip`, and the remaining `k` coordinates are Boolean.
 

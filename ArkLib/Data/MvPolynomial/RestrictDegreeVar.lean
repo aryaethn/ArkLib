@@ -64,4 +64,11 @@ theorem restrictDegreeVar_le_restrictDegree {b : σ → ℕ} {m : ℕ} (h : ∀ 
   rw [← restrictDegreeVar_const (σ := σ) (R := R) m]
   exact restrictDegreeVar_mono h
 
+/-- The SWIRL **prismalinear** degree bound on `Fin (k+1)` variables: degree `2^ℓ − 1` in the
+univariate-skip coordinate (coord `0`) and degree `≤ 1` in each of the remaining `k` Boolean
+coordinates. The hyperprism multiplier (the `eq`-polynomial of SWIRL/Gru24) lies in
+`restrictDegreeVar (Fin (k+1)) R (prismalinearBound ℓ k)`. -/
+def prismalinearBound (ℓ k : ℕ) : Fin (k + 1) → ℕ :=
+  Fin.cons (2 ^ ℓ - 1) (fun _ : Fin k => 1)
+
 end MvPolynomial

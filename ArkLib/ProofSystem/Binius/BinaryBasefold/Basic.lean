@@ -17,7 +17,6 @@ open ReedSolomon Code BerlekampWelch
 open Finset AdditiveNTT Polynomial MvPolynomial Nat Matrix
 
 variable {L : Type} [CommRing L] (ℓ : ℕ) [NeZero ℓ]
-variable (𝓑 : Fin 2 ↪ L)
 
 section OracleStatementIndex
 variable (ℓ : ℕ) (ϑ : ℕ) [NeZero ℓ] [NeZero ϑ] [hdiv : Fact (ϑ ∣ ℓ)]
@@ -144,7 +143,7 @@ lemma toOutCodewordsCount_succ_eq_add_one_iff (i : Fin ℓ) :
     rw [h_i_div_ϑ, h_k, add_comm]
     omega
   · -- ⊢ toOutCodewordsCount ℓ ϑ i.castSucc + 1 = toOutCodewordsCount ℓ ϑ i.succ →
-    --   ϑ ∣ ↑i.succ ∧ i.succ ≠ ⟨ℓ, ⋯⟩
+    -- ϑ ∣ ↑i.succ ∧ i.succ ≠ ⟨ℓ, ⋯⟩
     intro h_eq
     constructor
     · -- Prove ϑ ∣ ↑i.succ
@@ -383,7 +382,6 @@ variable (β : Fin r → L) [hβ_lin_indep : Fact (LinearIndependent 𝔽q β)]
   [h_β₀_eq_1 : Fact (β 0 = 1)]
 variable {ℓ 𝓡 ϑ : ℕ} (γ_repetitions : ℕ) [NeZero ℓ] [NeZero 𝓡] [NeZero ϑ] -- Should we allow ℓ = 0?
 variable {h_ℓ_add_R_rate : ℓ + 𝓡 < r} -- ℓ ∈ {1, ..., r-1}
-variable {𝓑 : Fin 2 ↪ L}
 variable [hdiv : Fact (ϑ ∣ ℓ)]
 
 section IndexBounds
@@ -473,10 +471,10 @@ export Sumcheck.Structured (SumcheckBaseContext Statement)
 /-- Statement for the final sumcheck step - includes the final constant c -/
 structure FinalSumcheckStatementOut extends
   Statement (L := L) (Context := SumcheckBaseContext L ℓ) (Fin.last ℓ) where
-  final_constant : L               -- c = f^(ℓ)(0, ..., 0)
+  final_constant : L -- c = f^(ℓ)(0, ..., 0)
 
 def toStatement (stmt : FinalSumcheckStatementOut (L := L) (ℓ := ℓ)) :
-  Statement (L := L) (Context := SumcheckBaseContext L ℓ) (Fin.last ℓ)  :=
+  Statement (L := L) (Context := SumcheckBaseContext L ℓ) (Fin.last ℓ) :=
   {
     sumcheck_target := stmt.sumcheck_target,
     challenges := stmt.challenges,
@@ -509,7 +507,7 @@ This ensures efficient computability and constraint on the structure of `H_i`
 according to `t`.
 -/
 structure Witness (i : Fin (ℓ + 1)) where
-  t : L⦃≤ 1⦄[X Fin ℓ]  -- The original polynomial t
+  t : L⦃≤ 1⦄[X Fin ℓ] -- The original polynomial t
   H : L⦃≤ 2⦄[X Fin (ℓ - i)] -- Hᵢ
   f: (sDomain 𝔽q β h_ℓ_add_R_rate) ⟨i, by omega⟩ → L -- fᵢ
 
@@ -520,7 +518,7 @@ noncomputable def extractMLP (i : Fin ℓ) (f : (sDomain 𝔽q β h_ℓ_add_R_ra
   set d := Code.distFromCode (u := f)
     (C := BBF_Code 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) ⟨i, by omega⟩)
   let e: ℕ := d.toNat
-  let k : ℕ := 2^(ℓ - i.val)  -- degree bound from BBF_Code definition
+  let k : ℕ := 2^(ℓ - i.val) -- degree bound from BBF_Code definition
   -- Convert domain to Fin format for Berlekamp-Welch
   let domain_to_fin : (sDomain 𝔽q β h_ℓ_add_R_rate)
     ⟨i, by omega⟩ ≃ Fin domain_size := by
@@ -547,11 +545,11 @@ noncomputable def extractMLP (i : Fin ℓ) (f : (sDomain 𝔽q β h_ℓ_add_R_ra
   let berlekamp_welch_result: Option L[X] := BerlekampWelch.decoder e k ωs f_vals
 
   match berlekamp_welch_result with
-  | none => exact none  -- Decoder failed
+  | none => exact none -- Decoder failed
   | some P =>
     -- 5. Check if degree < 2^ℓ (unique decoding condition)
     if hp_deg_lt: P.natDegree ≥ 2^(ℓ - i.val) then
-      exact none  -- Outside unique decoding radius
+      exact none -- Outside unique decoding radius
     else
       -- 6. Convert P(X) from monomial basis to novel polynomial basis
       -- P(X) = Σᵢ aᵢ Xᵢ (monomial) → P(X) = Σⱼ tⱼ X_{j}(X) (novel)
@@ -614,8 +612,8 @@ def dummyLastWitness :
 /-- The initial statement for the commitment phase contains the evaluation claim s = t(r) -/
 structure InitialStatement where
   -- Original evaluation claim: s = t(r)
-  t_eval_point : Fin ℓ → L         -- r = (r_0, ..., r_{ℓ-1}) => shared input
-  original_claim : L               -- s = t(r) => the original claim to verify
+  t_eval_point : Fin ℓ → L -- r = (r_0, ..., r_{ℓ-1}) => shared input
+  original_claim : L -- s = t(r) => the original claim to verify
 
 open Classical in
 def snoc_oracle {i : Fin ℓ}
@@ -627,7 +625,7 @@ def snoc_oracle {i : Fin ℓ}
   have h_succ_val: i.succ.val = i.val + 1 := rfl
   if hj: j.val < (toOutCodewordsCount ℓ ϑ i.castSucc) then
     oStmtIn ⟨j, by omega⟩
-  else --  j.val ≥ toOutCodewordsCount ℓ ϑ i.castSucc
+  else -- j.val ≥ toOutCodewordsCount ℓ ϑ i.castSucc
     -- simp only [not_lt] at hj
     if hi: isCommitmentRound ℓ ϑ i then
       -- NEW PROOF --
@@ -900,7 +898,7 @@ def oracleWitnessConsistency
       ϑ (i := oracleIdx) j)) : Prop :=
   let witnessStructuralInvariant: Prop := witnessStructuralInvariant (mp := mp) (i:=stmtIdx) 𝔽q β
     (h_ℓ_add_R_rate := h_ℓ_add_R_rate) stmt wit
-  let sumCheckConsistency: Prop := sumcheckConsistencyProp (SumcheckDomain.uniform 𝓑 _)
+  let sumCheckConsistency: Prop := sumcheckConsistencyProp (boolDomain L _)
     stmt.sumcheck_target wit.H
   let firstOracleConsistency: Prop := firstOracleWitnessConsistencyProp 𝔽q β
     wit.t (getFirstOracle 𝔽q β oStmt)
@@ -915,9 +913,9 @@ lemma oracleWitnessConsistency_relay_preserved
     (stmt : Statement (L := L) Context i.succ)
     (wit : Witness (L := L) 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i.succ)
     (oStmt : ∀ j, OracleStatement 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) ϑ i.castSucc j) :
-    oracleWitnessConsistency (mp := mp) (𝓑 := 𝓑) 𝔽q β i.succ i.castSucc
+    oracleWitnessConsistency (mp := mp) 𝔽q β i.succ i.castSucc
       (le_succ ↑i.castSucc) stmt wit oStmt =
-    oracleWitnessConsistency (mp := mp) (𝓑 := 𝓑) 𝔽q β i.succ i.succ (by rfl) stmt wit
+    oracleWitnessConsistency (mp := mp) 𝔽q β i.succ i.succ (by rfl) stmt wit
       (mapOStmtOutRelayStep 𝔽q β i hNCR oStmt) := by
   unfold oracleWitnessConsistency
   sorry
@@ -925,7 +923,7 @@ lemma oracleWitnessConsistency_relay_preserved
 /-- Before V's challenge of the `i-th` foldStep, we ignore the bad-folding-event
 of the `i-th` oracle if any and enable it after the next V's challenge, i.e. one
 round later. This is for the purpose of reasoning its RBR KS properly.
-Formally,  = (oracleIdx = stmtIdx)`.
+Formally, = (oracleIdx = stmtIdx)`.
 -/
 def masterKStateProp (stmtIdx : Fin (ℓ + 1))
     (oracleIdx : Fin (ℓ + 1))
@@ -933,7 +931,7 @@ def masterKStateProp (stmtIdx : Fin (ℓ + 1))
     (wit : Witness (L := L) 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) stmtIdx)
     (oStmt : ∀ j, (OracleStatement 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) ϑ (i := oracleIdx) j))
     (localChecks : Prop := True) : Prop :=
-  let oracleWitnessConsistency: Prop := oracleWitnessConsistency (mp := mp) (𝓑 := 𝓑) 𝔽q β
+  let oracleWitnessConsistency: Prop := oracleWitnessConsistency (mp := mp) 𝔽q β
     stmtIdx oracleIdx h_le stmt wit oStmt
   let badEventExists := badEventExistsProp (ϑ := ϑ) 𝔽q β oracleIdx
     (challenges := Fin.take (m := oracleIdx) (v := stmt.challenges) (h := by omega))
@@ -947,7 +945,7 @@ def roundRelationProp (i : Fin (ℓ + 1))
   let stmt := input.1.1
   let oStmt := input.1.2
   let wit := input.2
-  masterKStateProp (mp := mp) (𝓑 := 𝓑) 𝔽q β
+  masterKStateProp (mp := mp) 𝔽q β
     (stmtIdx := i) (oracleIdx := i) (h_le := le_refl i) stmt wit oStmt (localChecks := True)
 
 /-- A modified version of roundRelationProp (i+1) -/
@@ -958,7 +956,7 @@ def foldStepRelOutProp (i : Fin ℓ)
   let stmt := input.1.1
   let oStmt := input.1.2
   let wit := input.2
-  masterKStateProp (mp := mp) (𝓑 := 𝓑) 𝔽q β
+  masterKStateProp (mp := mp) 𝔽q β
     (stmtIdx := i.succ) (oracleIdx := i.castSucc)
     (h_le := Nat.le_of_lt (Fin.castSucc_lt_succ)) stmt wit oStmt (localChecks := True)
 
@@ -1017,7 +1015,7 @@ def foldStepRelOut (i : Fin ℓ) :
     Set ((Statement (L := L) Context i.succ ×
       (∀ j, OracleStatement 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) ϑ i.castSucc j)) ×
       Witness (L := L) 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i.succ) :=
-  { input | foldStepRelOutProp (mp := mp) (𝓑 := 𝓑) 𝔽q β i input}
+  { input | foldStepRelOutProp (mp := mp) 𝔽q β i input}
 
 /-- Relation at step `i` of the CoreInteraction. `∀ i < ℓ, R_i` must hold at the
 beginning of ITERATION `i`. `R_ℓ` must hold after the last iteration and before sending
@@ -1026,7 +1024,7 @@ def roundRelation (i : Fin (ℓ + 1)) :
     Set ((Statement (L := L) Context i ×
       (∀ j, OracleStatement 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) ϑ i j)) ×
       Witness (L := L) 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i) :=
-  { input | roundRelationProp (mp := mp) (𝓑 := 𝓑) 𝔽q β i input}
+  { input | roundRelationProp (mp := mp) 𝔽q β i input}
 
 /-- Relation for final sumcheck step -/
 def finalSumcheckRelOutProp

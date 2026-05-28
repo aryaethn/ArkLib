@@ -36,7 +36,7 @@ theorem hammingDist_le_of_outer_comp_injective {ι₁ ι₂ : Type*} [Fintype ι
   suffices (Finset.filter (fun i₁ => x (g i₁) ≠ y (g i₁)) Finset.univ).card ≤ D₂.card by
     unfold hammingDist; simp only [this, D₂]
   -- The cardinality of a preimage is at most the cardinalit
-    --  of the original set for an injective function.
+    -- of the original set for an injective function.
   -- ⊢ #{i₁ | x (g i₁) ≠ y (g i₁)} ≤ #D₂
    -- First, we state that the set on the left is the `preimage` of D₂ under g.
   have h_preimage : Finset.filter (fun i₁ => x (g i₁) ≠ y (g i₁)) Finset.univ
@@ -58,7 +58,7 @@ theorem hammingDist_le_of_outer_comp_injective {ι₁ ι₂ : Type*} [Fintype ι
       have res := Set.mapsTo_image (f := g) (s := D₁)
       convert res
       simp only [coe_image]
-      --  (D₁.image g : Set ι₂)
+      -- (D₁.image g : Set ι₂)
     · -- Goal 2 : Prove that `g` is injective on the set `D₁`.
       -- This is true because our main hypothesis `hg` states that `g` is injective everywhere.
       exact Function.Injective.injOn hg
@@ -68,12 +68,11 @@ theorem hammingDist_le_of_outer_comp_injective {ι₁ ι₂ : Type*} [Fintype ι
     simp [D₁, Finset.image_preimage]
 
   -- Step 3 : By combining these two facts, we get our result.
-  -- |D₁| ≤ |image g(D₁)|  (from Step 1)
+  -- |D₁| ≤ |image g(D₁)| (from Step 1)
   -- and |image g(D₁)| ≤ |D₂| (since it's a subset)
   exact h_card_le_image.trans (Finset.card_le_card h_image_subset)
 
 variable {L : Type} [CommRing L] (ℓ : ℕ) [NeZero ℓ]
-variable (𝓑 : Fin 2 ↪ L)
 
 -- `fixFirstVariablesOfMQP` and `fixFirstVariablesOfMQP_degreeLE` (plus three private
 -- helper lemmas) were lifted to `ArkLib.Data.MvPolynomial.RestrictDegree`, and
@@ -88,7 +87,7 @@ export Sumcheck.Structured (getSumcheckRoundPoly)
 
 end Preliminaries
 
-noncomputable section       -- expands with 𝔽q in front
+noncomputable section -- expands with 𝔽q in front
 variable {r : ℕ} [NeZero r]
 variable {L : Type} [Field L] [Fintype L] [DecidableEq L] [CharP L 2]
 variable (𝔽q : Type) [Field 𝔽q] [Fintype 𝔽q] [DecidableEq 𝔽q]
@@ -98,7 +97,6 @@ variable (β : Fin r → L) [hβ_lin_indep : Fact (LinearIndependent 𝔽q β)]
   [h_β₀_eq_1 : Fact (β 0 = 1)]
 variable {ℓ 𝓡 ϑ : ℕ} (γ_repetitions : ℕ) [NeZero ℓ] [NeZero 𝓡] [NeZero ϑ] -- Should we allow ℓ = 0?
 variable {h_ℓ_add_R_rate : ℓ + 𝓡 < r} -- ℓ ∈ {1, ..., r-1}
-variable {𝓑 : Fin 2 ↪ L}
 
 section Essentials
 -- In this section, we ue notation `ϑ` for the folding steps, along with `(hdiv : ϑ ∣ ℓ)`
@@ -201,7 +199,7 @@ noncomputable def qMap_total_fiber
             rw [←Nat.sub_sub]; apply Nat.sub_lt_sub_right;
             · exact Nat.le_of_not_lt hj_lt_steps
             · exact j.isLt
-          ⟩  -- Shift indices to match y's basis
+          ⟩ -- Shift indices to match y's basis
       exact basis_x.repr.symm ((Finsupp.equivFunOnFinite).symm x_coeffs)
 
 /- TODO : state that the fiber of y is the set of all 2 ^ steps points in the
@@ -291,7 +289,7 @@ lemma qMap_total_fiber_one_level_eq (i : Fin ℓ) (h_i_add_1 : i.val + 1 ≤ ℓ
       simp only [basis_repr_of_sDomain_lift, add_tsub_cancel_left, zero_lt_one, ↓reduceDIte]
   · have hj_ne_zero : j ≠ ⟨0, by omega⟩ := by omega
     have hj_val_ne_zero : j.val ≠ 0 := by
-      change j.val ≠ ((⟨0, by omega⟩ :  Fin (ℓ + 𝓡 - ↑i)).val)
+      change j.val ≠ ((⟨0, by omega⟩ : Fin (ℓ + 𝓡 - ↑i)).val)
       apply Fin.val_ne_of_ne
       exact hj_ne_zero
     simp only [hj_val_ne_zero, ↓reduceDIte, Finsupp.single, Fin.isValue, ite_eq_left_iff,
@@ -728,7 +726,7 @@ def challengeTensorProduct (steps : ℕ) (r_challenges : Fin steps → L) : Vect
     -- Recursive case : compute tensor product iteratively
     Nat.rec
       (motive := fun k => k ≤ steps → Vector L (2^k))
-      (fun _ => ⟨#[1], rfl⟩)  -- Base : empty tensor product = [1]
+      (fun _ => ⟨#[1], rfl⟩) -- Base : empty tensor product = [1]
       (fun k ih h_k_le =>
         -- Inductive step : extend tensor product by one more challenge
         let prev_vec := ih (Nat.le_trans (Nat.le_succ k) h_k_le)
@@ -1109,7 +1107,7 @@ def uniqueClosestCodeword
     simp only [h_dist_eq_top, ne_eq, OfNat.ofNat_ne_zero, not_false_eq_true, ENat.mul_top]
       at h_within_radius
     exact not_top_lt h_within_radius
-  let k : ℕ := 2^(ℓ - i.val)  -- degree bound from BBF_Code definition
+  let k : ℕ := 2^(ℓ - i.val) -- degree bound from BBF_Code definition
   -- Convert domain to Fin format for Berlekamp-Welch
   let domain_to_fin : (sDomain 𝔽q β h_ℓ_add_R_rate)
     ⟨i, by omega⟩ ≃ Fin domain_size := by
@@ -1349,7 +1347,7 @@ theorem fiberwise_dist_lt_imp_dist_lt_unique_decoding_radius (i : Fin ℓ) (step
       let y_of_x := iteratedQuotientMap 𝔽q β h_ℓ_add_R_rate i steps h_i_add_steps x
       apply Finset.mem_biUnion.mpr; use y_of_x
       -- ⊢ y_of_x ∈ Y_bad.toFinset ∧ x ∈ qMap_total_fiber(y_of_x)
-      have h_elemenet_Y_bad :  y_of_x ∈ Y_bad.toFinset := by
+      have h_elemenet_Y_bad : y_of_x ∈ Y_bad.toFinset := by
         -- ⊢ y ∈ Y_bad.toFinset
         simp only [fiberwiseDisagreementSet, iteratedQuotientMap, ne_eq, Subtype.exists,
           Set.toFinset_setOf, mem_filter, mem_univ, true_and, Y_bad]

@@ -39,7 +39,7 @@ input `t(X_0, ..., X_{ℓ-1}) ∈ K[X_0, ..., X_{ℓ-1}]^⪯1`.
 5. `V` decomposes `ŝ =: Σ_{u ∈ {0,1}^κ} β_u ⊗ ŝ_u`, and
   sets `s_0 := Σ_{u ∈ {0,1}^κ} eq̃(u_0, ..., u_{κ-1}, r''_0, ..., r''_{κ-1}) ⋅ ŝ_u`.
 
-Input: `witIn =  BatchingWitIn, stmtIn = BatchingStmtIn, oStmt = aOStmtIn.OStmtIn`
+Input: `witIn = BatchingWitIn, stmtIn = BatchingStmtIn, oStmt = aOStmtIn.OStmtIn`
 
 Output: `witOut = (Statement (L := L) (ℓ := ℓ')`
   `(RingSwitchingBaseContext κ L K ℓ) 0) × (SumcheckWitness L ℓ' 0), oStmt = aOStmtIn.OStmtIn`
@@ -56,7 +56,6 @@ variable [Algebra K L]
 variable (β : Basis (Fin κ → Fin 2) K L)
 variable (ℓ ℓ' : ℕ) [NeZero ℓ] [NeZero ℓ']
 variable (h_l : ℓ = ℓ' + κ)
-variable {𝓑 : Fin 2 ↪ L}
 variable (aOStmtIn : AbstractOStmtIn L ℓ')
 
 /-! ## Formalized Helper Functions
@@ -84,7 +83,7 @@ def PrvState : Fin (2 + 1) → Type
   | ⟨0, _⟩ => BatchingStmtIn L ℓ × (∀ j, aOStmtIn.OStmtIn j) × BatchingWitIn L K ℓ ℓ'
   | ⟨1, _⟩ => BatchingStmtIn L ℓ × (∀ j, aOStmtIn.OStmtIn j)
     × BatchingWitIn L K ℓ ℓ' × TensorAlgebra K L
-  | _      => BatchingStmtIn L ℓ × (∀ j, aOStmtIn.OStmtIn j)
+  | _ => BatchingStmtIn L ℓ × (∀ j, aOStmtIn.OStmtIn j)
     × BatchingWitIn L K ℓ ℓ' × TensorAlgebra K L × (Fin κ → L)
 
 noncomputable def oracleProver :
@@ -201,9 +200,9 @@ def batchingInputRelation :
 
 /-- Intermediate witness types for RBR knowledge soundness. -/
 def batchingWitMid : Fin (2 + 1) → Type
-  | ⟨0, _⟩ => BatchingWitIn L K ℓ ℓ'       -- Before any messages
-  | ⟨1, _⟩ => BatchingWitIn L K ℓ ℓ'       -- After P sends ŝ
-  | ⟨2, _⟩ => SumcheckWitness L ℓ' 0          -- After V sends r'' and all computations are done
+  | ⟨0, _⟩ => BatchingWitIn L K ℓ ℓ' -- Before any messages
+  | ⟨1, _⟩ => BatchingWitIn L K ℓ ℓ' -- After P sends ŝ
+  | ⟨2, _⟩ => SumcheckWitness L ℓ' 0 -- After V sends r'' and all computations are done
 
 /-- RBR extractor for the batching phase. -/
 noncomputable def batchingRbrExtractor :
@@ -278,7 +277,7 @@ def batchingKStateProp {m : Fin (2 + 1)}
         (i := 0) (challenges := Fin.elim0)
     }
     exact
-      sumcheckRoundRelationProp κ L K β ℓ ℓ' h_l (𝓑:=𝓑) aOStmtIn (i:=0) stmtOut oStmt witOut
+      sumcheckRoundRelationProp κ L K β ℓ ℓ' h_l aOStmtIn (i:=0) stmtOut oStmt witOut
       ∧ performCheckOriginalEvaluation κ L K β ℓ ℓ' h_l stmt.original_claim
         stmt.t_eval_point s_hat -- local V check
       ∧ aOStmtIn.initialCompatibility ⟨witMid.t', oStmt⟩
@@ -287,10 +286,10 @@ def batchingKStateProp {m : Fin (2 + 1)}
 noncomputable def batchingKnowledgeStateFunction :
   (oracleVerifier κ L K β ℓ ℓ' h_l (aOStmtIn:=aOStmtIn)).KnowledgeStateFunction init impl
     (relIn := batchingInputRelation κ L K β ℓ ℓ' h_l aOStmtIn)
-    (relOut := sumcheckRoundRelation κ L K β ℓ ℓ' h_l (𝓑:=𝓑) aOStmtIn 0)
+    (relOut := sumcheckRoundRelation κ L K β ℓ ℓ' h_l aOStmtIn 0)
     (batchingRbrExtractor κ L K β ℓ ℓ' h_l (aOStmtIn:=aOStmtIn)) where
   toFun := fun m ⟨stmt, oStmt⟩ tr witMid =>
-    batchingKStateProp κ L K β ℓ ℓ' h_l (𝓑:=𝓑) aOStmtIn tr stmt witMid oStmt
+    batchingKStateProp κ L K β ℓ ℓ' h_l aOStmtIn tr stmt witMid oStmt
   toFun_empty _ _ := by rfl
   toFun_next := fun m hDir stmtIn tr msg witMid =>
     match m with
@@ -315,7 +314,7 @@ theorem batchingReduction_perfectCompleteness :
   OracleReduction.perfectCompleteness
     (oracleReduction := batchingOracleReduction κ L K β ℓ ℓ' h_l (aOStmtIn:=aOStmtIn))
     (relIn := batchingInputRelation κ L K β ℓ ℓ' h_l aOStmtIn)
-    (relOut := sumcheckRoundRelation κ L K β ℓ ℓ' h_l (𝓑:=𝓑) aOStmtIn 0)
+    (relOut := sumcheckRoundRelation κ L K β ℓ ℓ' h_l aOStmtIn 0)
     (init := init) (impl := impl) := by
   -- The honest prover's computations are deterministic. If the input relation holds,
   -- the prover correctly computes ŝ, h, and s₀, so the output relation will also hold.
@@ -328,7 +327,7 @@ theorem batchingOracleVerifier_rbrKnowledgeSoundness :
     (verifier := oracleVerifier κ L K β ℓ ℓ' h_l (aOStmtIn:=aOStmtIn))
     (init := init) (impl := impl)
     (relIn := batchingInputRelation κ L K β ℓ ℓ' h_l aOStmtIn)
-    (relOut := sumcheckRoundRelation κ L K β ℓ ℓ' h_l (𝓑:=𝓑) aOStmtIn 0)
+    (relOut := sumcheckRoundRelation κ L K β ℓ ℓ' h_l aOStmtIn 0)
     (rbrKnowledgeError := batchingRBRKnowledgeError (κ:=κ) (L:=L) (K:=K)) := by
   -- Proof follows by constructing the extractor and knowledge state function.
   use batchingWitMid L K ℓ ℓ'

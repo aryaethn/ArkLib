@@ -39,8 +39,15 @@ and parameterize the protocol over it; the Binius instance `binaryTowerProfile` 
 
 The only structural difference — Hachi has no separate tensor object (`A = L`, `φ₀ = id`,
 `φ₁ = σ₋₁`) while Binius has `A = L ⊗_K L` — is absorbed by `A`, `φ₀`, `φ₁` being explicit fields.
-The eq̃/trace inner-product law (DP24 §2.5 / Hachi Theorem 2) is an *instance-internal* lemma used by
-each instance's own soundness proofs (Binius RBR / Hachi CWSS), not a field of this data structure.
+The eq̃/trace inner-product law (DP24 §2.5 / Hachi Theorem 2) is carried as the two `Prop`-valued
+fields `decomposeRows_spec` / `decomposeColumns_spec` below: it is exactly what the completeness and
+soundness proofs consume, and stating it as part of the data keeps those theorems true for *every*
+profile (a law-free structure would make the generic statements vacuously false — e.g.
+`decomposeColumns ≡ 0`). Each instance discharges the laws from its own algebra (Binius: tensor
+`Basis.sum_repr`; Hachi: Theorem 2).
+
+See also: the KB concept page `docs/kb/concepts/ring-switching.md` and the blueprint section
+`blueprint/src/proof_systems/ring_switching.tex` for the protocol, phases, and security statements.
 -/
 
 namespace RingSwitching

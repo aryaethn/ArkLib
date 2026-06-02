@@ -1,5 +1,5 @@
 {
-  "count": 43,
+  "count": 44,
   "entries": {
     "ACFY24": {
       "authors": [
@@ -761,6 +761,28 @@
       "url": "",
       "venue": "Advances in Cryptology--EUROCRYPT 2020: 39th Annual International Conference on the Theory and Applications of Cryptographic Techniques, Zagreb, Croatia, May 10--14, 2020, Proceedings, Part I 39",
       "year": "2020"
+    },
+    "NOZ26": {
+      "authors": [
+        "Ngoc Khanh Nguyen",
+        "George O'Rourke",
+        "Jiapeng Zhang"
+      ],
+      "authors_text": "Ngoc Khanh Nguyen and George O'Rourke and Jiapeng Zhang",
+      "doi": "",
+      "entry_type": "misc",
+      "fields": {
+        "author": "Ngoc Khanh Nguyen and George O'Rourke and Jiapeng Zhang",
+        "howpublished": "Cryptology {ePrint} Archive, Paper 2026/156",
+        "title": "Hachi: Efficient Lattice-Based Multilinear Polynomial Commitments over Extension Fields",
+        "url": "https://eprint.iacr.org/2026/156",
+        "year": "2026"
+      },
+      "key": "NOZ26",
+      "title": "Hachi: Efficient Lattice-Based Multilinear Polynomial Commitments over Extension Fields",
+      "url": "https://eprint.iacr.org/2026/156",
+      "venue": "",
+      "year": "2026"
     },
     "PS94": {
       "authors": [

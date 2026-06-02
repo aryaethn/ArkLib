@@ -147,14 +147,14 @@
     "ArkLib/ProofSystem/Binius/FRIBinius/General.lean": [
       "DP24"
     ],
-    "ArkLib/ProofSystem/RingSwitching/General.lean": [
-      "DP24"
-    ],
     "ArkLib/ProofSystem/Fri/Spec/SingleRound.lean": [
       "FRI1216"
     ],
     "ArkLib/ProofSystem/Plonk/Basic.lean": [
       "GWZC19"
+    ],
+    "ArkLib/ProofSystem/RingSwitching/General.lean": [
+      "DP24"
     ],
     "ArkLib/ProofSystem/Stir/Combine.lean": [
       "ACFY24stir"

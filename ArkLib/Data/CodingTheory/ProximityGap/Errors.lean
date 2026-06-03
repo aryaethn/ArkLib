@@ -256,6 +256,29 @@ theorem epsCA_antitone_δ_int
     have hjp : ¬ jointProximity (C := C) (u := u) δ_int := fun h_jp ↦ hjp' (h_jp_mono h_jp)
     rw [if_neg hjp', if_neg hjp]
 
+/-- **`epsMCA` is monotone in `δ`.** A larger proximity radius `δ` only *weakens* the
+size constraint `|S| ≥ (1 - δ)·n` of `mcaEvent` (the other two clauses — a codeword
+agreeing with the line on `S`, and the absence of a joint codeword pair on `S` — do not
+mention `δ`), so the bad event holds for at least as many witness sets `S`. The per-`u`
+probability therefore grows pointwise, and so does the supremum.
+
+This is the `epsMCA` analogue of `epsCA_mono_δ_fld`; it is the monotonicity fact behind the
+maximality clause of the ABF26 §1 Grand MCA Challenge (a threshold `δ*` with `ε_mca ≤ ε*`
+below and `> ε*` above only makes sense because `ε_mca` is non-decreasing in `δ`). -/
+theorem epsMCA_mono
+    (C : Set (ι → A)) {δ δ' : ℝ≥0} (h : δ ≤ δ') :
+    epsMCA (F := F) C δ ≤ epsMCA (F := F) C δ' := by
+  classical
+  unfold epsMCA
+  apply iSup_mono
+  intro u
+  apply Pr_le_Pr_of_implies
+  intro γ h_event
+  obtain ⟨S, hS_card, hline, hpair⟩ := h_event
+  -- The size clause `(1 - δ')·n ≤ (1 - δ)·n ≤ |S|` survives; `hline`/`hpair` are δ-free.
+  exact ⟨S, le_trans (mul_le_mul_of_nonneg_right (tsub_le_tsub_left h 1) (zero_le _)) hS_card,
+    hline, hpair⟩
+
 /-! ## Helpers toward ABF26 Fact 4.5
 
 Fact 4.5 says `ε_pg ≤ ε_ca ≤ ε_mca`. The first inequality requires the underlying code to

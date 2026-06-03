@@ -7,7 +7,7 @@ Authors: Alexander Hicks
 import ArkLib.ProofSystem.ToyProblem.SoundnessBounds
 import Mathlib.Analysis.SpecialFunctions.Pow.NNReal
 import Mathlib.Analysis.SpecialFunctions.Log.Base
-import Mathlib.Algebra.Field.ZMod
+import Mathlib.FieldTheory.Finite.GaloisField
 
 /-!
 # Proximity-Prize "bits of security" leaderboard (ABF26 §6)
@@ -21,12 +21,14 @@ this is the ≈64-vs-≈116-bit frontier (ABF26 §6.3 Tables 2–5, and the
 standalone attack of Fenzi–Sanso, eprint 2025/2197).
 
 This file states that frontier as two opposing Lean structures over **one
-common quantity** — the protocol's *actual* soundness error — so the scalar
-gap between them is meaningful:
+common quantity** — the soundness error of the simplified IOR `T'[C]`
+(Construction 6.9, the §6.4 attack target), `winningSetSoundness` — so the
+scalar gap between them is meaningful:
 
 * `SecurityLowerBound p` — an inhabitant is a proof "we can *prove* `≥ bits`
   bits of security": `soundnessError ≤ 2^(-bits)`. The proof routes through
-  the round-by-round (RBR) upper bound `toySoundnessError` (Lemma 6.8).
+  the full-protocol round-by-round (RBR) upper bound `toySoundnessError`
+  (Lemmas 6.10 / 6.6 / 6.8).
 * `SecurityUpperBound p` — an inhabitant is a proof "no analysis can prove
   `> bits` bits": `soundnessError ≥ 2^(-bits)`. The witness is the
   winning-set attack of Lemmas 6.12 / 6.13.
@@ -37,17 +39,27 @@ gap between them is meaningful:
 ## The common quantity (central design decision)
 
 The two sides **must** bound the same quantity or the gap is meaningless.
-The trap: `toySoundnessError` (the L6.8 RBR per-round max) is an *upper*
-bound on the true soundness error, while the attack lemmas L6.12/6.13 *lower*
-bound it. So `attack ≤ trueError ≤ toySoundnessError`. We therefore make the
-leaderboard quantity the protocol's **actual soundness error**
-`soundnessError`, defined (per `winningSet`'s Definition 6.11 docstring) as
-the worst-case winning-challenge fraction over violating instances, combined
-with the spot-check round error `(1-δ)^t`:
+The trap: `toySoundnessError` (the full-protocol RBR max) is an *upper* bound,
+while the attack lemmas L6.12/6.13 *lower* bound. So `attack ≤ error ≤
+toySoundnessError`. We make the leaderboard quantity the **simplified-IOR
+soundness error** `winningSetSoundness` — per `winningSet`'s Definition 6.11,
+the worst-case winning-challenge fraction `|Ω|/|F|` over *violating* instances.
+This is the object the §6.4 attacks directly lower-bound and Lemma 6.10
+upper-bounds.
 
 * the X side proves `soundnessError ≤ toySoundnessError ≤ 2^(-bits)`
   (`toySoundnessError` is the *vehicle*, not the leaderboard quantity);
 * the Y side proves `soundnessError ≥ winningSet.ncard/|F| ≥ 2^(-bits)`.
+
+**Why `winningSetSoundness` is `t`-independent (no `(1-δ)^t` term).** `T'[C]`
+is single-round; its soundness error is *exactly* the winning fraction. The
+spot-check term `(1-δ)^t` belongs to the *full* protocol C6.2, and at the
+prize regime (`t=128`, `δ≈1-1/√2`) it equals `2^(-64)` — which alone exceeds
+the attack target `2^(-116)`. Folding it into the common quantity would
+collapse the attack side to a triviality (and, at a smaller `δ`, make the
+provable side a *falsehood*). It therefore lives only in `toySoundnessError`,
+where it correctly caps the *provable* security at 64 bits (ABF26 §6.3, `.tex`
+2819–2823: the soundness is `max(2^(-71.5), 2^(-64))`, spot-check-dominated).
 
 Stating the upper-bound structure against `soundnessError` (not
 `toySoundnessError`) is what keeps the leaderboard faithful: a contestant
@@ -61,10 +73,11 @@ raises the provable lower bound `X`.
 ## References
 
 * [Arnon, G., Boneh, D., Fenzi, G., *Open Problems in List Decoding and
-  Correlated Agreement*][ABF26] (§6.2 Lemma 6.8; §6.4 Lemmas 6.12, 6.13;
-  §6.3 Tables 2–5).
+  Correlated Agreement*][ABF26] (§6.2 Lemmas 6.6/6.8; §6.4 Lemmas 6.10, 6.12,
+  6.13; Definition 6.11; §6.3 Tables 2–5).
 * Fenzi, G., Sanso, A., *Small-field hash-based SNARGs are less sound than
-  conjectured*, eprint 2025/2197 (Construction 4.2 = C6.2, Lemma 4.4 = L6.12).
+  conjectured*, eprint 2025/2197 (Construction 4.2 ≈ C6.2; Lemma 4.4 is a
+  similar observation to Lemma 6.12, per ABF26 §6.4.1).
 -/
 
 -- Several plumbing lemmas use only a subset of the `ι`/`F` typeclass instances in their
@@ -144,54 +157,66 @@ theorem bddAbove_winningSetRatio {k : ℕ} (C : Set (ι → F)) (δ : ℝ≥0) :
 
 /-- Each violating instance's winning fraction is a lower bound on the
 soundness error of [ABF26] Definition 6.11 — the backbone of the attack (Y)
-side: an explicit attack witness lower-bounds `winningSetSoundness`, hence
-`soundnessError`. -/
+side: an explicit attack witness lower-bounds `winningSetSoundness`. -/
 theorem winningSetRatio_le_winningSetSoundness {k : ℕ} {C : Set (ι → F)} {δ : ℝ≥0}
     (x : ViolatingInstance C δ k) :
     winningSetRatio x ≤ winningSetSoundness (k := k) C δ :=
   le_ciSup (bddAbove_winningSetRatio C δ) x
 
-/-- The protocol's **actual soundness error**: the worse of the
-combination-randomness round (`winningSetSoundness`, Definition 6.11) and the
-spot-check round `(1-δ)^t`. This is the leaderboard's common quantity; the two
-sides bound it from opposite directions. -/
-noncomputable def soundnessError {k : ℕ} (C : Set (ι → F)) (δ : ℝ≥0) (t : ℕ) : ℝ≥0 :=
-  max (winningSetSoundness (k := k) C δ) ((1 - δ) ^ t)
+/-! ## What the leaderboard quantity is, and is NOT
 
-/-! ## The RBR upper-bound vehicle (Lemma 6.8)
+The common quantity is **`winningSetSoundness`** — the soundness error of the
+*simplified IOR* `T'[C]` (Construction 6.9, the §6.4 attack target), per
+Definition 6.11. This is the object the §6.4 attacks (Lemmas 6.12/6.13)
+*directly* lower-bound and the §6.4 soundness analysis (Lemma 6.10) upper-bounds.
+
+It is deliberately **t-independent**: `T'[C]` is single-round, so its soundness
+error is exactly the worst-case winning fraction (no spot-check term). Folding a
+`(1-δ)^t` term into this quantity would be unfaithful — it would (i) belong to
+the *full* protocol C6.2, not C6.9, and (ii) at the prize regime `t = 128`,
+`δ ≈ 1-1/√2`, the spot-check term is `(1/√2)^128 = 2^(-64)`, which alone
+exceeds the attack target `2^(-116)` and dominates the provable target
+`2^(-64)` — collapsing the attack side to a triviality and the provable side to
+a falsehood. The `(1-δ)^t` round lives only in the X-side *vehicle*
+`toySoundnessError` (the full-protocol RBR bound, below), where it correctly
+caps the *provable* security at 64 bits (ABF26 §6.3, `.tex` lines 2819–2823:
+the spot-check term dominates `max(2^(-71.5), 2^(-64))`). -/
+
+/-! ## The RBR upper-bound vehicle (full protocol C6.2; Lemmas 6.6 / 6.8)
 
 `toySoundnessError` reuses the *exact* per-round error terms of
-`Spec.General.protocol62_rbrKnowledgeSound` (Lemma 6.8): the `γ`-round error
-`ε_mca(C,δ) + |Λ(C^{≡2},δ)| / |F|` and the spot-check error `(1-δ)^t`. It is
-the X-side vehicle — an upper bound on `soundnessError`, **not** the
-leaderboard quantity. -/
+`Spec.General.protocol62_knowledgeSound` / `protocol62_rbrKnowledgeSound`
+(Lemmas 6.6 / 6.8): the `γ`-round error `ε_mca(C,δ) + |Λ(C^{≡2},δ)| / |F|` and
+the spot-check error `(1-δ)^t`. It upper-bounds `winningSetSoundness` (via
+Lemma 6.10, since the `γ`-round error already dominates the simplified IOR's
+error) and is the X-side vehicle. -/
 
-/-- The round-by-round soundness upper bound of **Lemma 6.8 of [ABF26]**: the
-`max` of the combination-randomness error `ε_mca(C,δ) + |Λ(C^{≡2},δ)| / |F|`
-and the spot-check error `(1-δ)^t`. These are the *exact* per-round terms of
-`protocol62_rbrKnowledgeSound`; this is the X-side vehicle, an upper bound on
-`soundnessError`. -/
+/-- The round-by-round soundness upper bound of **Lemmas 6.6 / 6.8 of [ABF26]**
+(the *full* protocol C6.2): the `max` of the combination-randomness error
+`ε_mca(C,δ) + |Λ(C^{≡2},δ)| / |F|` and the spot-check error `(1-δ)^t`. These are
+the *exact* per-round terms of `protocol62_knowledgeSound`. It bounds the
+simplified-IOR soundness `winningSetSoundness` from above (X-side vehicle); the
+`(1-δ)^t` branch is what caps provable security at 64 bits at the prize regime. -/
 noncomputable def toySoundnessError (C : Set (ι → F)) (δ : ℝ≥0) (t : ℕ) : ℝ≥0 :=
   max ((epsMCA (F := F) (A := F) C δ).toNNReal +
         ((Lambda (interleavedCodeSet (κ := Fin 2) C) (δ : ℝ)).toNat : ℝ≥0)
           / (Fintype.card F : ℝ≥0))
       ((1 - δ) ^ t)
 
-/-- **RBR soundness direction (Lemma 6.8 of [ABF26]).** The actual soundness
-error is bounded by the round-by-round vehicle: `soundnessError ≤
-toySoundnessError`. The spot-check terms coincide, so this reduces to the
-`γ`-round content of L6.8 — `winningSetSoundness ≤ ε_mca + |Λ|/|F|` — i.e.
-that the worst-case winning fraction is bounded by the MCA + list-decoding
-error. The X side routes through this to turn an `ε_mca`/`Λ` bound into a
-provable security lower bound. -/
-theorem soundnessError_le_toySoundnessError {k : ℕ} (C : Set (ι → F)) (δ : ℝ≥0) (t : ℕ) :
-    soundnessError (k := k) C δ t ≤ toySoundnessError C δ t := by
-  -- ABF26-L6.8; paper-proof-owed [ABF26 Lemma 6.8, §6.2]. Reduces (the
-  -- spot-check terms being identical) to the γ-round RBR bound
-  -- `winningSetSoundness ≤ ε_mca + |Λ|/|F|`, which is exactly the content of
-  -- `protocol62_rbrKnowledgeSound` at round 0. Tagged sorry.
-  refine max_le_max ?_ (le_refl _)
-  -- tagged sorry [ABF26 Lemma 6.8] — the γ-round RBR bound, paper-proof-owed.
+/-- **The simplified-IOR soundness is below the full-protocol RBR bound**
+(**Lemma 6.10 of [ABF26]**). `winningSetSoundness ≤ toySoundnessError`: the
+simplified IOR's worst-case winning fraction is at most the `γ`-round error
+`ε_mca + |Λ|/|F|` (Lemma 6.10 — the soundness of Construction 6.9), which is the
+first branch of the `max`. The X side routes through this to turn an
+`ε_mca`/`Λ` bound (and the `(1-δ)^t` spot-check cap) into a provable security
+lower bound. -/
+theorem winningSetSoundness_le_toySoundnessError {k : ℕ}
+    (C : Set (ι → F)) (δ : ℝ≥0) (t : ℕ) :
+    winningSetSoundness (k := k) C δ ≤ toySoundnessError C δ t := by
+  refine le_trans ?_ (le_max_left _ _)
+  -- tagged sorry [ABF26 Lemma 6.10, §6.4] — `winningSetSoundness ≤ ε_mca + |Λ|/|F|`
+  -- is the soundness of Construction 6.9 (the 1-round form of the L6.8 γ-round);
+  -- paper-proof-owed (ABF26's own §6.4 result).
   sorry
 
 /-! ## Bits of security -/
@@ -247,19 +272,21 @@ structure ToyParams where
 
 attribute [instance] ToyParams.field ToyParams.fintypeF ToyParams.decEqF ToyParams.fintypeι
 
-/-- The actual soundness error at a parameter point — the leaderboard's common
-quantity, projected onto the bundled carrier. -/
+/-- The leaderboard's common quantity at a parameter point: the simplified-IOR
+(Construction 6.9 / Definition 6.11) soundness error `winningSetSoundness`,
+projected onto the bundled carrier. -/
 noncomputable def ToyParams.soundnessError (p : ToyParams) : ℝ≥0 :=
-  _root_.ToyProblem.soundnessError (k := p.k) p.C p.δ p.t
+  winningSetSoundness (k := p.k) p.C p.δ
 
-/-- The RBR upper-bound vehicle (Lemma 6.8) at a parameter point. -/
+/-- The full-protocol RBR upper-bound vehicle (Lemmas 6.6 / 6.8) at a parameter
+point. -/
 noncomputable def ToyParams.toySoundnessError (p : ToyParams) : ℝ≥0 :=
   _root_.ToyProblem.toySoundnessError p.C p.δ p.t
 
-/-- `soundnessError ≤ toySoundnessError` at a parameter point (Lemma 6.8). -/
+/-- `soundnessError ≤ toySoundnessError` at a parameter point (Lemma 6.10). -/
 theorem ToyParams.soundnessError_le_toySoundnessError (p : ToyParams) :
     p.soundnessError ≤ p.toySoundnessError :=
-  _root_.ToyProblem.soundnessError_le_toySoundnessError (k := p.k) p.C p.δ p.t
+  _root_.ToyProblem.winningSetSoundness_le_toySoundnessError (k := p.k) p.C p.δ p.t
 
 /-! ## The two leaderboard interfaces
 
@@ -267,9 +294,9 @@ Both are stated against the **same** common quantity `p.soundnessError`. A
 submission is an *inhabitant*. -/
 
 /-- **Provable security lower bound** at parameter point `p`: a number `bits`
-and a proof that the actual soundness error is `≤ 2^(-bits)` — i.e. "we can
-*prove* at least `bits` bits of security." The intended proof route is
-`soundnessError ≤ toySoundnessError ≤ 2^(-bits)` via [ABF26] Lemma 6.8.
+and a proof that the simplified-IOR soundness error is `≤ 2^(-bits)` — i.e. "we
+can *prove* at least `bits` bits of security." The intended proof route is
+`soundnessError ≤ toySoundnessError ≤ 2^(-bits)` via [ABF26] Lemmas 6.10 / 6.6.
 `bits : ℝ` so fractional bits (e.g. `116.5`) are representable. -/
 structure SecurityLowerBound (p : ToyParams) where
   /-- The provable security level, in bits. -/
@@ -350,24 +377,50 @@ theorem SecurityUpperBound.bitsOfSecurity_le {p : ToyParams} (hi : SecurityUpper
 /-! ## Anchor parameter point and the two current entries
 
 `koalaIRS` fixes the KoalaBear-sextic regime numerics (`q = 2^31 - 2^24 + 1`,
-sextic extension, `ρ = 1/2`, `t = 128`). Its *code interpretation* is, for now,
-a small genuine linear stand-in (a parity code over `ZMod 2`); the genuine
-KoalaBear-sextic RS/IRS code is Phase 5. The two anchors below are
-`sorry`-backed by design (like Phase 1's `MCALowerWitness.ofJohnsonBCHKS25`) —
-the soundness *inequalities* are real propositions; only their §6 proofs and
-Phase-5 numerics are owed. -/
+sextic extension, `ρ = 1/2`, `t = 128`). Two design points keep the anchors
+*honest* (no `sorry` hiding a provably-false goal):
+
+1. **The carrier field is large.** The soundness error is a fraction `|Ω|/|F|`,
+   so to even *represent* a value in the target window `[2^(-116), 2^(-64)]` the
+   field must satisfy `|F| ≥ 2^116`. We use `GaloisField 2 128` (size `2^128`) —
+   a stand-in of the right *order* for the genuine KoalaBear-sextic field (size
+   `≈2^186`), which Phase 5 substitutes. (Over a tiny field like `𝔽₂`, `|Ω|/|F|`
+   lives in `{0, 1/2, 1}` and the two anchors would be *jointly* unsatisfiable.)
+2. **The code is opaque.** `koalaCode`'s fine structure is hidden, so
+   `winningSetSoundness koalaIRS` is irreducible — neither anchor's inequality is
+   provably true *or* false; they are genuine owed obligations (Phase 3 supplies
+   the §6 proofs, Phase 5 the genuine RS/IRS code and numerics). `opaque` is
+   axiom-clean (no `sorryAx`).
+
+The two anchors below are `sorry`-backed by design (like Phase 1's
+`MCALowerWitness.ofJohnsonBCHKS25`). -/
+
+/-- `𝔽₂` primality, for the `GaloisField 2 128` anchor carrier. -/
+instance : Fact (Nat.Prime 2) := ⟨Nat.prime_two⟩
+
+/-- Opaque placeholder code over the KoalaBear-sextic-sized field `GF(2^128)`;
+its fine structure is deferred to Phase 5 (the genuine RS/IRS code). Keeping it
+`opaque` makes `winningSetSoundness koalaIRS` irreducible, so the anchor
+inequalities are genuine owed obligations rather than computable (and hence
+provably true/false) at this stand-in. -/
+opaque koalaCode : Set (Fin 3 → GaloisField 2 128)
 
 /-- The Proximity-Prize anchor parameter point: the KoalaBear-sextic regime
-(`q = 2^31 - 2^24 + 1`, sextic extension, `ρ = 1/2`, `t = 128`). The code
-interpretation is a small parity stand-in pending the Phase-5 RS/IRS
-instantiation; the documentary numeric fields carry the genuine regime. -/
+(`q = 2^31 - 2^24 + 1`, sextic extension, `ρ = 1/2`, `t = 128`). The proximity
+radius is set near capacity, `δ = 3/10` (just above `1 - 1/√2 ≈ 0.293`), so the
+full-protocol spot-check term `(1-δ)^128 ≈ 2^(-65.9) ≤ 2^(-64)` is consistent
+with the headline 64-bit provable ceiling (cf. ABF26 §6.3, `.tex` 2819–2823).
+The carrier is the `2^128`-element field `GaloisField 2 128` (a same-order
+stand-in for the `≈2^186`-element KoalaBear sextic; Phase 5 substitutes the
+real field and code). The documentary numeric fields carry the genuine regime. -/
 noncomputable def koalaIRS : ToyParams := by
-  haveI : Fact (Nat.Prime 2) := ⟨Nat.prime_two⟩
+  haveI : Fintype (GaloisField 2 128) := Fintype.ofFinite _
+  classical
   exact
-    { F := ZMod 2
+    { F := GaloisField 2 128
       ι := Fin 3
-      C := {w | ∑ i, w i = 0}
-      δ := 1 / 4
+      C := koalaCode
+      δ := 3 / 10
       t := 128
       k := 2
       q := 2 ^ 31 - 2 ^ 24 + 1
@@ -378,37 +431,43 @@ noncomputable def koalaIRS : ToyParams := by
       η := 1 / 16 }
 
 /-- **ArkLib provable lower bound (≈64 bits) at the IRS/KoalaBear/`t=128`
-point.** Cites **Lemma 6.8 of [ABF26]** (§6.2): the RBR soundness error
-`max (ε_mca + |Λ|/|F|) ((1-δ)^t)` evaluates to ≈`2^(-64)` at the §6.3 Table 2–3
-numerics. The proof routes `soundnessError ≤ toySoundnessError ≤ 2^(-64)`.
-`sorry`-backed (the §6.3 numeric evaluation is Phase 5). -/
+point.** Cites **Lemmas 6.10 / 6.6 / 6.8 of [ABF26]**: the simplified-IOR
+soundness error is bounded by the full-protocol RBR error
+`max (ε_mca + |Λ|/|F|) ((1-δ)^t)`, which evaluates to ≈`2^(-64)` at the §6.3
+Table 2–3 numerics — the spot-check branch `(1-δ)^128 = (1/√2)^128 = 2^(-64)`
+is the binding cap (`.tex` 2819–2823; the `ε_mca + |Λ|/|F|` branch is the even
+tighter ≈`2^(-71.5)`). 64 is thus a *conservative* (improvable) provable bound on
+`winningSetSoundness`. The proof routes `soundnessError ≤ toySoundnessError ≤
+2^(-64)`. `sorry`-backed (the §6.3 numeric evaluation is Phase 5). -/
 noncomputable def arklib_lowerBound_irs_t128 : SecurityLowerBound koalaIRS where
   bits := 64
   proof := by
-    -- ABF26-L6.8 + §6.3 Tables 2–3; paper-proof-owed. The route is
-    -- `soundnessError ≤ toySoundnessError` (L6.8, already a lemma) followed by
-    -- the Phase-5 numeric check `toySoundnessError ≤ 2^(-64)`. Tagged sorry.
+    -- ABF26-L6.10/L6.6 + §6.3 Tables 2–3; paper-proof-owed. The route is
+    -- `soundnessError ≤ toySoundnessError` (L6.10, already a lemma) followed by
+    -- the Phase-5 numeric check `toySoundnessError ≤ 2^(-64)` (its spot-check
+    -- branch `(1-δ)^128 ≈ 2^(-65.9) ≤ 2^(-64)` at `δ = 3/10`). Tagged sorry.
     refine le_trans koalaIRS.soundnessError_le_toySoundnessError ?_
-    -- tagged sorry [ABF26 Lemma 6.8 + §6.3 Tables 2–3] — Phase-5 numeric check.
+    -- tagged sorry [ABF26 §6.3 Tables 2–3] — Phase-5 numeric check.
     sorry
 
-/-- **Fenzi–Sanso attack upper bound (≈116 bits) at the IRS/KoalaBear/`t=128`
-point.** Cites **Lemma 6.12 of [ABF26]** (§6.4.1) = **Lemma 4.4 of
-Fenzi–Sanso, eprint 2025/2197**: the winning set has size
-`≥ N·|F|/(|F|+N−1)` (`N := |Λ(C^{≡2},δ)|`), which at KoalaBear-sextic `ρ=1/2,
-t=128` lower-bounds the soundness error by ≈`2^(-116)`. The witness is the
-attack instance: `soundnessError ≥ winningSetSoundness ≥ |Ω|/|F| ≥ 2^(-116)`
-(via `winningSetRatio_le_winningSetSoundness`). `sorry`-backed (L6.12 carries
-the side-hyp `|F| > C(N,2)`; the numeric ≈116 and the witness-violation step
+/-- **Winning-set attack upper bound (≈116 bits) at the IRS/KoalaBear/`t=128`
+point.** Cites **Lemma 6.12 of [ABF26]** (§6.4.1; a similar observation appears
+in Fenzi–Sanso, eprint 2025/2197, Lemma 4.4): the winning challenge set is large
+enough that, at KoalaBear-sextic `ρ=1/2, t=128`, the simplified-IOR soundness
+error is `≥ ≈2^(-116)` (ABF26 §6.3, `.tex` 2925: `2^(-116.49)`). The witness is
+the attack instance, lower-bounding `winningSetSoundness` directly via
+`winningSetRatio_le_winningSetSoundness`. `sorry`-backed (L6.12 carries the
+side-hyp `|F| > C(N,2)`; the numeric ≈116 and the witness-violation packaging
 are Phase 5 / Phase 3). -/
 noncomputable def fenziSanso_upperBound_attack : SecurityUpperBound koalaIRS where
   bits := 116
   proof := by
-    -- ABF26-L6.12 / Fenzi–Sanso 2025/2197 Lemma 4.4; paper-proof-owed. Route:
+    -- ABF26-L6.12 (cf. Fenzi–Sanso 2025/2197 Lemma 4.4); paper-proof-owed. Route:
     -- extract the attack witness from `simplified_iop_soundness_listDecoding_lb`,
-    -- package it as a `ViolatingInstance`, then chain
-    -- `winningSetRatio_le_winningSetSoundness` (≤ soundnessError via `le_max_left`)
-    -- with the Phase-5 numeric `|Ω|/|F| ≥ 2^(-116)`. Tagged sorry.
+    -- package it as a `ViolatingInstance` (supplying the violation hypothesis,
+    -- which L6.12's `∃` does not yet certify — see the Phase-3 bootstrap), then
+    -- chain `winningSetRatio_le_winningSetSoundness` (= `soundnessError`) with the
+    -- Phase-5 numeric `|Ω|/|F| ≥ 2^(-116)`. Tagged sorry.
     sorry
 
 /-- **The current leaderboard frontier.** At the KoalaBear-sextic anchor the

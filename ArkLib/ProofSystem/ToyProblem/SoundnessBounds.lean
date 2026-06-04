@@ -120,7 +120,7 @@ private lemma claimB1_bound_to_real {M s c : ℕ} (hc : 1 ≤ c) (hM : 1 ≤ M)
       ENNReal.mul_ne_top (ENNReal.natCast_ne_top _) (ENNReal.inv_ne_top.mpr hc0)⟩
   -- `M ≤ s · D`, then multiply through by `c`.
   have hle : (M : ENNReal) ≤ (s : ENNReal) * D := by
-    have hmul := mul_le_mul_right' h D
+    have hmul : (M : ENNReal) / D * D ≤ (s : ENNReal) * D := by gcongr
     rwa [ENNReal.div_mul_cancel hD0 hDt] at hmul
   have hDc : D * (c : ENNReal) = (c : ENNReal) + ((M - 1 : ℕ) : ENNReal) := by
     rw [hD, hMc, add_mul, one_mul, mul_assoc, hcc, mul_one]
@@ -350,7 +350,7 @@ private lemma exists_affine_image_lb (T : Finset (F × F))
   classical
   obtain ⟨μ₂, hμ₂⟩ : ∃ μ₂ : F, μ₂ ∉ T.image Prod.snd := by
     by_contra h
-    push_neg at h
+    simp only [not_exists, not_not] at h
     have heq : T.image Prod.snd = Finset.univ := Finset.eq_univ_iff_forall.mpr h
     have h2 : Fintype.card F ≤ T.card := by
       rw [← Finset.card_univ (α := F), ← heq]; exact Finset.card_image_le

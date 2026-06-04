@@ -611,4 +611,107 @@ theorem PMF.map_uniformOfFintype_of_fiber_const
     rw [h_empty, Finset.card_empty]
     simp
 
+/-! ## Linear-form collision bounds (ABF26 §6.4.1 / Claim B.1 inputs)
+
+The two collision-probability bounds feeding the two applications of Claim B.1
+(`Probability.exists_large_image_of_pairwise_collision_bound`) in the proof of
+ABF26 Lemma 6.12 (`ToyProblem.simplified_iop_soundness_listDecoding_lb`):
+
+* `Pr_map_eq` — a pushforward probability identity (change of variables for a
+  `PMF.map`), used to reduce `Pr` over the distribution of collision maps `φ_v`
+  to `Pr` over the uniform sampling of `v`.
+* `prob_dotProduct_eq_zero_le` — a nonzero `F`-linear form vanishes with
+  probability `≤ 1/|F|` (the first B.1's pairwise bound).
+* `prob_uniform_le_inv_of_card_le_one` — a predicate with at most one satisfying
+  value has uniform-sampling probability `≤ 1/|F|` (the second B.1's affine bound).
+-/
+
+/-- **Pushforward probability (change of variables).** The probability of an event
+`Q` under the pushforward distribution `p.map g` equals the probability of the
+pulled-back event `Q ∘ g` under `p`. -/
+theorem Pr_map_eq {α β : Type} (p : PMF α) (g : α → β) (Q : β → Prop) :
+    Pr_{ let b ← p.map g }[ Q b ] = Pr_{ let a ← p }[ Q (g a) ] := by
+  classical
+  rw [prob_tsum_form_singleton, prob_tsum_form_singleton]
+  rw [PMF.map]
+  simp only [PMF.bind_apply, Function.comp_apply, PMF.pure_apply]
+  rw [show (∑' (x : β), (∑' (a : α), p a * if x = g a then 1 else 0) * if Q x then 1 else 0)
+        = ∑' (x : β) (a : α), (p a * if x = g a then 1 else 0) * if Q x then 1 else 0 from by
+        simp_rw [ENNReal.tsum_mul_right]]
+  rw [ENNReal.tsum_comm]
+  congr 1
+  ext a
+  rw [tsum_eq_single (g a)]
+  · simp [mul_comm]
+  · intro b hb
+    simp [hb]
+
+/-- **A nonzero `F`-linear form vanishes with probability `≤ 1/|F|`.**
+For `d : Fin k → F` nonzero, the linear form `v ↦ ∑ⱼ dⱼ · vⱼ` evaluates to `0`
+with probability at most `1/|F|` over a uniformly random `v ←$ F^k`: its kernel
+is a hyperplane of `|F|^{k-1}` points out of `|F|^k`. -/
+theorem prob_dotProduct_eq_zero_le {F : Type} [Field F] [Fintype F] {k : ℕ}
+    (d : Fin k → F) (hd : d ≠ 0) :
+    Pr_{ let v ←$ᵖ (Fin k → F) }[ (∑ j, d j * v j = 0) ]
+      ≤ (Fintype.card F : ENNReal)⁻¹ := by
+  classical
+  -- The `F`-linear form `v ↦ ∑ⱼ dⱼ · vⱼ`.
+  set L : (Fin k → F) →ₗ[F] F := ∑ j, d j • LinearMap.proj j with hL
+  have hLapply : ∀ v, L v = ∑ j, d j * v j := by
+    intro v
+    simp only [hL, LinearMap.coe_sum, Finset.sum_apply, LinearMap.smul_apply,
+      LinearMap.proj_apply, smul_eq_mul]
+  -- `L` is surjective: pick a coordinate `j₀` with `dⱼ₀ ≠ 0`.
+  obtain ⟨j₀, hj₀⟩ : ∃ j, d j ≠ 0 := by
+    by_contra h
+    exact hd (funext fun j ↦ not_not.mp (fun hj ↦ h ⟨j, hj⟩))
+  have hsurj : Function.Surjective L := by
+    intro c
+    refine ⟨Pi.single j₀ (c / d j₀), ?_⟩
+    rw [hLapply, Finset.sum_eq_single j₀]
+    · rw [Pi.single_eq_same, mul_div_cancel₀ _ hj₀]
+    · intro b _ hb
+      rw [Pi.single_eq_of_ne hb, mul_zero]
+    · intro h; exact absurd (Finset.mem_univ j₀) h
+  -- Rank–nullity (via the first isomorphism theorem) gives the kernel cardinality.
+  have hquot : Nat.card ((Fin k → F) ⧸ LinearMap.ker L) = Fintype.card F := by
+    rw [Nat.card_congr (L.quotKerEquivOfSurjective hsurj).toEquiv, Nat.card_eq_fintype_card]
+  have hcard : Fintype.card (Fin k → F)
+      = Fintype.card (LinearMap.ker L) * Fintype.card F := by
+    have := Submodule.card_eq_card_quotient_mul_card (LinearMap.ker L)
+    rw [hquot] at this
+    rw [← Nat.card_eq_fintype_card, ← Nat.card_eq_fintype_card]
+    exact this
+  -- The event set `{v | ∑ⱼ dⱼ · vⱼ = 0}` is exactly the kernel of `L`.
+  have hfilter : (Finset.univ.filter (fun v : Fin k → F ↦ ∑ j, d j * v j = 0)).card
+      = Fintype.card (LinearMap.ker L) := by
+    rw [Fintype.card_congr (Equiv.subtypeEquivRight (fun x ↦ by
+      rw [LinearMap.mem_ker, hLapply])),
+      Fintype.card_subtype (fun v : Fin k → F ↦ ∑ j, d j * v j = 0)]
+  rw [prob_uniform_eq_card_filter_div_card, hfilter, hcard]
+  push_cast
+  have hkne : (Fintype.card (LinearMap.ker L) : ENNReal) ≠ 0 := by
+    simp only [ne_eq, Nat.cast_eq_zero, Fintype.card_ne_zero, not_false_eq_true]
+  have hF : (Fintype.card F : ENNReal) ≠ 0 := by
+    have : Nonempty F := ⟨0⟩
+    simp only [ne_eq, Nat.cast_eq_zero, Fintype.card_ne_zero, not_false_eq_true]
+  refine le_of_eq ?_
+  rw [eq_comm, ← one_div,
+    ENNReal.div_eq_div_iff (mul_ne_zero hkne hF)
+      (ENNReal.mul_ne_top (by simp) (by simp)) hF (by simp)]
+  ring
+
+/-- **A predicate with `≤ 1` satisfying value has uniform probability `≤ 1/|F|`.**
+Used for the second Claim-B.1 application in ABF26 Lemma 6.12, where the affine
+collision equation in `μ₁` has at most one solution. -/
+theorem prob_uniform_le_inv_of_card_le_one {F : Type} [Fintype F] [Nonempty F]
+    (P : F → Prop) [DecidablePred P] (h : (Finset.univ.filter P).card ≤ 1) :
+    Pr_{ let r ←$ᵖ F }[ P r ] ≤ (Fintype.card F : ENNReal)⁻¹ := by
+  rw [prob_uniform_eq_card_filter_div_card]
+  rw [show (Fintype.card F : ENNReal)⁻¹ = (1 : ENNReal) / (Fintype.card F : ENNReal) from
+    (one_div _).symm]
+  push_cast
+  gcongr
+  exact_mod_cast h
+
 end ProbabilityTools

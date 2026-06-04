@@ -112,8 +112,17 @@ At the KoalaBear-sextic regime (`q = 2^31 - 2^24 + 1`, sextic extension,
 
 so `securityGap = 116 − 64 = 52` (the lemma `securityGap_koalaIRS_anchors`
 evaluates this). Both anchors are `sorry`-tagged by design — the soundness
-*inequalities* are genuine propositions; their §6 proofs are Phase 3 and the
-KoalaBear numerics are Phase 5 (see the plan doc). Notes:
+*inequalities* are genuine propositions. Notes:
+
+- **The attack→soundness chain is now real (Phase 3, 2026-06-04).** ABF26 Lemma
+  6.13 is proved sorry-free and axiom-clean (`ToyProblem.simplified_iop_soundness_ca_lb`),
+  and `ToyProblem.epsCA_le_winningSetSoundness` proves `ε_ca(C,δ) ≤ winningSetSoundness C δ`
+  end-to-end (the attack witness's winning fraction genuinely lower-bounds the
+  worst-case soundness, violation certified). So the `fenziSanso_upperBound_attack`
+  ceiling is no longer a bare assertion: its *route* is a real theorem; only the
+  Phase-5 *numeric* `2^(-116) ≤ ε_ca koalaCode` (plus `koalaCode` linearity, which
+  the opaque stand-in cannot yet supply) remains owed. Lemma 6.12's *statement* was
+  also corrected this session (final bound `N/(|F|+2N)`); its proof is Phase 4.
 
 - The **64** is the *full-protocol* (C6.2) provable ceiling — at `t = 128`,
   `δ ≈ 1-1/√2`, the spot-check term `(1/√2)^128 = 2^(-64)` dominates the RBR

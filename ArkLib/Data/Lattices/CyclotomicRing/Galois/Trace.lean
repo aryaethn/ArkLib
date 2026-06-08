@@ -37,9 +37,8 @@ variable (Φ : CyclotomicModulus R) [IsCyclotomic Φ]
 /-- The **trace over an exponent set** `S`: `Σ_{i ∈ S} σ_i(a)`.
 
 Noncomputable as stated, since `Finset.sum` routes through `Rq`'s (transported, noncomputable)
-`CommRing`. A `List.foldr`-based computable version using the primitive `Add` can be added if the
-verifier needs to evaluate the trace; the underlying automorphism action `galoisAut` is
-computable. -/
+`CommRing`. The computable counterpart is `traceOverComp` (equal by `traceOverComp_eq`); the
+underlying automorphism action `galoisAut` is itself computable. -/
 noncomputable def traceOver (S : Finset ℕ) (a : Rq Φ) : Rq Φ := ∑ i ∈ S, galoisAut Φ i a
 
 @[simp] theorem traceOver_zero (S : Finset ℕ) : traceOver Φ S 0 = 0 := by
@@ -53,13 +52,36 @@ theorem traceOver_add (S : Finset ℕ) (a b : Rq Φ) :
   rw [← Finset.sum_add_distrib]
   exact Finset.sum_congr rfl (fun i _ => galoisAut_add Φ i a b)
 
+/-- The **computable trace** over an exponent set `S`. The monomial remap is summed at the
+`CPolynomial` level — whose ring structure is computable, unlike `Rq`'s transported one — and
+reduced once at the end. Equal to `traceOver` (`traceOverComp_eq`). -/
+def traceOverComp (S : Finset ℕ) (a : Rq Φ) : Rq Φ :=
+  Rq.mk Φ (∑ i ∈ S, ∑ k ∈ Finset.range Φ.φ.natDegree,
+    CompPoly.CPolynomial.monomial (k * i) (a.1.coeff k))
+
+/-- The computable trace agrees with `traceOver`. -/
+theorem traceOverComp_eq (S : Finset ℕ) (a : Rq Φ) : traceOverComp Φ S a = traceOver Φ S a := by
+  rw [traceOverComp, Rq.mk_sum]
+  simp only [traceOver, galoisAut]
+
 /-- The **trace map `Tr_H`** for `H = ⟨σ_{-1}, σ_{4k+1}⟩`. -/
 noncomputable def traceH (α k : ℕ) (a : Rq (powTwoCyclotomic (R := R) α)) :
     Rq (powTwoCyclotomic (R := R) α) :=
   traceOver (powTwoCyclotomic α) (Hexp α k) a
 
+/-- The **computable** trace map `Tr_H`, equal to `traceH` (`traceHComp_eq`). -/
+def traceHComp (α k : ℕ) (a : Rq (powTwoCyclotomic (R := R) α)) :
+    Rq (powTwoCyclotomic (R := R) α) :=
+  traceOverComp (powTwoCyclotomic α) (Hexp α k) a
+
+/-- The computable `Tr_H` agrees with `traceH`. -/
+theorem traceHComp_eq (α k : ℕ) (a : Rq (powTwoCyclotomic (R := R) α)) :
+    traceHComp α k a = traceH α k a :=
+  traceOverComp_eq _ _ _
+
 /-- `Tr_H` is fixed by every generator of `H`, hence lands in the fixed subring `R_q^H`.
-(Sorried — needs the group structure of `H`.) -/
+DEFERRED (rated 7): needs the group structure of `H` (a generator permutes the sum over `Hexp`),
+which in turn rests on the composition law `galoisAut_comp`. -/
 theorem traceH_mem_fixed (α k : ℕ) (a : Rq (powTwoCyclotomic (R := R) α)) :
     conjAut α (traceH α k a) = traceH α k a ∧ genAut α k (traceH α k a) = traceH α k a := by
   sorry

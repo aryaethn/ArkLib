@@ -387,36 +387,36 @@
     "ArkLib/CommitmentScheme/Ajtai/InnerOuter/Arithmetic.lean": {
       "declarations": [
         {
-          "doc": "The **inner-outer commitment modulus** `X^{2^\u03b1} + 1` over `ZMod q` (the `2^{\u03b1+1}`-th cyclotomic polynomial), as used by the Greyhound [NS24] / Hachi [NOZ26] / LaBRADOR-style schemes. This is `powTwoCyclotomic \u03b1`; kept `@[reducible]` so the `IsCyclotomic` instance and the `powTwoCyclotomic`-stated deep lemmas (`isUnit_of_l1Norm_le`, `scalarVecMul_mul_l2NormSq_le`) apply to it transparently.",
+          "doc": "The **inner-outer commitment modulus** `X^{2^\u03b1} + 1` over `ZMod q`. A re-export of `primePowTwoModulus`; kept `@[reducible]` so the `IsCyclotomic` instance and the `powTwoCyclotomic`-stated deep lemmas apply to it transparently.",
           "kind": "def",
-          "line": 62,
+          "line": 58,
           "name": "ArkLib.Lattices.Ajtai.InnerOuter.hachiModulus",
           "namespace": "ArkLib.Lattices.Ajtai.InnerOuter",
           "short_name": "hachiModulus",
-          "signature": "def hachiModulus : CyclotomicModulus (ZMod q) := powTwoCyclotomic \u03b1"
+          "signature": "def hachiModulus : CyclotomicModulus (ZMod q) := primePowTwoModulus q \u03b1"
         },
         {
-          "doc": "The **inner-outer commitment ring** `R_q = Z_q[X] / (X^{2^\u03b1} + 1)`, the degree-`2^\u03b1` power-of-two cyclotomic ring over `ZMod q` underlying the Greyhound [NS24] / Hachi [NOZ26] (LaBRADOR-style) commitment. It is a computable `CommRing`, inherited from `Rq`.",
+          "doc": "The **inner-outer commitment ring** `R_q = Z_q[X] / (X^{2^\u03b1} + 1)`. A re-export of `PrimePowTwoRing`; a computable `CommRing` inherited from `Rq`.",
           "kind": "def",
-          "line": 69,
+          "line": 64,
           "name": "ArkLib.Lattices.Ajtai.InnerOuter.HachiRing",
           "namespace": "ArkLib.Lattices.Ajtai.InnerOuter",
           "short_name": "HachiRing",
-          "signature": "def HachiRing : Type := Rq (hachiModulus q \u03b1)"
+          "signature": "def HachiRing : Type := PrimePowTwoRing q \u03b1"
         },
         {
           "doc": "The inner-outer commitment modulus `X^{2^\u03b1} + 1` has degree `2^\u03b1`.",
           "kind": "theorem",
-          "line": 74,
+          "line": 69,
           "name": "ArkLib.Lattices.Ajtai.InnerOuter.hachiModulus_natDegree",
           "namespace": "ArkLib.Lattices.Ajtai.InnerOuter",
           "short_name": "hachiModulus_natDegree",
-          "signature": "theorem hachiModulus_natDegree : (hachiModulus q \u03b1).\u03c6.natDegree = 2 ^ \u03b1 := by"
+          "signature": "theorem hachiModulus_natDegree : (hachiModulus q \u03b1).\u03c6.natDegree = 2 ^ \u03b1 :="
         },
         {
           "doc": "The inner-outer commitment modulus has conductor `2^{\u03b1+1}`.",
           "kind": "theorem",
-          "line": 82,
+          "line": 73,
           "name": "ArkLib.Lattices.Ajtai.InnerOuter.hachiModulus_conductor",
           "namespace": "ArkLib.Lattices.Ajtai.InnerOuter",
           "short_name": "hachiModulus_conductor",
@@ -19214,6 +19214,358 @@
         }
       ]
     },
+    "ArkLib/Data/Lattices/CyclotomicRing/Galois.lean": {
+      "declarations": []
+    },
+    "ArkLib/Data/Lattices/CyclotomicRing/Galois/Automorphism.lean": {
+      "declarations": [
+        {
+          "doc": "`Rq.mk` commutes with addition: reduction is additive in the quotient.",
+          "kind": "theorem",
+          "line": 56,
+          "name": "ArkLib.Lattices.CyclotomicModulus.Rq.mk_add",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "Rq.mk_add",
+          "signature": "theorem Rq.mk_add (p q : CPolynomial R) : Rq.mk \u03a6 (p + q) = Rq.mk \u03a6 p + Rq.mk \u03a6 q := by"
+        },
+        {
+          "doc": "`Rq.mk` commutes with finite sums.",
+          "kind": "theorem",
+          "line": 64,
+          "name": "ArkLib.Lattices.CyclotomicModulus.Rq.mk_sum",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "Rq.mk_sum",
+          "signature": "theorem Rq.mk_sum {\u03b9 : Type*} (s : Finset \u03b9) (f : \u03b9 \u2192 CPolynomial R) :"
+        },
+        {
+          "doc": "",
+          "kind": "class",
+          "line": 66,
+          "name": "ArkLib.Lattices.CyclotomicModulus._anon_class_66",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "_anon_class_66",
+          "signature": "class classical"
+        },
+        {
+          "doc": "The **computable Galois automorphism action** `\u03c3_i : Rq \u03a6 \u2192 Rq \u03a6`, `X^k \u21a6 X^{ki}`. On a reduced representative `a = \u03a3_{k<d} a_k X^k`, it forms `\u03a3_k a_k X^{ki}` and reduces modulo the modulus; since `X^d = -1`, this is the signed coefficient permutation. It is a genuine ring automorphism only when `i` is a unit modulo the conductor (`i` odd, for the power-of-two ring); the bare action is defined for all `i`.",
+          "kind": "def",
+          "line": 80,
+          "name": "ArkLib.Lattices.CyclotomicModulus.galoisAut",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "galoisAut",
+          "signature": "def galoisAut (i : \u2115) (a : Rq \u03a6) : Rq \u03a6 :="
+        },
+        {
+          "doc": "A monomial with zero coefficient is the zero polynomial.",
+          "kind": "theorem",
+          "line": 84,
+          "name": "ArkLib.Lattices.CyclotomicModulus.monomial_eq_zero",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "monomial_eq_zero",
+          "signature": "theorem monomial_eq_zero (n : \u2115) : (monomial n (0 : R) : CPolynomial R) = 0 :="
+        },
+        {
+          "doc": "",
+          "kind": "theorem",
+          "line": 88,
+          "name": "ArkLib.Lattices.CyclotomicModulus.galoisAut_zero",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "galoisAut_zero",
+          "signature": "theorem galoisAut_zero (i : \u2115) : galoisAut \u03a6 i 0 = 0 := by"
+        },
+        {
+          "doc": "`galoisAut` is additive. Follows from additivity of coefficient extraction, of `monomial` in its coefficient, of finite sums, and of `Rq.mk`.",
+          "kind": "theorem",
+          "line": 99,
+          "name": "ArkLib.Lattices.CyclotomicModulus.galoisAut_add",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "galoisAut_add",
+          "signature": "theorem galoisAut_add (i : \u2115) (a b : Rq \u03a6) :"
+        },
+        {
+          "doc": "The modulus polynomial of `powTwoCyclotomic \u03b1`, as a Mathlib polynomial.",
+          "kind": "theorem",
+          "line": 109,
+          "name": "ArkLib.Lattices.CyclotomicModulus.powTwoCyclotomic_toPoly",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "powTwoCyclotomic_toPoly",
+          "signature": "theorem powTwoCyclotomic_toPoly (\u03b1 : \u2115) :"
+        },
+        {
+          "doc": "`\u03c3_i` fixes `1`, since only the constant term contributes (so in particular `\u03c3_1` fixes it).",
+          "kind": "theorem",
+          "line": 115,
+          "name": "ArkLib.Lattices.CyclotomicModulus.galoisAut_map_one",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "galoisAut_map_one",
+          "signature": "theorem galoisAut_map_one (\u03b1 i : \u2115) : galoisAut (powTwoCyclotomic (R := R) \u03b1) i 1 = 1 := by"
+        },
+        {
+          "doc": "The Mathlib `R`-algebra endomorphism of `Polynomial R` sending `X \u21a6 X^i` (i.e. `p \u21a6 p(X^i)`), as a `RingHom`.",
+          "kind": "def",
+          "line": 144,
+          "name": "ArkLib.Lattices.CyclotomicModulus.galoisAeval",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "galoisAeval",
+          "signature": "def galoisAeval (i : \u2115) : Polynomial R \u2192+* Polynomial R :="
+        },
+        {
+          "doc": "Well-definedness on the power-of-two ring: `aeval (X^i)` maps the modulus ideal into itself for odd `i`, since `X^{2^\u03b1} + 1 \u2223 (X^{2^\u03b1})^i + 1`.",
+          "kind": "theorem",
+          "line": 150,
+          "name": "ArkLib.Lattices.CyclotomicModulus.powTwo_galoisAeval_mem",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "powTwo_galoisAeval_mem",
+          "signature": "theorem powTwo_galoisAeval_mem (\u03b1 i : \u2115) (hi : Odd i) {p : Polynomial R}"
+        },
+        {
+          "doc": "The **semantic Galois automorphism** `\u03c3_i` on the quotient ring, obtained by descending the Mathlib endomorphism `aeval (X^i)` along `Ideal.Quotient.lift`. A genuine `RingHom`.",
+          "kind": "def",
+          "line": 171,
+          "name": "ArkLib.Lattices.CyclotomicModulus.galoisAut\u209b",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "galoisAut\u209b",
+          "signature": "def galoisAut\u209b (\u03b1 i : \u2115) (hi : Odd i) :"
+        },
+        {
+          "doc": "**Soundness**: the computable automorphism agrees with the semantic one under `Rq.toQuotient`. This is the key bridge (Hachi [NOZ26, \u00a73]); it lets all algebraic structure (ring-hom laws, bijectivity) be proven on the Mathlib side and transported back. DEFERRED (rated 8): requires matching the monomial-remap-then-reduce against `aeval (X^i)` coefficientwise \u2014 the load-bearing bridge of this layer.",
+          "kind": "theorem",
+          "line": 187,
+          "name": "ArkLib.Lattices.CyclotomicModulus.galoisAut_toQuotient",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "galoisAut_toQuotient",
+          "signature": "theorem galoisAut_toQuotient (\u03b1 i : \u2115) (hi : Odd i) (a : Rq (powTwoCyclotomic (R := R) \u03b1)) :"
+        },
+        {
+          "doc": "The computable Galois automorphism action bundled as a `RingHom` on `Rq`. The additive structure and unitality (`map_one'`) are proven directly; multiplicativity is transported from the semantic `galoisAut\u209b` via `galoisAut_toQuotient`. `map_mul'` is DEFERRED (rated 8): it depends on the soundness bridge `galoisAut_toQuotient`.",
+          "kind": "def",
+          "line": 198,
+          "name": "ArkLib.Lattices.CyclotomicModulus.galoisRingHom",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "galoisRingHom",
+          "signature": "def galoisRingHom (\u03b1 i : \u2115) (hi : Odd i) :"
+        },
+        {
+          "doc": "",
+          "kind": "theorem",
+          "line": 206,
+          "name": "ArkLib.Lattices.CyclotomicModulus.galoisRingHom_apply",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "galoisRingHom_apply",
+          "signature": "theorem galoisRingHom_apply (\u03b1 i : \u2115) (hi : Odd i)"
+        }
+      ]
+    },
+    "ArkLib/Data/Lattices/CyclotomicRing/Galois/FixedSubring.lean": {
+      "declarations": [
+        {
+          "doc": "The **fixed subring `R_q^H`** for `H = \u27e8\u03c3_{-1}, \u03c3_{4k+1}\u27e9`: the elements fixed by both generating automorphisms. Defined as the meet of the two generator equalizers with the identity, so it is a `Subring` directly from Mathlib. By Hachi [NOZ26, Lemma 5] it is a subfield `\u2245 F_{q^k}` (established elsewhere).",
+          "kind": "def",
+          "line": 44,
+          "name": "ArkLib.Lattices.CyclotomicModulus.fixedSubring",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "fixedSubring",
+          "signature": "def fixedSubring (\u03b1 k : \u2115) : Subring (Rq (powTwoCyclotomic (R := R) \u03b1)) :="
+        },
+        {
+          "doc": "Membership in `R_q^H`: an element is `H`-fixed iff it is fixed by both generators.",
+          "kind": "theorem",
+          "line": 48,
+          "name": "ArkLib.Lattices.CyclotomicModulus.mem_fixedSubring_iff",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "mem_fixedSubring_iff",
+          "signature": "theorem mem_fixedSubring_iff (\u03b1 k : \u2115) (x : Rq (powTwoCyclotomic (R := R) \u03b1)) :"
+        }
+      ]
+    },
+    "ArkLib/Data/Lattices/CyclotomicRing/Galois/Group.lean": {
+      "declarations": [
+        {
+          "doc": "The exponent of the conjugation automorphism `\u03c3_{-1}`: `2^{\u03b1+1} - 1 \u2261 -1 (mod 2^{\u03b1+1})`.",
+          "kind": "def",
+          "line": 42,
+          "name": "ArkLib.Lattices.CyclotomicModulus.conjExp",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "conjExp",
+          "signature": "def conjExp (\u03b1 : \u2115) : \u2115 := 2 ^ (\u03b1 + 1) - 1"
+        },
+        {
+          "doc": "The exponent of the second generator `\u03c3_{4k+1}`.",
+          "kind": "def",
+          "line": 45,
+          "name": "ArkLib.Lattices.CyclotomicModulus.genExp",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "genExp",
+          "signature": "def genExp (k : \u2115) : \u2115 := 4 * k + 1"
+        },
+        {
+          "doc": "",
+          "kind": "theorem",
+          "line": 47,
+          "name": "ArkLib.Lattices.CyclotomicModulus.genExp_odd",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "genExp_odd",
+          "signature": "theorem genExp_odd (k : \u2115) : Odd (genExp k) := \u27e82 * k, by unfold genExp; ring\u27e9"
+        },
+        {
+          "doc": "",
+          "kind": "theorem",
+          "line": 49,
+          "name": "ArkLib.Lattices.CyclotomicModulus.conjExp_odd",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "conjExp_odd",
+          "signature": "theorem conjExp_odd (\u03b1 : \u2115) : Odd (conjExp \u03b1) := by"
+        },
+        {
+          "doc": "The conjugation automorphism `\u03c3_{-1} : X \u21a6 X^{-1}`, as a `RingHom`.",
+          "kind": "def",
+          "line": 56,
+          "name": "ArkLib.Lattices.CyclotomicModulus.conjAut",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "conjAut",
+          "signature": "def conjAut (\u03b1 : \u2115) :"
+        },
+        {
+          "doc": "The second generator `\u03c3_{4k+1}`, as a `RingHom`.",
+          "kind": "def",
+          "line": 61,
+          "name": "ArkLib.Lattices.CyclotomicModulus.genAut",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "genAut",
+          "signature": "def genAut (\u03b1 k : \u2115) :"
+        },
+        {
+          "doc": "`\u03c3_1 = id`. DEFERRED (rated 6): needs the polynomial reconstruction `\u2211_{k<d} monomial k (a_k) = a` for reduced reps, i.e. `CPolynomial` coefficient-vanishing above `natDegree`.",
+          "kind": "theorem",
+          "line": 70,
+          "name": "ArkLib.Lattices.CyclotomicModulus.galoisAut_one_eq",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "galoisAut_one_eq",
+          "signature": "theorem galoisAut_one_eq (\u03b1 : \u2115) (a : Rq (powTwoCyclotomic (R := R) \u03b1)) :"
+        },
+        {
+          "doc": "Composition law `\u03c3_i \u2218 \u03c3_j = \u03c3_{ij}`. DEFERRED (rated 8): proven on the semantic `aeval` side, so it depends on the soundness bridge `galoisAut_toQuotient`.",
+          "kind": "theorem",
+          "line": 76,
+          "name": "ArkLib.Lattices.CyclotomicModulus.galoisAut_comp",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "galoisAut_comp",
+          "signature": "theorem galoisAut_comp (\u03b1 i j : \u2115) (a : Rq (powTwoCyclotomic (R := R) \u03b1)) :"
+        },
+        {
+          "doc": "The exponent set enumerating `H = \u27e8\u03c3_{-1}, \u03c3_{4k+1}\u27e9` inside `(Z / 2^{\u03b1+1})\u02e3`: `{ \u00b1(4k+1)^a mod 2^{\u03b1+1} : 0 \u2264 a < d/(2k) }`. The trace map sums the automorphisms over this set.",
+          "kind": "def",
+          "line": 86,
+          "name": "ArkLib.Lattices.CyclotomicModulus.Hexp",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "Hexp",
+          "signature": "def Hexp (\u03b1 k : \u2115) : Finset \u2115 :="
+        },
+        {
+          "doc": "`|H| = d/k = 2^\u03b1 / k` (Hachi [NOZ26, \u00a73], from `|\u27e84k+1\u27e9| = d/(2k)` and the `\u00b1` factor). DEFERRED (rated 8): order of `4k+1` in `(Z/2^{\u03b1+1})\u02e3` plus injectivity of the enumeration.",
+          "kind": "theorem",
+          "line": 93,
+          "name": "ArkLib.Lattices.CyclotomicModulus.Hexp_card",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "Hexp_card",
+          "signature": "theorem Hexp_card (\u03b1 k : \u2115) (hk : k \u2223 2 ^ \u03b1) (hk0 : 0 < k) :"
+        }
+      ]
+    },
+    "ArkLib/Data/Lattices/CyclotomicRing/Galois/Trace.lean": {
+      "declarations": [
+        {
+          "doc": "",
+          "kind": "def",
+          "line": 18,
+          "name": "_anon_def_18",
+          "namespace": "",
+          "short_name": "_anon_def_18",
+          "signature": "def deferred."
+        },
+        {
+          "doc": "The **trace over an exponent set** `S`: `\u03a3_{i \u2208 S} \u03c3_i(a)`. Noncomputable as stated, since `Finset.sum` routes through `Rq`'s (transported, noncomputable) `CommRing`. The computable counterpart is `traceOverComp` (equal by `traceOverComp_eq`); the underlying automorphism action `galoisAut` is itself computable.",
+          "kind": "def",
+          "line": 42,
+          "name": "ArkLib.Lattices.CyclotomicModulus.traceOver",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "traceOver",
+          "signature": "def traceOver (S : Finset \u2115) (a : Rq \u03a6) : Rq \u03a6 := \u2211 i \u2208 S, galoisAut \u03a6 i a"
+        },
+        {
+          "doc": "",
+          "kind": "theorem",
+          "line": 44,
+          "name": "ArkLib.Lattices.CyclotomicModulus.traceOver_zero",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "traceOver_zero",
+          "signature": "theorem traceOver_zero (S : Finset \u2115) : traceOver \u03a6 S 0 = 0 := by"
+        },
+        {
+          "doc": "The trace is additive.",
+          "kind": "theorem",
+          "line": 49,
+          "name": "ArkLib.Lattices.CyclotomicModulus.traceOver_add",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "traceOver_add",
+          "signature": "theorem traceOver_add (S : Finset \u2115) (a b : Rq \u03a6) :"
+        },
+        {
+          "doc": "The **computable trace** over an exponent set `S`. The monomial remap is summed at the `CPolynomial` level \u2014 whose ring structure is computable, unlike `Rq`'s transported one \u2014 and reduced once at the end. Equal to `traceOver` (`traceOverComp_eq`).",
+          "kind": "def",
+          "line": 58,
+          "name": "ArkLib.Lattices.CyclotomicModulus.traceOverComp",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "traceOverComp",
+          "signature": "def traceOverComp (S : Finset \u2115) (a : Rq \u03a6) : Rq \u03a6 :="
+        },
+        {
+          "doc": "The computable trace agrees with `traceOver`.",
+          "kind": "theorem",
+          "line": 63,
+          "name": "ArkLib.Lattices.CyclotomicModulus.traceOverComp_eq",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "traceOverComp_eq",
+          "signature": "theorem traceOverComp_eq (S : Finset \u2115) (a : Rq \u03a6) : traceOverComp \u03a6 S a = traceOver \u03a6 S a := by"
+        },
+        {
+          "doc": "The **trace map `Tr_H`** for `H = \u27e8\u03c3_{-1}, \u03c3_{4k+1}\u27e9`.",
+          "kind": "def",
+          "line": 68,
+          "name": "ArkLib.Lattices.CyclotomicModulus.traceH",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "traceH",
+          "signature": "def traceH (\u03b1 k : \u2115) (a : Rq (powTwoCyclotomic (R := R) \u03b1)) :"
+        },
+        {
+          "doc": "The **computable** trace map `Tr_H`, equal to `traceH` (`traceHComp_eq`).",
+          "kind": "def",
+          "line": 73,
+          "name": "ArkLib.Lattices.CyclotomicModulus.traceHComp",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "traceHComp",
+          "signature": "def traceHComp (\u03b1 k : \u2115) (a : Rq (powTwoCyclotomic (R := R) \u03b1)) :"
+        },
+        {
+          "doc": "The computable `Tr_H` agrees with `traceH`.",
+          "kind": "theorem",
+          "line": 78,
+          "name": "ArkLib.Lattices.CyclotomicModulus.traceHComp_eq",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "traceHComp_eq",
+          "signature": "theorem traceHComp_eq (\u03b1 k : \u2115) (a : Rq (powTwoCyclotomic (R := R) \u03b1)) :"
+        },
+        {
+          "doc": "`Tr_H` is fixed by every generator of `H`, hence lands in the fixed subring `R_q^H`. DEFERRED (rated 7): needs the group structure of `H` (a generator permutes the sum over `Hexp`), which in turn rests on the composition law `galoisAut_comp`.",
+          "kind": "theorem",
+          "line": 85,
+          "name": "ArkLib.Lattices.CyclotomicModulus.traceH_mem_fixed",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "traceH_mem_fixed",
+          "signature": "theorem traceH_mem_fixed (\u03b1 k : \u2115) (a : Rq (powTwoCyclotomic (R := R) \u03b1)) :"
+        }
+      ]
+    },
     "ArkLib/Data/Lattices/CyclotomicRing/Modulus.lean": {
       "declarations": [
         {
@@ -19540,6 +19892,46 @@
           "namespace": "ArkLib.Lattices.CenteredCoeffView",
           "short_name": "vecL2NormSq",
           "signature": "def vecL2NormSq {n : \u2115} (v : PolyVec (CPolynomial R) n) : \u2115 :="
+        }
+      ]
+    },
+    "ArkLib/Data/Lattices/CyclotomicRing/PowTwo.lean": {
+      "declarations": [
+        {
+          "doc": "The **prime power-of-two cyclotomic modulus** `X^{2^\u03b1} + 1` over `ZMod q` (the `2^{\u03b1+1}`-th cyclotomic polynomial). Kept `@[reducible]` so the `IsCyclotomic` instance and the `powTwoCyclotomic`-stated deep lemmas apply transparently.",
+          "kind": "def",
+          "line": 58,
+          "name": "ArkLib.Lattices.primePowTwoModulus",
+          "namespace": "ArkLib.Lattices",
+          "short_name": "primePowTwoModulus",
+          "signature": "def primePowTwoModulus : CyclotomicModulus (ZMod q) := powTwoCyclotomic \u03b1"
+        },
+        {
+          "doc": "The **prime power-of-two cyclotomic ring** `R_q = Z_q[X] / (X^{2^\u03b1} + 1)`, the degree-`2^\u03b1` power-of-two cyclotomic ring over `ZMod q`. It is a computable `CommRing`, inherited from `Rq`. This is the ring in which Hachi [NOZ26, \u00a73] embeds the extension fields `F_{q^k}`.",
+          "kind": "def",
+          "line": 63,
+          "name": "ArkLib.Lattices.PrimePowTwoRing",
+          "namespace": "ArkLib.Lattices",
+          "short_name": "PrimePowTwoRing",
+          "signature": "def PrimePowTwoRing : Type := Rq (primePowTwoModulus q \u03b1)"
+        },
+        {
+          "doc": "The prime power-of-two modulus `X^{2^\u03b1} + 1` has degree `2^\u03b1`.",
+          "kind": "theorem",
+          "line": 66,
+          "name": "ArkLib.Lattices.primePowTwoModulus_natDegree",
+          "namespace": "ArkLib.Lattices",
+          "short_name": "primePowTwoModulus_natDegree",
+          "signature": "theorem primePowTwoModulus_natDegree : (primePowTwoModulus q \u03b1).\u03c6.natDegree = 2 ^ \u03b1 := by"
+        },
+        {
+          "doc": "The prime power-of-two modulus has conductor `2^{\u03b1+1}`.",
+          "kind": "theorem",
+          "line": 74,
+          "name": "ArkLib.Lattices.primePowTwoModulus_conductor",
+          "namespace": "ArkLib.Lattices",
+          "short_name": "primePowTwoModulus_conductor",
+          "signature": "theorem primePowTwoModulus_conductor : (primePowTwoModulus q \u03b1).conductor = 2 ^ (\u03b1 + 1) :="
         }
       ]
     },
@@ -39900,8 +40292,8 @@
   },
   "stats": {
     "ArkLib": {
-      "declarations": 4334,
-      "files": 226
+      "declarations": 4375,
+      "files": 232
     }
   }
 }

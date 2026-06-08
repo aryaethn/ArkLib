@@ -64,12 +64,15 @@ noncomputable def genAut (α k : ℕ) :
 
 /-! ## Group laws (number-theoretic core sorried) -/
 
-/-- `σ_1 = id`. (Sorried.) -/
+/-- `σ_1 = id`. DEFERRED (rated 6): needs the polynomial reconstruction
+`∑_{k<d} monomial k (a_k) = a` for reduced reps, i.e. `CPolynomial` coefficient-vanishing above
+`natDegree`. -/
 theorem galoisAut_one_eq (α : ℕ) (a : Rq (powTwoCyclotomic (R := R) α)) :
     galoisAut (powTwoCyclotomic α) 1 a = a := by
   sorry
 
-/-- Composition law `σ_i ∘ σ_j = σ_{ij}`. (Sorried — proven on the semantic `aeval` side.) -/
+/-- Composition law `σ_i ∘ σ_j = σ_{ij}`. DEFERRED (rated 8): proven on the semantic `aeval`
+side, so it depends on the soundness bridge `galoisAut_toQuotient`. -/
 theorem galoisAut_comp (α i j : ℕ) (a : Rq (powTwoCyclotomic (R := R) α)) :
     galoisAut (powTwoCyclotomic α) i (galoisAut (powTwoCyclotomic α) j a)
       = galoisAut (powTwoCyclotomic α) (i * j) a := by
@@ -86,7 +89,7 @@ def Hexp (α k : ℕ) : Finset ℕ :=
       (2 ^ (α + 1) - (4 * k + 1) ^ a % 2 ^ (α + 1)) % 2 ^ (α + 1)}
 
 /-- `|H| = d/k = 2^α / k` (Hachi [NOZ26, §3], from `|⟨4k+1⟩| = d/(2k)` and the `±` factor).
-(Sorried — number theory.) -/
+DEFERRED (rated 8): order of `4k+1` in `(Z/2^{α+1})ˣ` plus injectivity of the enumeration. -/
 theorem Hexp_card (α k : ℕ) (hk : k ∣ 2 ^ α) (hk0 : 0 < k) :
     (Hexp α k).card = 2 ^ α / k := by
   sorry

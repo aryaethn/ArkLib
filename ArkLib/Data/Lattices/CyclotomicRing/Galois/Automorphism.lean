@@ -80,14 +80,17 @@ the bare action is defined for all `i`. -/
 def galoisAut (i : ℕ) (a : Rq Φ) : Rq Φ :=
   Rq.mk Φ (∑ k ∈ range Φ.φ.natDegree, monomial (k * i) (a.1.coeff k))
 
+/-- A monomial with zero coefficient is the zero polynomial. -/
+private theorem monomial_eq_zero (n : ℕ) : (monomial n (0 : R) : CPolynomial R) = 0 :=
+  CompPoly.CPolynomial.eq_zero_iff_coeff_zero.mpr
+    (fun j => by rw [CompPoly.CPolynomial.coeff_monomial]; split_ifs <;> rfl)
+
 @[simp] theorem galoisAut_zero (i : ℕ) : galoisAut Φ i 0 = 0 := by
   unfold galoisAut
   have : ∀ k ∈ range Φ.φ.natDegree,
       (monomial (k * i) ((0 : Rq Φ).1.coeff k) : CPolynomial R) = 0 := by
     intro k _
-    rw [Rq.zero_val, CompPoly.CPolynomial.coeff_zero]
-    exact CompPoly.CPolynomial.eq_zero_iff_coeff_zero.mpr
-      (fun j => by rw [CompPoly.CPolynomial.coeff_monomial]; split_ifs <;> rfl)
+    rw [Rq.zero_val, CompPoly.CPolynomial.coeff_zero, monomial_eq_zero]
   rw [Finset.sum_congr rfl this, Finset.sum_const_zero]
   rfl
 
@@ -101,6 +104,39 @@ theorem galoisAut_add (i : ℕ) (a b : Rq Φ) :
   refine Finset.sum_congr rfl (fun k _ => ?_)
   rw [Rq.add_val, CompPoly.CPolynomial.coeff_add, CompPoly.CPolynomial.monomial_add]
 
+omit [DecidableEq R] in
+/-- The modulus polynomial of `powTwoCyclotomic α`, as a Mathlib polynomial. -/
+theorem powTwoCyclotomic_toPoly (α : ℕ) :
+    (powTwoCyclotomic (R := R) α).φ.toPoly = Polynomial.X ^ (2 ^ α) + 1 := by
+  change (CompPoly.CPolynomial.X ^ (2 ^ α) + 1 : CPolynomial R).toPoly = _
+  rw [toPoly_add, toPoly_pow, toPoly_X, toPoly_one]
+
+/-- `σ_i` fixes `1`, since only the constant term contributes (so in particular `σ_1` fixes it). -/
+theorem galoisAut_map_one (α i : ℕ) : galoisAut (powTwoCyclotomic (R := R) α) i 1 = 1 := by
+  have h2 : (0 : ℕ) < 2 ^ α := pow_pos (by norm_num) α
+  have hpos : 0 < (powTwoCyclotomic (R := R) α).φ.natDegree := by
+    rw [CompPoly.CPolynomial.natDegree_toPoly, powTwoCyclotomic_toPoly]
+    rw [show (Polynomial.X ^ 2 ^ α + 1 : Polynomial R) = Polynomial.X ^ 2 ^ α + Polynomial.C 1 by
+      rw [Polynomial.C_1], Polynomial.natDegree_X_pow_add_C]
+    exact h2
+  have hone : (1 : Rq (powTwoCyclotomic (R := R) α)).1 = (1 : CPolynomial R) := by
+    change (powTwoCyclotomic (R := R) α).reduce 1 = 1
+    refine CyclotomicModulus.reduce_eq_self_of_degree_lt _ ?_
+    rw [CompPoly.CPolynomial.toPoly_one, Polynomial.degree_one, powTwoCyclotomic_toPoly,
+      ← Polynomial.C_1, Polynomial.degree_X_pow_add_C h2 (1 : R)]
+    exact_mod_cast h2
+  have hcoeff : ∀ k,
+      (1 : Rq (powTwoCyclotomic (R := R) α)).1.coeff k = if k = 0 then (1 : R) else 0 :=
+    fun k => by rw [hone]; exact CompPoly.CPolynomial.coeff_one k
+  have hm : (monomial 0 (1 : R) : CPolynomial R) = 1 :=
+    CompPoly.CPolynomial.eq_iff_coeff.mpr fun j => by
+      rw [CompPoly.CPolynomial.coeff_monomial, CompPoly.CPolynomial.coeff_one]
+  unfold galoisAut
+  rw [Finset.sum_eq_single_of_mem 0 (Finset.mem_range.mpr hpos)
+        (fun k _ hk => by rw [hcoeff, if_neg hk, monomial_eq_zero]),
+      hcoeff, if_pos rfl, Nat.zero_mul, hm]
+  rfl
+
 /-! ## The semantic automorphism via Mathlib `aeval` -/
 
 /-- The Mathlib `R`-algebra endomorphism of `Polynomial R` sending `X ↦ X^i` (i.e. `p ↦ p(X^i)`),
@@ -110,14 +146,25 @@ noncomputable def galoisAeval (i : ℕ) : Polynomial R →+* Polynomial R :=
 
 omit [DecidableEq R] in
 /-- Well-definedness on the power-of-two ring: `aeval (X^i)` maps the modulus ideal into itself
-for odd `i`, since `X^{2^α} + 1 ∣ (X^{2^α})^i + 1`.
-
-(Medium difficulty: `a + 1 ∣ a^i + 1` for odd `i` via `sub_dvd_pow_sub_pow a (-1) i` and
-`Odd.neg_one_pow`. Sorried for now.) -/
+for odd `i`, since `X^{2^α} + 1 ∣ (X^{2^α})^i + 1`. -/
 theorem powTwo_galoisAeval_mem (α i : ℕ) (hi : Odd i) {p : Polynomial R}
     (hp : p ∈ (powTwoCyclotomic (R := R) α).modIdeal) :
     galoisAeval i p ∈ (powTwoCyclotomic (R := R) α).modIdeal := by
-  sorry
+  -- `galoisAeval i X = X ^ i`
+  have hX : galoisAeval i (Polynomial.X : Polynomial R) = Polynomial.X ^ i := by
+    simp [galoisAeval]
+  -- `aeval (X^i)` sends the modulus to `(X^{2^α})^i + 1`, divisible by `X^{2^α} + 1`.
+  have hdvd : (powTwoCyclotomic (R := R) α).φ.toPoly ∣
+      galoisAeval i (powTwoCyclotomic (R := R) α).φ.toPoly := by
+    rw [powTwoCyclotomic_toPoly, map_add, map_pow, map_one, hX,
+      show ((Polynomial.X : Polynomial R) ^ i) ^ 2 ^ α = (Polynomial.X ^ 2 ^ α) ^ i by
+        rw [← pow_mul, ← pow_mul, Nat.mul_comm]]
+    have hd := sub_dvd_pow_sub_pow (Polynomial.X ^ 2 ^ α : Polynomial R) (-1) i
+    rwa [Odd.neg_one_pow hi, sub_neg_eq_add, sub_neg_eq_add] at hd
+  simp only [modIdeal, Ideal.mem_span_singleton] at hp ⊢
+  obtain ⟨c, rfl⟩ := hp
+  rw [map_mul]
+  exact hdvd.mul_right _
 
 /-- The **semantic Galois automorphism** `σ_i` on the quotient ring, obtained by descending the
 Mathlib endomorphism `aeval (X^i)` along `Ideal.Quotient.lift`. A genuine `RingHom`. -/
@@ -135,8 +182,8 @@ noncomputable def galoisAutₛ (α i : ℕ) (hi : Odd i) :
 `Rq.toQuotient`. This is the key bridge (Hachi [NOZ26, §3]); it lets all algebraic structure
 (ring-hom laws, bijectivity) be proven on the Mathlib side and transported back.
 
-(Hard: requires matching the monomial-remap-then-reduce against `aeval (X^i)` coefficientwise.
-Sorried for now.) -/
+DEFERRED (rated 8): requires matching the monomial-remap-then-reduce against `aeval (X^i)`
+coefficientwise — the load-bearing bridge of this layer. -/
 theorem galoisAut_toQuotient (α i : ℕ) (hi : Odd i) (a : Rq (powTwoCyclotomic (R := R) α)) :
     (galoisAut (powTwoCyclotomic α) i a).toQuotient = galoisAutₛ α i hi a.toQuotient := by
   sorry
@@ -144,12 +191,14 @@ theorem galoisAut_toQuotient (α i : ℕ) (hi : Odd i) (a : Rq (powTwoCyclotomic
 /-! ## The computable automorphism bundled as a `RingHom` -/
 
 /-- The computable Galois automorphism action bundled as a `RingHom` on `Rq`. The additive
-structure is proven directly; multiplicativity and unitality are transported from the semantic
-`galoisAutₛ` via `galoisAut_toQuotient` (currently sorried). -/
+structure and unitality (`map_one'`) are proven directly; multiplicativity is transported from
+the semantic `galoisAutₛ` via `galoisAut_toQuotient`.
+
+`map_mul'` is DEFERRED (rated 8): it depends on the soundness bridge `galoisAut_toQuotient`. -/
 noncomputable def galoisRingHom (α i : ℕ) (hi : Odd i) :
     Rq (powTwoCyclotomic (R := R) α) →+* Rq (powTwoCyclotomic (R := R) α) where
   toFun := galoisAut (powTwoCyclotomic α) i
-  map_one' := by sorry
+  map_one' := galoisAut_map_one α i
   map_mul' := by sorry
   map_zero' := galoisAut_zero (powTwoCyclotomic α) i
   map_add' := galoisAut_add (powTwoCyclotomic α) i

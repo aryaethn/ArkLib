@@ -54,7 +54,7 @@ Over the power-of-two cyclotomic modulus `powTwoCyclotomic α` (`φ = X^{2^α}+1
 `‖c‖ < √q`). A genuine piece of algebraic number theory (ideal-lattice minimum distance via
 the cyclotomic embedding); recorded here with `sorry`. -/
 theorem isUnit_of_l1Norm_le (hq5 : q % 8 = 5) {c : Rq Φ} {κ : ℕ}
-    (hpos : 0 < Rq.l1Norm Φ c) (hle : Rq.l1Norm Φ c ≤ κ) (hκ : κ ^ 2 < q) :
+    (hpos : 0 < ‖c‖₁) (hle : ‖c‖₁ ≤ κ) (hκ : κ ^ 2 < q) :
     IsUnit c := by
   sorry
 

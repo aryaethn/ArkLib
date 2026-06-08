@@ -483,7 +483,7 @@
         {
           "doc": "**Unconditional perfect correctness with the concrete binary decomposition.** Both message and inner decompositions are the genuine base-`b` digit decomposition of `ZMod q` (`zmodDigitDecomposition`, the Hachi gadget inverse `G\u207b\u00b9`). All weak-verifier side conditions are discharged automatically: the trivial challenge `c\u1d62 = 1` is short (`Rq.l1Norm_one`), and the digit decompositions are short (`GadgetNorms`), with `\u03b2Sq := (mr\u00b7md)\u00b7(deg \u03c6)\u00b7(b-1)\u00b2` and `\u03b3 := b - 1`. The hypotheses are exactly those for reconstruction (`1 < b`, `q \u2264 b\u1d48\u2071\u1d4d\u2071\u1d57\u02e2`, `1 \u2264 deg \u03c6`, positive digit counts), plus `1 \u2264 \u03ba` and th",
           "kind": "theorem",
-          "line": 198,
+          "line": 197,
           "name": "ArkLib.Lattices.Ajtai.InnerOuter.perfectlyCorrect",
           "namespace": "ArkLib.Lattices.Ajtai.InnerOuter",
           "short_name": "perfectlyCorrect",
@@ -770,7 +770,7 @@
         {
           "doc": "Verified weak openings with different flattened witnesses give a valid outer relation.",
           "kind": "theorem",
-          "line": 275,
+          "line": 274,
           "name": "ArkLib.Lattices.Ajtai.InnerOuter.WeakBinding.outer_relation_of_verified",
           "namespace": "ArkLib.Lattices.Ajtai.InnerOuter.WeakBinding",
           "short_name": "outer_relation_of_verified",
@@ -779,7 +779,7 @@
         {
           "doc": "**Extractor validity (the reusable core).** Two *verified* weak openings that differ yield a valid inner or outer Module-SIS witness (over `\ud835\udcdc(q, \u03b1)`). This is stated directly on the extracted `VerifiedOpening` facts, *independent* of how those facts were obtained \u2014 so it is reused both by the weak-binding bound below (where the `VerifiedOpening`s come from `verify_weak`) and by the CWSS argument for the evaluation protocol (Hachi [NOZ26, Lemma 8]), where the two weak openings are reconstructed from special-soundness transcripts.",
           "kind": "theorem",
-          "line": 310,
+          "line": 309,
           "name": "ArkLib.Lattices.Ajtai.InnerOuter.WeakBinding.outputToModuleSIS_valid_of_verified",
           "namespace": "ArkLib.Lattices.Ajtai.InnerOuter.WeakBinding",
           "short_name": "outputToModuleSIS_valid_of_verified",
@@ -788,7 +788,7 @@
         {
           "doc": "A successful pair of weak openings yields a valid inner or outer Module-SIS witness (over `\ud835\udcdc(q, \u03b1)`). The boolean-verification wrapper around `outputToModuleSIS_valid_of_verified`: it extracts the `VerifiedOpening` facts from `verify_weak` and applies the core.",
           "kind": "theorem",
-          "line": 338,
+          "line": 337,
           "name": "ArkLib.Lattices.Ajtai.InnerOuter.WeakBinding.outputToModuleSIS_valid",
           "namespace": "ArkLib.Lattices.Ajtai.InnerOuter.WeakBinding",
           "short_name": "outputToModuleSIS_valid",
@@ -797,7 +797,7 @@
         {
           "doc": "The Hachi/Greyhound weak-binding experiment. ## Ordinary vs. weak binding *Ordinary (exact) binding* asks the adversary to produce one commitment `u` together with two verifying openings to **different messages**. The opening it would carry here is just the decomposition data `(s\u1d62, t\u0302\u1d62)\u1d62`. *Weak (relaxed) binding* \u2014 what this experiment formalizes \u2014 relaxes that in one place: each opening additionally carries a per-block **challenge** `c\u1d62` (see `Opening`), and `verify_weak` bounds the **scaled** message `\u2016c\u1d62\u00b7s\u1d62\u2016\u2082\u00b2 \u2264 \u03b2Sq` rather than `s\u1d62` itself, while requiring `c\u1d62` to be nonzero and `\u2113\u2081`-shor",
           "kind": "def",
-          "line": 396,
+          "line": 395,
           "name": "ArkLib.Lattices.Ajtai.InnerOuter.WeakBinding.experiment",
           "namespace": "ArkLib.Lattices.Ajtai.InnerOuter.WeakBinding",
           "short_name": "experiment",
@@ -806,7 +806,7 @@
         {
           "doc": "Weak-binding advantage.",
           "kind": "def",
-          "line": 409,
+          "line": 408,
           "name": "ArkLib.Lattices.Ajtai.InnerOuter.WeakBinding.advantage",
           "namespace": "ArkLib.Lattices.Ajtai.InnerOuter.WeakBinding",
           "short_name": "advantage",
@@ -815,7 +815,7 @@
         {
           "doc": "Reduction attacking the inner Module-SIS matrix.",
           "kind": "def",
-          "line": 414,
+          "line": 413,
           "name": "ArkLib.Lattices.Ajtai.InnerOuter.WeakBinding.innerAdvToModuleSIS",
           "namespace": "ArkLib.Lattices.Ajtai.InnerOuter.WeakBinding",
           "short_name": "innerAdvToModuleSIS",
@@ -824,7 +824,7 @@
         {
           "doc": "Reduction attacking the outer Module-SIS matrix.",
           "kind": "def",
-          "line": 426,
+          "line": 425,
           "name": "ArkLib.Lattices.Ajtai.InnerOuter.WeakBinding.outerAdvToModuleSIS",
           "namespace": "ArkLib.Lattices.Ajtai.InnerOuter.WeakBinding",
           "short_name": "outerAdvToModuleSIS",
@@ -833,7 +833,7 @@
         {
           "doc": "Pointwise weak-binding to Module-SIS bound for fixed samples (over `\ud835\udcdc(q, \u03b1)`).",
           "kind": "theorem",
-          "line": 438,
+          "line": 437,
           "name": "ArkLib.Lattices.Ajtai.InnerOuter.WeakBinding.sample_advantage_le_moduleSIS",
           "namespace": "ArkLib.Lattices.Ajtai.InnerOuter.WeakBinding",
           "short_name": "sample_advantage_le_moduleSIS",
@@ -842,7 +842,7 @@
         {
           "doc": "**Weak binding reduces to Module-SIS.** The Hachi/Greyhound weak-binding advantage (over `\ud835\udcdc(q, \u03b1)`) is bounded by the sum of the inner and outer extracted Module-SIS advantages.",
           "kind": "theorem",
-          "line": 477,
+          "line": 476,
           "name": "ArkLib.Lattices.Ajtai.InnerOuter.WeakBinding.advantage_le_moduleSIS",
           "namespace": "ArkLib.Lattices.Ajtai.InnerOuter.WeakBinding",
           "short_name": "advantage_le_moduleSIS",
@@ -19355,9 +19355,18 @@
           "signature": "theorem aeval_X_pow_monomial (i k : \u2115) (c : R) :"
         },
         {
+          "doc": "Substituting `X \u21a6 X^j` then `X \u21a6 X^i` is substituting `X \u21a6 X^{ij}`.",
+          "kind": "theorem",
+          "line": 182,
+          "name": "ArkLib.Lattices.CyclotomicModulus.aeval_X_pow_aeval_X_pow",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "aeval_X_pow_aeval_X_pow",
+          "signature": "theorem aeval_X_pow_aeval_X_pow (i j : \u2115) (p : Polynomial R) :"
+        },
+        {
           "doc": "Well-definedness on the power-of-two ring: `aeval (X^i)` maps the modulus ideal into itself for odd `i`, since `X^{2^\u03b1} + 1 \u2223 (X^{2^\u03b1})^i + 1`.",
           "kind": "theorem",
-          "line": 183,
+          "line": 195,
           "name": "ArkLib.Lattices.CyclotomicModulus.powTwo_galoisAeval_mem",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "powTwo_galoisAeval_mem",
@@ -19366,16 +19375,25 @@
         {
           "doc": "The **semantic Galois automorphism** `\u03c3_i` on the quotient ring, obtained by descending the Mathlib endomorphism `aeval (X^i)` along `Ideal.Quotient.lift`. A genuine `RingHom`.",
           "kind": "def",
-          "line": 204,
+          "line": 216,
           "name": "ArkLib.Lattices.CyclotomicModulus.galoisAut\u209b",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "galoisAut\u209b",
           "signature": "def galoisAut\u209b (\u03b1 i : \u2115) (hi : Odd i) :"
         },
         {
+          "doc": "The semantic automorphism on a quotient class: `galoisAut\u209b (mk p) = mk (aeval (X^i) p)`.",
+          "kind": "theorem",
+          "line": 226,
+          "name": "ArkLib.Lattices.CyclotomicModulus.galoisAut\u209b_mk",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "galoisAut\u209b_mk",
+          "signature": "theorem galoisAut\u209b_mk (\u03b1 i : \u2115) (hi : Odd i) (p : Polynomial R) :"
+        },
+        {
           "doc": "**(S1)** The semantic automorphism on a lifted element: `galoisAut\u209b` applied to `a.toQuotient` is the class of `aeval (X^i)` applied to the underlying polynomial.",
           "kind": "theorem",
-          "line": 215,
+          "line": 234,
           "name": "ArkLib.Lattices.CyclotomicModulus.galoisAut\u209b_toQuotient",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "galoisAut\u209b_toQuotient",
@@ -19384,7 +19402,7 @@
         {
           "doc": "**(S5)** The core polynomial identity behind soundness: the monomial-remapped sum (before reduction) equals `aeval (X^i)` of the underlying polynomial. Both sides are `\u2211_{k<d} X^{ki}\u00b7a_k`.",
           "kind": "theorem",
-          "line": 227,
+          "line": 245,
           "name": "ArkLib.Lattices.CyclotomicModulus.galoisAut_sum_toPoly_eq_aeval",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "galoisAut_sum_toPoly_eq_aeval",
@@ -19393,7 +19411,7 @@
         {
           "doc": "**(S6) Soundness**: the computable automorphism agrees with the semantic one under `Rq.toQuotient`. This is the key bridge (Hachi [NOZ26, \u00a73]); it lets all algebraic structure (ring-hom laws, bijectivity) be proven on the Mathlib side and transported back.",
           "kind": "theorem",
-          "line": 242,
+          "line": 260,
           "name": "ArkLib.Lattices.CyclotomicModulus.galoisAut_toQuotient",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "galoisAut_toQuotient",
@@ -19402,7 +19420,7 @@
         {
           "doc": "Multiplicativity of the computable automorphism, transported from `galoisAut\u209b` (a `RingHom`) through the soundness bridge.",
           "kind": "theorem",
-          "line": 249,
+          "line": 267,
           "name": "ArkLib.Lattices.CyclotomicModulus.galoisAut_mul",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "galoisAut_mul",
@@ -19411,7 +19429,7 @@
         {
           "doc": "The computable Galois automorphism action bundled as a `RingHom` on `Rq`. The additive structure and unitality are proven directly; multiplicativity (`map_mul'`) is transported from the semantic `galoisAut\u209b` via the soundness bridge `galoisAut_toQuotient` (see `galoisAut_mul`).",
           "kind": "def",
-          "line": 265,
+          "line": 283,
           "name": "ArkLib.Lattices.CyclotomicModulus.galoisRingHom",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "galoisRingHom",
@@ -19420,7 +19438,7 @@
         {
           "doc": "",
           "kind": "theorem",
-          "line": 273,
+          "line": 291,
           "name": "ArkLib.Lattices.CyclotomicModulus.galoisRingHom_apply",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "galoisRingHom_apply",
@@ -19455,7 +19473,7 @@
         {
           "doc": "The exponent of the conjugation automorphism `\u03c3_{-1}`: `2^{\u03b1+1} - 1 \u2261 -1 (mod 2^{\u03b1+1})`.",
           "kind": "def",
-          "line": 42,
+          "line": 43,
           "name": "ArkLib.Lattices.CyclotomicModulus.conjExp",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "conjExp",
@@ -19464,7 +19482,7 @@
         {
           "doc": "The exponent of the second generator `\u03c3_{4k+1}`.",
           "kind": "def",
-          "line": 45,
+          "line": 46,
           "name": "ArkLib.Lattices.CyclotomicModulus.genExp",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "genExp",
@@ -19473,7 +19491,7 @@
         {
           "doc": "",
           "kind": "theorem",
-          "line": 47,
+          "line": 48,
           "name": "ArkLib.Lattices.CyclotomicModulus.genExp_odd",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "genExp_odd",
@@ -19482,7 +19500,7 @@
         {
           "doc": "",
           "kind": "theorem",
-          "line": 49,
+          "line": 50,
           "name": "ArkLib.Lattices.CyclotomicModulus.conjExp_odd",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "conjExp_odd",
@@ -19491,7 +19509,7 @@
         {
           "doc": "The conjugation automorphism `\u03c3_{-1} : X \u21a6 X^{-1}`, as a `RingHom`.",
           "kind": "def",
-          "line": 56,
+          "line": 57,
           "name": "ArkLib.Lattices.CyclotomicModulus.conjAut",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "conjAut",
@@ -19500,14 +19518,14 @@
         {
           "doc": "The second generator `\u03c3_{4k+1}`, as a `RingHom`.",
           "kind": "def",
-          "line": 61,
+          "line": 62,
           "name": "ArkLib.Lattices.CyclotomicModulus.genAut",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "genAut",
           "signature": "def genAut (\u03b1 k : \u2115) :"
         },
         {
-          "doc": "`\u03c3_1 = id`. DEFERRED (rated 6): needs the polynomial reconstruction `\u2211_{k<d} monomial k (a_k) = a` for reduced reps, i.e. `CPolynomial` coefficient-vanishing above `natDegree`.",
+          "doc": "`\u03c3_1 = id`: substituting `X \u21a6 X^1` is the identity. Proven via the soundness bridge, since `aeval X` is the identity on `Polynomial R`.",
           "kind": "theorem",
           "line": 70,
           "name": "ArkLib.Lattices.CyclotomicModulus.galoisAut_one_eq",
@@ -19516,31 +19534,31 @@
           "signature": "theorem galoisAut_one_eq (\u03b1 : \u2115) (a : Rq (powTwoCyclotomic (R := R) \u03b1)) :"
         },
         {
-          "doc": "Composition law `\u03c3_i \u2218 \u03c3_j = \u03c3_{ij}`. DEFERRED (rated 8): proven on the semantic `aeval` side, so it depends on the soundness bridge `galoisAut_toQuotient`.",
+          "doc": "Composition law `\u03c3_i \u2218 \u03c3_j = \u03c3_{ij}` (for `i, j` odd, so the maps are genuine automorphisms). Proven on the semantic `aeval` side via the soundness bridge `galoisAut_toQuotient` and `aeval_X_pow_aeval_X_pow`.",
           "kind": "theorem",
-          "line": 76,
+          "line": 79,
           "name": "ArkLib.Lattices.CyclotomicModulus.galoisAut_comp",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "galoisAut_comp",
-          "signature": "theorem galoisAut_comp (\u03b1 i j : \u2115) (a : Rq (powTwoCyclotomic (R := R) \u03b1)) :"
+          "signature": "theorem galoisAut_comp (\u03b1 i j : \u2115) (hi : Odd i) (hj : Odd j)"
         },
         {
           "doc": "The exponent set enumerating `H = \u27e8\u03c3_{-1}, \u03c3_{4k+1}\u27e9` inside `(Z / 2^{\u03b1+1})\u02e3`: `{ \u00b1(4k+1)^a mod 2^{\u03b1+1} : 0 \u2264 a < d/(2k) }`. The trace map sums the automorphisms over this set.",
           "kind": "def",
-          "line": 86,
+          "line": 93,
           "name": "ArkLib.Lattices.CyclotomicModulus.Hexp",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "Hexp",
           "signature": "def Hexp (\u03b1 k : \u2115) : Finset \u2115 :="
         },
         {
-          "doc": "`|H| = d/k = 2^\u03b1 / k` (Hachi [NOZ26, \u00a73], from `|\u27e84k+1\u27e9| = d/(2k)` and the `\u00b1` factor). DEFERRED (rated 8): order of `4k+1` in `(Z/2^{\u03b1+1})\u02e3` plus injectivity of the enumeration.",
+          "doc": "`|H| = d/k = 2^\u03b1 / k` (Hachi [NOZ26, \u00a73], from `|\u27e84k+1\u27e9| = d/(2k)` and the `\u00b1` factor). The hypotheses match Hachi [NOZ26, \u00a73, Claim 1] / [LS18, Lem 2.4]: `k` is a power of two (`hk2pow`) and divides `d/2`, i.e. `2k \u2223 d = 2^\u03b1` (`hk`). Both are needed for `4k+1` to have order exactly `d/(2k)` in `(Z/2^{\u03b1+1})\u02e3`; the weaker `k \u2223 2^\u03b1` (= `k \u2223 d`) does not suffice (e.g. `k = 2^\u03b1` gives `2k \u2224 d`, so `2^\u03b1/(2k)` is not the true order). DEFERRED (rated 8): order of `4k+1` in `(Z/2^{\u03b1+1})\u02e3` plus injectivity of the enumeration.",
           "kind": "theorem",
-          "line": 93,
+          "line": 106,
           "name": "ArkLib.Lattices.CyclotomicModulus.Hexp_card",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "Hexp_card",
-          "signature": "theorem Hexp_card (\u03b1 k : \u2115) (hk : k \u2223 2 ^ \u03b1) (hk0 : 0 < k) :"
+          "signature": "theorem Hexp_card (\u03b1 k : \u2115) (hk2pow : \u2203 \u03ba, k = 2 ^ \u03ba) (hk : 2 * k \u2223 2 ^ \u03b1) :"
         }
       ]
     },
@@ -19758,7 +19776,7 @@
         {
           "doc": "The underlying polynomial of `1 : Rq \u03a6` is the constant `1` (no reduction occurs, as `deg 1 = 0 < deg \u03c6`).",
           "kind": "theorem",
-          "line": 101,
+          "line": 114,
           "name": "ArkLib.Lattices.CyclotomicModulus.Rq.one_val",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "Rq.one_val",
@@ -19767,16 +19785,16 @@
         {
           "doc": "The centered `\u2113\u2081` norm of `1 : Rq \u03a6` is `1` (when `1 \u2264 deg \u03c6`): the trivial challenge `c = 1` used by the honest committer is nonzero and `\u2113\u2081`-short.",
           "kind": "theorem",
-          "line": 112,
+          "line": 125,
           "name": "ArkLib.Lattices.CyclotomicModulus.Rq.l1Norm_one",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "Rq.l1Norm_one",
-          "signature": "theorem Rq.l1Norm_one (h : 1 \u2264 \u03a6.\u03c6.natDegree) : Rq.l1Norm \u03a6 (1 : Rq \u03a6) = 1 := by"
+          "signature": "theorem Rq.l1Norm_one (h : 1 \u2264 \u03a6.\u03c6.natDegree) : \u2016(1 : Rq \u03a6)\u2016\u2081 = 1 := by"
         },
         {
           "doc": "The `\u2113\u221e` norm of a flattened block vector is bounded by `\u03b3` as soon as every block is: the `\u2113\u221e` norm of `flattenBlocks` is the supremum of the per-block `\u2113\u221e` norms.",
           "kind": "theorem",
-          "line": 129,
+          "line": 142,
           "name": "ArkLib.Lattices.CyclotomicModulus.vecLInftyNorm_flattenBlocks_le",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "vecLInftyNorm_flattenBlocks_le",
@@ -19785,7 +19803,7 @@
         {
           "doc": "The squared-`\u2113\u2082` bound for a difference of two vectors within `boundSq`: `4\u00b7boundSq`.",
           "kind": "def",
-          "line": 147,
+          "line": 160,
           "name": "ArkLib.Lattices.CyclotomicModulus.subL2NormSqBound",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "subL2NormSqBound",
@@ -19794,7 +19812,7 @@
         {
           "doc": "The `\u2113\u221e` bound for a difference of two vectors within `bound`: `2\u00b7bound` (the `\u2113\u221e` triangle inequality, no squaring).",
           "kind": "def",
-          "line": 151,
+          "line": 164,
           "name": "ArkLib.Lattices.CyclotomicModulus.subLInftyNormBound",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "subLInftyNormBound",
@@ -19803,7 +19821,7 @@
         {
           "doc": "Squared-`\u2113\u2082` growth bound for scaling an already-scaled vector by a further scalar of bounded `\u2113\u2081` norm: `\u03ba\u00b2 \u00b7 \u03b2\u00b2`.",
           "kind": "def",
-          "line": 155,
+          "line": 168,
           "name": "ArkLib.Lattices.CyclotomicModulus.scalarVecMulMulL2NormSqBound",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "scalarVecMulMulL2NormSqBound",
@@ -19812,7 +19830,7 @@
         {
           "doc": "Per-element subtraction bound: `\u2016a - b\u2016\u2082\u00b2 \u2264 2\u00b7(\u2016a\u2016\u2082\u00b2 + \u2016b\u2016\u2082\u00b2)`.",
           "kind": "theorem",
-          "line": 160,
+          "line": 173,
           "name": "ArkLib.Lattices.CyclotomicModulus.Rq.l2NormSq_sub_le",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "Rq.l2NormSq_sub_le",
@@ -19821,7 +19839,7 @@
         {
           "doc": "**Subtraction bound.** The squared `\u2113\u2082` norm of a difference of two vectors, each within `boundSq`, is within `subL2NormSqBound boundSq = 4\u00b7boundSq`.",
           "kind": "theorem",
-          "line": 180,
+          "line": 193,
           "name": "ArkLib.Lattices.CyclotomicModulus.sub_l2NormSq_le",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "sub_l2NormSq_le",
@@ -19830,7 +19848,7 @@
         {
           "doc": "Per-element `\u2113\u221e` triangle inequality: `\u2016a - b\u2016\u221e \u2264 \u2016a\u2016\u221e + \u2016b\u2016\u221e`.",
           "kind": "theorem",
-          "line": 195,
+          "line": 208,
           "name": "ArkLib.Lattices.CyclotomicModulus.Rq.lInftyNorm_sub_le",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "Rq.lInftyNorm_sub_le",
@@ -19839,7 +19857,7 @@
         {
           "doc": "**`\u2113\u221e` subtraction bound.** The `\u2113\u221e` norm of a difference of two vectors, each within `bound`, is within `subLInftyNormBound bound = 2\u00b7bound`.",
           "kind": "theorem",
-          "line": 213,
+          "line": 226,
           "name": "ArkLib.Lattices.CyclotomicModulus.sub_lInftyNorm_le",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "sub_lInftyNorm_le",
@@ -20367,7 +20385,7 @@
         {
           "doc": "",
           "kind": "theorem",
-          "line": 91,
+          "line": 92,
           "name": "ArkLib.Lattices.matVecMul_apply",
           "namespace": "ArkLib.Lattices",
           "short_name": "matVecMul_apply",
@@ -20376,7 +20394,7 @@
         {
           "doc": "",
           "kind": "theorem",
-          "line": 95,
+          "line": 96,
           "name": "ArkLib.Lattices.scalarVecMul_apply",
           "namespace": "ArkLib.Lattices",
           "short_name": "scalarVecMul_apply",
@@ -20385,7 +20403,7 @@
         {
           "doc": "`dot` as a `Finset.sum` of coordinatewise products.",
           "kind": "theorem",
-          "line": 105,
+          "line": 106,
           "name": "ArkLib.Lattices.dot_eq_sum",
           "namespace": "ArkLib.Lattices",
           "short_name": "dot_eq_sum",
@@ -20394,7 +20412,7 @@
         {
           "doc": "`dot` distributes over subtraction in the second argument.",
           "kind": "theorem",
-          "line": 109,
+          "line": 110,
           "name": "ArkLib.Lattices.dot_sub",
           "namespace": "ArkLib.Lattices",
           "short_name": "dot_sub",
@@ -20403,7 +20421,7 @@
         {
           "doc": "`dot` pulls out a left scalar from the second argument.",
           "kind": "theorem",
-          "line": 113,
+          "line": 114,
           "name": "ArkLib.Lattices.dot_scalarVecMul",
           "namespace": "ArkLib.Lattices",
           "short_name": "dot_scalarVecMul",
@@ -20412,7 +20430,7 @@
         {
           "doc": "Matrix\u2013vector multiplication preserves subtraction.",
           "kind": "theorem",
-          "line": 119,
+          "line": 120,
           "name": "ArkLib.Lattices.matVecMul_sub",
           "namespace": "ArkLib.Lattices",
           "short_name": "matVecMul_sub",
@@ -20421,7 +20439,7 @@
         {
           "doc": "Matrix\u2013vector multiplication commutes with left scalar multiplication.",
           "kind": "theorem",
-          "line": 124,
+          "line": 125,
           "name": "ArkLib.Lattices.matVecMul_scalarVecMul",
           "namespace": "ArkLib.Lattices",
           "short_name": "matVecMul_scalarVecMul",
@@ -20430,7 +20448,7 @@
         {
           "doc": "Left scalar multiplication by a unit is injective.",
           "kind": "theorem",
-          "line": 129,
+          "line": 130,
           "name": "ArkLib.Lattices.scalarVecMul_injective_of_isUnit",
           "namespace": "ArkLib.Lattices",
           "short_name": "scalarVecMul_injective_of_isUnit",
@@ -20439,7 +20457,7 @@
         {
           "doc": "Scaling by a product of two units preserves vector inequality.",
           "kind": "theorem",
-          "line": 138,
+          "line": 139,
           "name": "ArkLib.Lattices.scalarVecMul_mul_ne_of_ne",
           "namespace": "ArkLib.Lattices",
           "short_name": "scalarVecMul_mul_ne_of_ne",
@@ -20448,7 +20466,7 @@
         {
           "doc": "Equality of matrix products is preserved by scaling with a product of two scalars.",
           "kind": "theorem",
-          "line": 146,
+          "line": 147,
           "name": "ArkLib.Lattices.matVecMul_scalarVecMul_mul_eq_of_eq",
           "namespace": "ArkLib.Lattices",
           "short_name": "matVecMul_scalarVecMul_mul_eq_of_eq",
@@ -40364,7 +40382,7 @@
   },
   "stats": {
     "ArkLib": {
-      "declarations": 4383,
+      "declarations": 4385,
       "files": 232
     }
   }

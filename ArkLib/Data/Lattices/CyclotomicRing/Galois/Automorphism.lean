@@ -177,6 +177,18 @@ theorem aeval_X_pow_monomial (i k : ℕ) (c : R) :
   rw [Polynomial.aeval_monomial, Polynomial.algebraMap_eq, ← pow_mul,
     Polynomial.C_mul_X_pow_eq_monomial, Nat.mul_comm]
 
+omit [BEq R] [LawfulBEq R] [DecidableEq R] in
+/-- Substituting `X ↦ X^j` then `X ↦ X^i` is substituting `X ↦ X^{ij}`. -/
+theorem aeval_X_pow_aeval_X_pow (i j : ℕ) (p : Polynomial R) :
+    (Polynomial.aeval (Polynomial.X ^ i : Polynomial R))
+        ((Polynomial.aeval (Polynomial.X ^ j : Polynomial R)) p)
+      = (Polynomial.aeval (Polynomial.X ^ (i * j) : Polynomial R)) p := by
+  have h : (Polynomial.aeval (Polynomial.X ^ i : Polynomial R)).comp
+        (Polynomial.aeval (Polynomial.X ^ j : Polynomial R))
+      = Polynomial.aeval (Polynomial.X ^ (i * j) : Polynomial R) := by
+    rw [← Polynomial.aeval_algHom, map_pow, Polynomial.aeval_X, ← pow_mul]
+  exact AlgHom.congr_fun h p
+
 omit [DecidableEq R] in
 /-- Well-definedness on the power-of-two ring: `aeval (X^i)` maps the modulus ideal into itself
 for odd `i`, since `X^{2^α} + 1 ∣ (X^{2^α})^i + 1`. -/
@@ -210,14 +222,20 @@ noncomputable def galoisAutₛ (α i : ℕ) (hi : Odd i) :
       exact (Ideal.Quotient.eq_zero_iff_mem).mpr (powTwo_galoisAeval_mem α i hi hp))
 
 omit [DecidableEq R] in
+/-- The semantic automorphism on a quotient class: `galoisAutₛ (mk p) = mk (aeval (X^i) p)`. -/
+theorem galoisAutₛ_mk (α i : ℕ) (hi : Odd i) (p : Polynomial R) :
+    galoisAutₛ α i hi (Ideal.Quotient.mk _ p)
+      = Ideal.Quotient.mk _ (Polynomial.aeval (Polynomial.X ^ i : Polynomial R) p) := by
+  rw [galoisAutₛ, Ideal.Quotient.lift_mk, RingHom.comp_apply, galoisAeval_apply]
+
+omit [DecidableEq R] in
 /-- **(S1)** The semantic automorphism on a lifted element: `galoisAutₛ` applied to
 `a.toQuotient` is the class of `aeval (X^i)` applied to the underlying polynomial. -/
 theorem galoisAutₛ_toQuotient (α i : ℕ) (hi : Odd i) (a : Rq (powTwoCyclotomic (R := R) α)) :
     galoisAutₛ α i hi a.toQuotient
       = Ideal.Quotient.mk _
           (Polynomial.aeval (Polynomial.X ^ i : Polynomial R) a.1.toPoly) := by
-  rw [Rq.toQuotient, quotientHom_apply, galoisAutₛ, Ideal.Quotient.lift_mk,
-    RingHom.comp_apply, galoisAeval_apply]
+  rw [Rq.toQuotient, quotientHom_apply, galoisAutₛ_mk]
 
 /-! ## Soundness bridge -/
 

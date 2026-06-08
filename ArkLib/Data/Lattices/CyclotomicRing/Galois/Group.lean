@@ -14,9 +14,10 @@ subgroup `H := ⟨σ_{-1}, σ_{4k+1}⟩`, whose fixed subring is the subfield `�
 
 This file pins the two generators (`σ_{-1}` with exponent `2^{α+1}-1 ≡ -1`, and `σ_{4k+1}`),
 records their oddness (so they are genuine automorphisms), and provides the explicit exponent
-set `Hexp` enumerating `H` for use by the trace map. The composition law, `σ_1 = id`, and the
-order computation `|⟨4k+1⟩| = d/(2k)` (Hachi [NOZ26, §3, Claim 1] / [LS18, Lem 2.4]) are stated;
-the genuinely number-theoretic facts are sorried.
+set `Hexp` enumerating `H` for use by the trace map. The composition law `σ_i ∘ σ_j = σ_{ij}`
+(for odd `i, j`) and `σ_1 = id` are proven via the soundness bridge; the order computation
+`|⟨4k+1⟩| = d/(2k)` (Hachi [NOZ26, §3, Claim 1] / [LS18, Lem 2.4]) remains sorried (number
+theory).
 
 ## Main definitions
 
@@ -64,19 +65,25 @@ noncomputable def genAut (α k : ℕ) :
 
 /-! ## Group laws (number-theoretic core sorried) -/
 
-/-- `σ_1 = id`. DEFERRED (rated 6): needs the polynomial reconstruction
-`∑_{k<d} monomial k (a_k) = a` for reduced reps, i.e. `CPolynomial` coefficient-vanishing above
-`natDegree`. -/
+/-- `σ_1 = id`: substituting `X ↦ X^1` is the identity. Proven via the soundness bridge, since
+`aeval X` is the identity on `Polynomial R`. -/
 theorem galoisAut_one_eq (α : ℕ) (a : Rq (powTwoCyclotomic (R := R) α)) :
     galoisAut (powTwoCyclotomic α) 1 a = a := by
-  sorry
+  apply Rq.toQuotient_injective (powTwoCyclotomic α)
+  rw [galoisAut_toQuotient α 1 odd_one, galoisAutₛ_toQuotient α 1 odd_one, pow_one,
+    Polynomial.aeval_X_left_apply, Rq.toQuotient, quotientHom_apply]
 
-/-- Composition law `σ_i ∘ σ_j = σ_{ij}`. DEFERRED (rated 8): proven on the semantic `aeval`
-side, so it depends on the soundness bridge `galoisAut_toQuotient`. -/
-theorem galoisAut_comp (α i j : ℕ) (a : Rq (powTwoCyclotomic (R := R) α)) :
+/-- Composition law `σ_i ∘ σ_j = σ_{ij}` (for `i, j` odd, so the maps are genuine
+automorphisms). Proven on the semantic `aeval` side via the soundness bridge
+`galoisAut_toQuotient` and `aeval_X_pow_aeval_X_pow`. -/
+theorem galoisAut_comp (α i j : ℕ) (hi : Odd i) (hj : Odd j)
+    (a : Rq (powTwoCyclotomic (R := R) α)) :
     galoisAut (powTwoCyclotomic α) i (galoisAut (powTwoCyclotomic α) j a)
       = galoisAut (powTwoCyclotomic α) (i * j) a := by
-  sorry
+  apply Rq.toQuotient_injective (powTwoCyclotomic α)
+  rw [galoisAut_toQuotient α i hi, galoisAut_toQuotient α j hj,
+    galoisAut_toQuotient α (i * j) (hi.mul hj), galoisAutₛ_toQuotient α j hj, galoisAutₛ_mk,
+    galoisAutₛ_toQuotient α (i * j) (hi.mul hj), aeval_X_pow_aeval_X_pow]
 
 /-! ## The subgroup `H` as an exponent set -/
 
@@ -89,8 +96,14 @@ def Hexp (α k : ℕ) : Finset ℕ :=
       (2 ^ (α + 1) - (4 * k + 1) ^ a % 2 ^ (α + 1)) % 2 ^ (α + 1)}
 
 /-- `|H| = d/k = 2^α / k` (Hachi [NOZ26, §3], from `|⟨4k+1⟩| = d/(2k)` and the `±` factor).
+
+The hypotheses match Hachi [NOZ26, §3, Claim 1] / [LS18, Lem 2.4]: `k` is a power of two
+(`hk2pow`) and divides `d/2`, i.e. `2k ∣ d = 2^α` (`hk`). Both are needed for `4k+1` to have
+order exactly `d/(2k)` in `(Z/2^{α+1})ˣ`; the weaker `k ∣ 2^α` (= `k ∣ d`) does not suffice
+(e.g. `k = 2^α` gives `2k ∤ d`, so `2^α/(2k)` is not the true order).
+
 DEFERRED (rated 8): order of `4k+1` in `(Z/2^{α+1})ˣ` plus injectivity of the enumeration. -/
-theorem Hexp_card (α k : ℕ) (hk : k ∣ 2 ^ α) (hk0 : 0 < k) :
+theorem Hexp_card (α k : ℕ) (hk2pow : ∃ κ, k = 2 ^ κ) (hk : 2 * k ∣ 2 ^ α) :
     (Hexp α k).card = 2 ^ α / k := by
   sorry
 

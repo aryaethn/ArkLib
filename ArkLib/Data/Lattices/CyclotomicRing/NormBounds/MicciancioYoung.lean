@@ -48,9 +48,9 @@ ring element `d` of bounded centered `ℓ₁` norm grows the squared `ℓ₂` no
 (the honest Young/Micciancio inequality `‖(c·d)·v‖₂² ≤ ‖d‖₁² · ‖c·v‖₂²` over the negacyclic
 convolution with centered representatives; discrete Cauchy–Schwarz, deferred). -/
 theorem scalarVecMul_mul_l2NormSq_le {cols : ℕ} (c d : Rq Φ) (v : PolyVec (Rq Φ) cols)
-    {κ βSq : ℕ} (hd : Rq.l1Norm Φ d ≤ κ)
-    (hv : vecL2NormSq Φ (scalarVecMul c v) ≤ βSq) :
-    vecL2NormSq Φ (scalarVecMul (c * d) v) ≤ scalarVecMulMulL2NormSqBound κ βSq := by
+    {κ βSq : ℕ} (hd : ‖d‖₁ ≤ κ)
+    (hv : ‖c •ᵥ v‖₂² ≤ βSq) :
+    ‖(c * d) •ᵥ v‖₂² ≤ scalarVecMulMulL2NormSqBound κ βSq := by
   sorry
 
 end ArkLib.Lattices.CyclotomicModulus

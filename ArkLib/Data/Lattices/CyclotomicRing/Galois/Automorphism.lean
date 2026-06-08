@@ -111,14 +111,35 @@ theorem powTwoCyclotomic_toPoly (α : ℕ) :
   change (CompPoly.CPolynomial.X ^ (2 ^ α) + 1 : CPolynomial R).toPoly = _
   rw [toPoly_add, toPoly_pow, toPoly_X, toPoly_one]
 
+omit [DecidableEq R] in
+/-- **(S0)** The ring dimension: `natDegree` of the power-of-two modulus is `2^α`. -/
+theorem powTwoCyclotomic_natDegree (α : ℕ) :
+    (powTwoCyclotomic (R := R) α).φ.natDegree = 2 ^ α := by
+  rw [CompPoly.CPolynomial.natDegree_toPoly, powTwoCyclotomic_toPoly,
+    show (Polynomial.X ^ 2 ^ α + 1 : Polynomial R) = Polynomial.X ^ 2 ^ α + Polynomial.C 1 by
+      rw [Polynomial.C_1], Polynomial.natDegree_X_pow_add_C]
+
+omit [BEq R] [LawfulBEq R] [DecidableEq R] in
+/-- **(S3)** Coefficient bridge: the Mathlib and `CPolynomial` coefficients agree. -/
+theorem coeff_toPoly (p : CPolynomial R) (k : ℕ) : p.toPoly.coeff k = p.coeff k :=
+  CompPoly.CPolynomial.Raw.coeff_toPoly
+
+omit [DecidableEq R] in
+/-- **(S4)** A reduced representative has `natDegree` below the ring dimension. -/
+theorem natDegree_val_toPoly_lt (α : ℕ) (a : Rq (powTwoCyclotomic (R := R) α)) :
+    a.1.toPoly.natDegree < (powTwoCyclotomic (R := R) α).φ.natDegree := by
+  rcases eq_or_ne a.1.toPoly 0 with h0 | hne
+  · rw [h0, Polynomial.natDegree_zero, powTwoCyclotomic_natDegree]
+    exact pow_pos (by norm_num) α
+  · rw [CompPoly.CPolynomial.natDegree_toPoly]
+    exact Polynomial.natDegree_lt_natDegree hne
+      ((powTwoCyclotomic (R := R) α).degree_toPoly_lt_of_reduced a.2)
+
 /-- `σ_i` fixes `1`, since only the constant term contributes (so in particular `σ_1` fixes it). -/
 theorem galoisAut_map_one (α i : ℕ) : galoisAut (powTwoCyclotomic (R := R) α) i 1 = 1 := by
   have h2 : (0 : ℕ) < 2 ^ α := pow_pos (by norm_num) α
   have hpos : 0 < (powTwoCyclotomic (R := R) α).φ.natDegree := by
-    rw [CompPoly.CPolynomial.natDegree_toPoly, powTwoCyclotomic_toPoly]
-    rw [show (Polynomial.X ^ 2 ^ α + 1 : Polynomial R) = Polynomial.X ^ 2 ^ α + Polynomial.C 1 by
-      rw [Polynomial.C_1], Polynomial.natDegree_X_pow_add_C]
-    exact h2
+    rw [powTwoCyclotomic_natDegree]; exact h2
   have hone : (1 : Rq (powTwoCyclotomic (R := R) α)).1 = (1 : CPolynomial R) := by
     change (powTwoCyclotomic (R := R) α).reduce 1 = 1
     refine CyclotomicModulus.reduce_eq_self_of_degree_lt _ ?_
@@ -143,6 +164,18 @@ theorem galoisAut_map_one (α i : ℕ) : galoisAut (powTwoCyclotomic (R := R) α
 as a `RingHom`. -/
 noncomputable def galoisAeval (i : ℕ) : Polynomial R →+* Polynomial R :=
   (Polynomial.aeval (Polynomial.X ^ i : Polynomial R)).toRingHom
+
+omit [BEq R] [LawfulBEq R] [DecidableEq R] in
+@[simp] theorem galoisAeval_apply (i : ℕ) (p : Polynomial R) :
+    galoisAeval i p = Polynomial.aeval (Polynomial.X ^ i : Polynomial R) p := rfl
+
+omit [BEq R] [LawfulBEq R] [DecidableEq R] in
+/-- **(S2)** `aeval (X^i)` sends a monomial `X^k·c` to `X^{ki}·c`. -/
+theorem aeval_X_pow_monomial (i k : ℕ) (c : R) :
+    (Polynomial.aeval (Polynomial.X ^ i : Polynomial R)) (Polynomial.monomial k c)
+      = Polynomial.monomial (k * i) c := by
+  rw [Polynomial.aeval_monomial, Polynomial.algebraMap_eq, ← pow_mul,
+    Polynomial.C_mul_X_pow_eq_monomial, Nat.mul_comm]
 
 omit [DecidableEq R] in
 /-- Well-definedness on the power-of-two ring: `aeval (X^i)` maps the modulus ideal into itself
@@ -176,30 +209,64 @@ noncomputable def galoisAutₛ (α i : ℕ) (hi : Odd i) :
       rw [RingHom.comp_apply]
       exact (Ideal.Quotient.eq_zero_iff_mem).mpr (powTwo_galoisAeval_mem α i hi hp))
 
+omit [DecidableEq R] in
+/-- **(S1)** The semantic automorphism on a lifted element: `galoisAutₛ` applied to
+`a.toQuotient` is the class of `aeval (X^i)` applied to the underlying polynomial. -/
+theorem galoisAutₛ_toQuotient (α i : ℕ) (hi : Odd i) (a : Rq (powTwoCyclotomic (R := R) α)) :
+    galoisAutₛ α i hi a.toQuotient
+      = Ideal.Quotient.mk _
+          (Polynomial.aeval (Polynomial.X ^ i : Polynomial R) a.1.toPoly) := by
+  rw [Rq.toQuotient, quotientHom_apply, galoisAutₛ, Ideal.Quotient.lift_mk,
+    RingHom.comp_apply, galoisAeval_apply]
+
 /-! ## Soundness bridge -/
 
-/-- **Soundness**: the computable automorphism agrees with the semantic one under
-`Rq.toQuotient`. This is the key bridge (Hachi [NOZ26, §3]); it lets all algebraic structure
-(ring-hom laws, bijectivity) be proven on the Mathlib side and transported back.
+/-- **(S5)** The core polynomial identity behind soundness: the monomial-remapped sum (before
+reduction) equals `aeval (X^i)` of the underlying polynomial. Both sides are
+`∑_{k<d} X^{ki}·a_k`. -/
+theorem galoisAut_sum_toPoly_eq_aeval (α i : ℕ) (a : Rq (powTwoCyclotomic (R := R) α)) :
+    (∑ k ∈ range (powTwoCyclotomic (R := R) α).φ.natDegree,
+        CompPoly.CPolynomial.monomial (k * i) (a.1.coeff k)).toPoly
+      = Polynomial.aeval (Polynomial.X ^ i : Polynomial R) a.1.toPoly := by
+  rw [toPoly_sum,
+    show a.1.toPoly = ∑ k ∈ range (powTwoCyclotomic (R := R) α).φ.natDegree,
+        Polynomial.monomial k (a.1.toPoly.coeff k)
+      from a.1.toPoly.as_sum_range' _ (natDegree_val_toPoly_lt α a),
+    map_sum]
+  refine Finset.sum_congr rfl (fun k _ => ?_)
+  rw [toPoly_monomial, aeval_X_pow_monomial, coeff_toPoly]
 
-DEFERRED (rated 8): requires matching the monomial-remap-then-reduce against `aeval (X^i)`
-coefficientwise — the load-bearing bridge of this layer. -/
+/-- **(S6) Soundness**: the computable automorphism agrees with the semantic one under
+`Rq.toQuotient`. This is the key bridge (Hachi [NOZ26, §3]); it lets all algebraic structure
+(ring-hom laws, bijectivity) be proven on the Mathlib side and transported back. -/
 theorem galoisAut_toQuotient (α i : ℕ) (hi : Odd i) (a : Rq (powTwoCyclotomic (R := R) α)) :
     (galoisAut (powTwoCyclotomic α) i a).toQuotient = galoisAutₛ α i hi a.toQuotient := by
-  sorry
+  rw [galoisAut, Rq.toQuotient_mk, galoisAutₛ_toQuotient α i hi, quotientHom_apply]
+  exact congrArg (Ideal.Quotient.mk _) (galoisAut_sum_toPoly_eq_aeval α i a)
+
+/-- Multiplicativity of the computable automorphism, transported from `galoisAutₛ` (a `RingHom`)
+through the soundness bridge. -/
+theorem galoisAut_mul (α i : ℕ) (hi : Odd i) (a b : Rq (powTwoCyclotomic (R := R) α)) :
+    galoisAut (powTwoCyclotomic α) i (a * b)
+      = galoisAut (powTwoCyclotomic α) i a * galoisAut (powTwoCyclotomic α) i b := by
+  apply Rq.toQuotient_injective (powTwoCyclotomic α)
+  have hmul : ∀ x y : Rq (powTwoCyclotomic (R := R) α),
+      (x * y).toQuotient = x.toQuotient * y.toQuotient :=
+    fun x y => map_mul (Rq.toQuotientHom _) x y
+  rw [galoisAut_toQuotient α i hi, hmul a b, map_mul,
+    hmul (galoisAut (powTwoCyclotomic α) i a) (galoisAut (powTwoCyclotomic α) i b),
+    galoisAut_toQuotient α i hi, galoisAut_toQuotient α i hi]
 
 /-! ## The computable automorphism bundled as a `RingHom` -/
 
 /-- The computable Galois automorphism action bundled as a `RingHom` on `Rq`. The additive
-structure and unitality (`map_one'`) are proven directly; multiplicativity is transported from
-the semantic `galoisAutₛ` via `galoisAut_toQuotient`.
-
-`map_mul'` is DEFERRED (rated 8): it depends on the soundness bridge `galoisAut_toQuotient`. -/
+structure and unitality are proven directly; multiplicativity (`map_mul'`) is transported from
+the semantic `galoisAutₛ` via the soundness bridge `galoisAut_toQuotient` (see `galoisAut_mul`). -/
 noncomputable def galoisRingHom (α i : ℕ) (hi : Odd i) :
     Rq (powTwoCyclotomic (R := R) α) →+* Rq (powTwoCyclotomic (R := R) α) where
   toFun := galoisAut (powTwoCyclotomic α) i
   map_one' := galoisAut_map_one α i
-  map_mul' := by sorry
+  map_mul' := galoisAut_mul α i hi
   map_zero' := galoisAut_zero (powTwoCyclotomic α) i
   map_add' := galoisAut_add (powTwoCyclotomic α) i
 

@@ -19292,9 +19292,36 @@
           "signature": "theorem powTwoCyclotomic_toPoly (\u03b1 : \u2115) :"
         },
         {
+          "doc": "**(S0)** The ring dimension: `natDegree` of the power-of-two modulus is `2^\u03b1`.",
+          "kind": "theorem",
+          "line": 116,
+          "name": "ArkLib.Lattices.CyclotomicModulus.powTwoCyclotomic_natDegree",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "powTwoCyclotomic_natDegree",
+          "signature": "theorem powTwoCyclotomic_natDegree (\u03b1 : \u2115) :"
+        },
+        {
+          "doc": "**(S3)** Coefficient bridge: the Mathlib and `CPolynomial` coefficients agree.",
+          "kind": "theorem",
+          "line": 124,
+          "name": "ArkLib.Lattices.CyclotomicModulus.coeff_toPoly",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "coeff_toPoly",
+          "signature": "theorem coeff_toPoly (p : CPolynomial R) (k : \u2115) : p.toPoly.coeff k = p.coeff k :="
+        },
+        {
+          "doc": "**(S4)** A reduced representative has `natDegree` below the ring dimension.",
+          "kind": "theorem",
+          "line": 129,
+          "name": "ArkLib.Lattices.CyclotomicModulus.natDegree_val_toPoly_lt",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "natDegree_val_toPoly_lt",
+          "signature": "theorem natDegree_val_toPoly_lt (\u03b1 : \u2115) (a : Rq (powTwoCyclotomic (R := R) \u03b1)) :"
+        },
+        {
           "doc": "`\u03c3_i` fixes `1`, since only the constant term contributes (so in particular `\u03c3_1` fixes it).",
           "kind": "theorem",
-          "line": 115,
+          "line": 139,
           "name": "ArkLib.Lattices.CyclotomicModulus.galoisAut_map_one",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "galoisAut_map_one",
@@ -19303,16 +19330,34 @@
         {
           "doc": "The Mathlib `R`-algebra endomorphism of `Polynomial R` sending `X \u21a6 X^i` (i.e. `p \u21a6 p(X^i)`), as a `RingHom`.",
           "kind": "def",
-          "line": 144,
+          "line": 165,
           "name": "ArkLib.Lattices.CyclotomicModulus.galoisAeval",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "galoisAeval",
           "signature": "def galoisAeval (i : \u2115) : Polynomial R \u2192+* Polynomial R :="
         },
         {
+          "doc": "",
+          "kind": "theorem",
+          "line": 169,
+          "name": "ArkLib.Lattices.CyclotomicModulus.galoisAeval_apply",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "galoisAeval_apply",
+          "signature": "theorem galoisAeval_apply (i : \u2115) (p : Polynomial R) :"
+        },
+        {
+          "doc": "**(S2)** `aeval (X^i)` sends a monomial `X^k\u00b7c` to `X^{ki}\u00b7c`.",
+          "kind": "theorem",
+          "line": 174,
+          "name": "ArkLib.Lattices.CyclotomicModulus.aeval_X_pow_monomial",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "aeval_X_pow_monomial",
+          "signature": "theorem aeval_X_pow_monomial (i k : \u2115) (c : R) :"
+        },
+        {
           "doc": "Well-definedness on the power-of-two ring: `aeval (X^i)` maps the modulus ideal into itself for odd `i`, since `X^{2^\u03b1} + 1 \u2223 (X^{2^\u03b1})^i + 1`.",
           "kind": "theorem",
-          "line": 150,
+          "line": 183,
           "name": "ArkLib.Lattices.CyclotomicModulus.powTwo_galoisAeval_mem",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "powTwo_galoisAeval_mem",
@@ -19321,25 +19366,52 @@
         {
           "doc": "The **semantic Galois automorphism** `\u03c3_i` on the quotient ring, obtained by descending the Mathlib endomorphism `aeval (X^i)` along `Ideal.Quotient.lift`. A genuine `RingHom`.",
           "kind": "def",
-          "line": 171,
+          "line": 204,
           "name": "ArkLib.Lattices.CyclotomicModulus.galoisAut\u209b",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "galoisAut\u209b",
           "signature": "def galoisAut\u209b (\u03b1 i : \u2115) (hi : Odd i) :"
         },
         {
-          "doc": "**Soundness**: the computable automorphism agrees with the semantic one under `Rq.toQuotient`. This is the key bridge (Hachi [NOZ26, \u00a73]); it lets all algebraic structure (ring-hom laws, bijectivity) be proven on the Mathlib side and transported back. DEFERRED (rated 8): requires matching the monomial-remap-then-reduce against `aeval (X^i)` coefficientwise \u2014 the load-bearing bridge of this layer.",
+          "doc": "**(S1)** The semantic automorphism on a lifted element: `galoisAut\u209b` applied to `a.toQuotient` is the class of `aeval (X^i)` applied to the underlying polynomial.",
           "kind": "theorem",
-          "line": 187,
+          "line": 215,
+          "name": "ArkLib.Lattices.CyclotomicModulus.galoisAut\u209b_toQuotient",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "galoisAut\u209b_toQuotient",
+          "signature": "theorem galoisAut\u209b_toQuotient (\u03b1 i : \u2115) (hi : Odd i) (a : Rq (powTwoCyclotomic (R := R) \u03b1)) :"
+        },
+        {
+          "doc": "**(S5)** The core polynomial identity behind soundness: the monomial-remapped sum (before reduction) equals `aeval (X^i)` of the underlying polynomial. Both sides are `\u2211_{k<d} X^{ki}\u00b7a_k`.",
+          "kind": "theorem",
+          "line": 227,
+          "name": "ArkLib.Lattices.CyclotomicModulus.galoisAut_sum_toPoly_eq_aeval",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "galoisAut_sum_toPoly_eq_aeval",
+          "signature": "theorem galoisAut_sum_toPoly_eq_aeval (\u03b1 i : \u2115) (a : Rq (powTwoCyclotomic (R := R) \u03b1)) :"
+        },
+        {
+          "doc": "**(S6) Soundness**: the computable automorphism agrees with the semantic one under `Rq.toQuotient`. This is the key bridge (Hachi [NOZ26, \u00a73]); it lets all algebraic structure (ring-hom laws, bijectivity) be proven on the Mathlib side and transported back.",
+          "kind": "theorem",
+          "line": 242,
           "name": "ArkLib.Lattices.CyclotomicModulus.galoisAut_toQuotient",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "galoisAut_toQuotient",
           "signature": "theorem galoisAut_toQuotient (\u03b1 i : \u2115) (hi : Odd i) (a : Rq (powTwoCyclotomic (R := R) \u03b1)) :"
         },
         {
-          "doc": "The computable Galois automorphism action bundled as a `RingHom` on `Rq`. The additive structure and unitality (`map_one'`) are proven directly; multiplicativity is transported from the semantic `galoisAut\u209b` via `galoisAut_toQuotient`. `map_mul'` is DEFERRED (rated 8): it depends on the soundness bridge `galoisAut_toQuotient`.",
+          "doc": "Multiplicativity of the computable automorphism, transported from `galoisAut\u209b` (a `RingHom`) through the soundness bridge.",
+          "kind": "theorem",
+          "line": 249,
+          "name": "ArkLib.Lattices.CyclotomicModulus.galoisAut_mul",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "galoisAut_mul",
+          "signature": "theorem galoisAut_mul (\u03b1 i : \u2115) (hi : Odd i) (a b : Rq (powTwoCyclotomic (R := R) \u03b1)) :"
+        },
+        {
+          "doc": "The computable Galois automorphism action bundled as a `RingHom` on `Rq`. The additive structure and unitality are proven directly; multiplicativity (`map_mul'`) is transported from the semantic `galoisAut\u209b` via the soundness bridge `galoisAut_toQuotient` (see `galoisAut_mul`).",
           "kind": "def",
-          "line": 198,
+          "line": 265,
           "name": "ArkLib.Lattices.CyclotomicModulus.galoisRingHom",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "galoisRingHom",
@@ -19348,7 +19420,7 @@
         {
           "doc": "",
           "kind": "theorem",
-          "line": 206,
+          "line": 273,
           "name": "ArkLib.Lattices.CyclotomicModulus.galoisRingHom_apply",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "galoisRingHom_apply",
@@ -40292,7 +40364,7 @@
   },
   "stats": {
     "ArkLib": {
-      "declarations": 4375,
+      "declarations": 4383,
       "files": 232
     }
   }

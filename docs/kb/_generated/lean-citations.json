@@ -1,8 +1,8 @@
 {
   "counts": {
-    "files_with_citations": 80,
+    "files_with_citations": 81,
     "keys_cited": 25,
-    "total_citation_edges": 113
+    "total_citation_edges": 115
   },
   "files": {
     "ArkLib/AGM/Basic.lean": [
@@ -170,6 +170,10 @@
       "NOZ26"
     ],
     "ArkLib/Data/Lattices/CyclotomicRing/Galois/Group.lean": [
+      "LS18",
+      "NOZ26"
+    ],
+    "ArkLib/Data/Lattices/CyclotomicRing/Galois/Order.lean": [
       "LS18",
       "NOZ26"
     ],
@@ -384,6 +388,7 @@
       "ArkLib/CommitmentScheme/Ajtai/InnerOuter/Scheme.lean",
       "ArkLib/CommitmentScheme/Ajtai/InnerOuter/Security.lean",
       "ArkLib/Data/Lattices/CyclotomicRing/Galois/Group.lean",
+      "ArkLib/Data/Lattices/CyclotomicRing/Galois/Order.lean",
       "ArkLib/Data/Lattices/CyclotomicRing/NormBounds/LyubashevskySeiler.lean",
       "ArkLib/Data/Lattices/CyclotomicRing/NormBounds.lean",
       "ArkLib/Data/Lattices/CyclotomicRing/PowTwo.lean"
@@ -403,6 +408,7 @@
       "ArkLib/Data/Lattices/CyclotomicRing/Galois/Automorphism.lean",
       "ArkLib/Data/Lattices/CyclotomicRing/Galois/FixedSubring.lean",
       "ArkLib/Data/Lattices/CyclotomicRing/Galois/Group.lean",
+      "ArkLib/Data/Lattices/CyclotomicRing/Galois/Order.lean",
       "ArkLib/Data/Lattices/CyclotomicRing/Galois/Trace.lean",
       "ArkLib/Data/Lattices/CyclotomicRing/Galois.lean",
       "ArkLib/Data/Lattices/CyclotomicRing/Modulus.lean",

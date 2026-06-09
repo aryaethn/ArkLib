@@ -5,6 +5,7 @@ Authors: Tobias Rothmann
 -/
 import ArkLib.Data.Lattices.CyclotomicRing.Basic
 import Mathlib.Algebra.Ring.InjSurj
+import Mathlib.Algebra.BigOperators.Group.Finset.Basic
 
 /-!
 # `Rq Φ` — the Cyclotomic Ring as a Computable `CommRing`
@@ -193,6 +194,33 @@ theorem ofFinCoeff_coeff [DecidableEq R] {N : ℕ} (c : ℕ → R)
       (lt_of_lt_of_le (CompPoly.CPolynomial.degree_toPoly_ofFinCoeff_lt N c) hN)
   change (Φ.reduce (CompPoly.CPolynomial.ofFinCoeff N c)).coeff k = _
   rw [hred, CompPoly.CPolynomial.coeff_ofFinCoeff]
+
+/-- `Rq.mk` commutes with addition: reduction is additive in the quotient. -/
+theorem mk_add (p q : CPolynomial R) : mk Φ (p + q) = mk Φ p + mk Φ q := by
+  apply toQuotient_injective Φ
+  simp only [show ∀ x y : Rq Φ, toQuotient Φ (x + y) = toQuotient Φ x + toQuotient Φ y
+        from fun x y => map_add (toQuotientHom Φ) x y,
+      toQuotient_mk, map_add]
+
+/-- `Rq.mk` commutes with finite sums. -/
+theorem mk_sum {ι : Type*} (s : Finset ι) (f : ι → CPolynomial R) :
+    mk Φ (∑ k ∈ s, f k) = ∑ k ∈ s, mk Φ (f k) := by
+  classical
+  refine Finset.induction_on s ?_ ?_
+  · simp only [Finset.sum_empty]; rfl
+  · intro a s ha ih
+    rw [Finset.sum_insert ha, Finset.sum_insert ha, mk_add, ih]
+
+/-- A reduced representative of the power-of-two cyclotomic ring has `natDegree` below the ring
+dimension `2^α`. -/
+theorem natDegree_val_toPoly_lt (α : ℕ) (a : Rq (powTwoCyclotomic (R := R) α)) :
+    a.1.toPoly.natDegree < (powTwoCyclotomic (R := R) α).φ.natDegree := by
+  rcases eq_or_ne a.1.toPoly 0 with h0 | hne
+  · rw [h0, Polynomial.natDegree_zero, powTwoCyclotomic_natDegree]
+    exact pow_pos (by norm_num) α
+  · rw [CompPoly.CPolynomial.natDegree_toPoly]
+    exact Polynomial.natDegree_lt_natDegree hne
+      ((powTwoCyclotomic (R := R) α).degree_toPoly_lt_of_reduced a.2)
 
 end Rq
 

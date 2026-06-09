@@ -79,11 +79,34 @@ theorem traceHComp_eq (α k : ℕ) (a : Rq (powTwoCyclotomic (R := R) α)) :
     traceHComp α k a = traceH α k a :=
   traceOverComp_eq _ _ _
 
-/-- `Tr_H` is fixed by every generator of `H`, hence lands in the fixed subring `R_q^H`.
-DEFERRED (rated 7): needs the group structure of `H` (a generator permutes the sum over `Hexp`),
-which in turn rests on the composition law `galoisAut_comp`. -/
-theorem traceH_mem_fixed (α k : ℕ) (a : Rq (powTwoCyclotomic (R := R) α)) :
-    conjAut α (traceH α k a) = traceH α k a ∧ genAut α k (traceH α k a) = traceH α k a := by
-  sorry
+/-- If multiplication by `g` permutes `Hexp` (`Hexp_generator_smul`), then `σ_g` fixes `Tr_H`.
+The per-term step uses `σ_g(σ_i a) = σ_{g·i} a = σ_{(g·i) mod 2^{α+1}} a` (composition +
+exponent-periodicity, both proven); the sum then reindexes along the permutation. -/
+theorem traceH_fixed_of_smul (α k g : ℕ) (hg : Odd g)
+    (himg : (Hexp α k).image (fun i => (g * i) % 2 ^ (α + 1)) = Hexp α k)
+    (a : Rq (powTwoCyclotomic (R := R) α)) :
+    galoisRingHom α g hg (traceH α k a) = traceH α k a := by
+  have hodd := Hexp_odd_mem α k
+  have hinj : Set.InjOn (fun i => (g * i) % 2 ^ (α + 1)) (Hexp α k) :=
+    Finset.injOn_of_card_image_eq (by rw [himg])
+  unfold traceH traceOver
+  rw [map_sum,
+    Finset.sum_congr rfl fun i hi => by
+      rw [galoisRingHom_apply, galoisAut_comp α g i hg (hodd i hi), galoisAut_periodic]]
+  conv_rhs => rw [← himg]
+  rw [Finset.sum_image fun x hx y hy h => hinj hx hy h]
+
+/-- `Tr_H` is fixed by both generators of `H`, hence lands in the fixed subring `R_q^H`.
+
+The hypotheses match `Hexp_card` (`k` a power of two dividing `d/2`): they are needed for `Hexp`
+to genuinely enumerate the subgroup `H = ⟨σ_{-1}, σ_{4k+1}⟩`. Reduced to the permutation lemma
+`Hexp_generator_smul` (the open group-theoretic core); the rest is fully proven. -/
+theorem traceH_mem_fixed (α k : ℕ) (hk2pow : ∃ κ, k = 2 ^ κ) (hk : 2 * k ∣ 2 ^ α)
+    (a : Rq (powTwoCyclotomic (R := R) α)) :
+    conjAut α (traceH α k a) = traceH α k a ∧ genAut α k (traceH α k a) = traceH α k a :=
+  ⟨traceH_fixed_of_smul α k (conjExp α) (conjExp_odd α)
+      (Hexp_generator_smul α k (conjExp α) hk2pow hk (Or.inl rfl)) a,
+    traceH_fixed_of_smul α k (genExp k) (genExp_odd k)
+      (Hexp_generator_smul α k (genExp k) hk2pow hk (Or.inr rfl)) a⟩
 
 end ArkLib.Lattices.CyclotomicModulus

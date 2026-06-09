@@ -5,6 +5,7 @@ Authors: Chung Thai Nguyen
 -/
 
 import ArkLib.OracleReduction.FiatShamir.Basic
+import ArkLib.OracleReduction.Security.StateRestoration
 
 /-!
   # The Single-Salt Fiat-Shamir Transformation (CO25 Construction 3.17)
@@ -165,3 +166,99 @@ def Reduction.singleSaltFiatShamir {Salt : Type} [VCVCompatible Salt]
       StmtIn WitIn StmtOut WitOut where
   prover := R.prover.singleSaltFiatShamir sampleSalt
   verifier := R.verifier.singleSaltFiatShamir
+
+/-!
+## Security theorems for the single-salt Fiat-Shamir transformation (CO25 §3.5)
+
+Theorems 3.18 and 3.19 are the **FS-transform lifting theorems** (Seam #2 in the DSFS proof
+chain). They show that SR soundness/KS of the IP `saltedIPVerifier V` implies basic
+soundness/KS of `Verifier.singleSaltFiatShamir V` in the random-oracle model.
+
+The FS ROM state is `σ = QueryImpl (srChallengeOracle (StmtIn × Salt) pSpec) Id` — a
+pre-sampled oracle function (note: `srChallengeOracle = fsChallengeOracle` by alias).
+The full FS impl decomposes as `fsImpl.addLift srChallengeQueryImpl'`, where `fsImpl` handles
+base `oSpec` queries and `srChallengeQueryImpl'` reads FS-oracle responses from state.
+-/
+
+section SingleSaltSecurity
+
+variable [∀ i, SampleableType (pSpec.Challenge i)]
+  [DecidableEq StmtIn]
+  [∀ i, DecidableEq (pSpec.Message i)]
+  [∀ i, DecidableEq (pSpec.Challenge i)]
+
+/-- Lift the IP verifier `V` to accept `StmtIn × Salt` by ignoring the salt component.
+
+The SR challenge oracle for this lifted verifier is `srChallengeOracle (StmtIn × Salt) pSpec`,
+which equals `fsChallengeOracle (StmtIn × Salt) pSpec` by alias. -/
+def saltedIPVerifier {Salt : Type} (V : Verifier oSpec StmtIn StmtOut pSpec) :
+    Verifier oSpec (StmtIn × Salt) StmtOut pSpec where
+  verify := fun ⟨stmtIn, _⟩ transcript => V.verify stmtIn transcript
+
+/-- Lift a soundness language `langIn : Set StmtIn` to `Set (StmtIn × Salt)`,
+ignoring the salt. -/
+def langInSalted {Salt : Type} (langIn : Set StmtIn) : Set (StmtIn × Salt) :=
+  {p | p.1 ∈ langIn}
+
+/-- Lift an input relation `relIn : Set (StmtIn × WitIn)` to
+`Set ((StmtIn × Salt) × WitIn)`, ignoring the salt. -/
+def relInSalted {Salt : Type} (relIn : Set (StmtIn × WitIn)) : Set ((StmtIn × Salt) × WitIn) :=
+  {p | ⟨p.1.1, p.2⟩ ∈ relIn}
+
+set_option linter.unusedDecidableInType false
+
+/-- CO25 Theorem 3.18 — Single-salt FS soundness from IP SR-soundness.
+
+If `saltedIPVerifier V` has state-restoration soundness (for `langInSalted langIn`) with error
+`ε`, then `Verifier.singleSaltFiatShamir V` has basic soundness in the ROM with error `ε`.
+
+**Proof sketch**: each FS malicious prover is converted to an SR prover by replacing its
+`fsChallengeOracle` queries with SR oracle queries against the same pre-sampled function.
+The FS verifier's `deriveTranscriptFS` call and the SR game's `deriveTranscriptSR` call are
+identical (same oracle, same keys: `srChallengeOracle = fsChallengeOracle` by alias).
+**Open seam**: body is `sorry` — used as Seam #2 in `Soundness.lean` (Theorem 6.1). -/
+theorem theorem_3_18_soundness
+    {Salt : Type} [VCVCompatible Salt]
+    (V : Verifier oSpec StmtIn StmtOut pSpec)
+    (langIn : Set StmtIn) (langOut : Set StmtOut)
+    (fsInit : ProbComp (QueryImpl (srChallengeOracle (StmtIn × Salt) pSpec) Id))
+    (fsImpl : QueryImpl oSpec
+      (StateT (QueryImpl (srChallengeOracle (StmtIn × Salt) pSpec) Id) ProbComp))
+    (ε : ENNReal)
+    (h_sr : Verifier.StateRestoration.soundness fsInit fsImpl
+        (langInSalted (Salt := Salt) langIn) langOut (saltedIPVerifier (Salt := Salt) V) ε) :
+    Verifier.soundness
+      fsInit (fsImpl.addLift srChallengeQueryImpl')
+      langIn langOut
+      (Verifier.singleSaltFiatShamir (Salt := Salt) V)
+      ε.toNNReal := by
+  sorry
+
+/-- CO25 Theorem 3.19 — Single-salt FS straightline KS from IP SR-KS.
+
+If `saltedIPVerifier V` has state-restoration knowledge soundness (for `relInSalted relIn`)
+with error `ε`, then `Verifier.singleSaltFiatShamir V` has straightline KS in the ROM with
+error `ε`.
+
+**Proof sketch**: given the SR extractor `E_SR` from `h_sr_ks`, the FS straightline extractor
+(1) extracts `(τ, messages)` from the FS proof, (2) filters the FS query log to reconstruct
+the IP SR query log, and (3) calls `E_SR (stmtIn, τ) witOut ip_transcript ip_log`.
+**Open seam**: body is `sorry` — used as Seam #2 in `Soundness.lean` (Theorem 6.2). -/
+theorem theorem_3_19_straightline_ks
+    {Salt : Type} [VCVCompatible Salt]
+    (V : Verifier oSpec StmtIn StmtOut pSpec)
+    (relIn : Set (StmtIn × WitIn)) (relOut : Set (StmtOut × WitOut))
+    (fsInit : ProbComp (QueryImpl (srChallengeOracle (StmtIn × Salt) pSpec) Id))
+    (fsImpl : QueryImpl oSpec
+      (StateT (QueryImpl (srChallengeOracle (StmtIn × Salt) pSpec) Id) ProbComp))
+    (ε : ENNReal)
+    (h_sr_ks : Verifier.StateRestoration.knowledgeSoundness fsInit fsImpl
+        (relInSalted (Salt := Salt) relIn) relOut (saltedIPVerifier (Salt := Salt) V) ε) :
+    Verifier.knowledgeSoundness
+      fsInit (fsImpl.addLift srChallengeQueryImpl')
+      relIn relOut
+      (Verifier.singleSaltFiatShamir (Salt := Salt) V)
+      ε.toNNReal := by
+  sorry
+
+end SingleSaltSecurity

@@ -9,6 +9,7 @@ import ArkLib.ToVCVio.ToMathlib.Control.StateT
 import VCVio.EvalDist.Defs.NeverFails
 import VCVio.OracleComp.QueryTracking.RandomOracle.Basic
 import VCVio.OracleComp.SimSemantics.StateT.Basic
+import VCVio.OracleComp.SimSemantics.OptionT.Basic
 
 /-!
 # Additions to VCV-io's `OracleComp.SimSemantics.SimulateQ`
@@ -48,6 +49,41 @@ lemma OptionT.probEvent_eq_one_of_simulateQ_support
   · intro x hx
     rw [OptionT.mem_support_iff] at hx
     obtain ⟨a, ha, hP⟩ := h (some x) (support_simulateQ_run'_subset impl oa s₀ hx)
+    cases ha
+    exact hP
+
+/-- Bind-prefixed variant of `OptionT.probEvent_eq_one_of_simulateQ_support`: the simulated
+    `OptionT` computation may sample its initial state `s₀` from an arbitrary `ProbComp σ`
+    (e.g. the `(← init)` of `Reduction.perfectCompleteness`). Since
+    `support_simulateQ_run'_subset` bounds the support uniformly in `s₀`, the support hypothesis
+    `h` (independent of `s₀`) still discharges both the never-fail and all-outputs-`P` obligations.
+
+    This is the form needed to close `OracleReduction`-style perfect-completeness goals, whose
+    `OptionT.mk` body is `do let s ← init; (simulateQ impl oa).run' s`. -/
+lemma OptionT.probEvent_eq_one_of_simulateQ_support_bind
+    {ι σ α : Type} {spec : OracleSpec ι}
+    (init : ProbComp σ)
+    (impl : QueryImpl spec (StateT σ ProbComp))
+    (oa : OracleComp spec (Option α)) (P : α → Prop)
+    (h : ∀ x ∈ support oa, ∃ a, x = some a ∧ P a) :
+    Pr[P | OptionT.mk (do let s ← init; (simulateQ impl oa).run' s)] = 1 := by
+  letI := Classical.decPred P
+  rw [probEvent_eq_one_iff]
+  refine ⟨?_, ?_⟩
+  · -- The simulated computation never fails: for every sampled state `s`, the run' has no `none`
+    -- in its support (it is bounded by `support oa`, which contains no `none` by `h`).
+    rw [OptionT.probFailure_eq, OptionT.run_mk, add_eq_zero]
+    refine ⟨probFailure_eq_zero, ?_⟩
+    refine probOutput_eq_zero_of_not_mem_support fun hnone => ?_
+    rw [mem_support_bind_iff] at hnone
+    obtain ⟨s, _, hnone⟩ := hnone
+    obtain ⟨_, hsome, _⟩ := h none (support_simulateQ_run'_subset impl oa s hnone)
+    cases hsome
+  · -- Every successful output satisfies `P`: peel the `init` bind, then `support_simulateQ_run'`.
+    intro x hx
+    rw [OptionT.mem_support_iff, OptionT.run_mk, mem_support_bind_iff] at hx
+    obtain ⟨s, _, hx⟩ := hx
+    obtain ⟨a, ha, hP⟩ := h (some x) (support_simulateQ_run'_subset impl oa s hx)
     cases ha
     exact hP
 
@@ -155,8 +191,9 @@ next to `QueryImpl.simulateQ_add_liftComp_left`. -/
 lemma simulateQ_addLift_add_liftM_left
     {ι ι₁ ι₂ : Type} {spec : OracleSpec ι} {spec₁ : OracleSpec ι₁} {spec₂ : OracleSpec ι₂}
     {m : Type → Type} [Monad m] [LawfulMonad m]
+    {m₀ : Type → Type} [Monad m₀] [LawfulMonad m₀] [MonadLiftT m₀ m] [LawfulMonadLiftT m₀ m]
     {n : Type → Type} [Monad n] [LawfulMonad n] [MonadLiftT n m] [LawfulMonadLiftT n m]
-    (impl : QueryImpl spec m) (impl₁ : QueryImpl spec₁ n) (impl₂ : QueryImpl spec₂ n)
+    (impl : QueryImpl spec m₀) (impl₁ : QueryImpl spec₁ n) (impl₂ : QueryImpl spec₂ n)
     {α : Type} (x : OracleComp spec₁ α) :
     simulateQ (QueryImpl.addLift impl (QueryImpl.add impl₁ impl₂)
         : QueryImpl (spec + (spec₁ + spec₂)) m)
@@ -177,8 +214,9 @@ The `right` companion of `simulateQ_addLift_add_liftM_left`; see that lemma for 
 lemma simulateQ_addLift_add_liftM_right
     {ι ι₁ ι₂ : Type} {spec : OracleSpec ι} {spec₁ : OracleSpec ι₁} {spec₂ : OracleSpec ι₂}
     {m : Type → Type} [Monad m] [LawfulMonad m]
+    {m₀ : Type → Type} [Monad m₀] [LawfulMonad m₀] [MonadLiftT m₀ m] [LawfulMonadLiftT m₀ m]
     {n : Type → Type} [Monad n] [LawfulMonad n] [MonadLiftT n m] [LawfulMonadLiftT n m]
-    (impl : QueryImpl spec m) (impl₁ : QueryImpl spec₁ n) (impl₂ : QueryImpl spec₂ n)
+    (impl : QueryImpl spec m₀) (impl₁ : QueryImpl spec₁ n) (impl₂ : QueryImpl spec₂ n)
     {α : Type} (x : OracleComp spec₂ α) :
     simulateQ (QueryImpl.addLift impl (QueryImpl.add impl₁ impl₂)
         : QueryImpl (spec + (spec₁ + spec₂)) m)

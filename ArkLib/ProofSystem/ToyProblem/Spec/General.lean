@@ -471,16 +471,27 @@ existential-encoding form (`ToyProblem.relation`, `∃ encode'`) made completene
 attack). With `inputRelationFor encode` the discharge to `accepts_of_inputRelation`
 (`hf : fᵢ = encode (M i)`, `hM : ⟨M i, v⟩ = μᵢ`) goes through.
 
-**Precise residual.** After the unfolding, the goal is
-`probEvent (OptionT.mk do let s ← init; (simulateQ pImpl (…)).run' s) … = 1`,
-with the `simulateQ`/`forIn`/query binds *underneath* the `OptionT.mk` /
-`probEvent` / `StateT.run'` layers. Closing it requires the support-membership
-argument of `Sumcheck/Spec/SingleRound.lean :: reduction_perfectCompleteness`
-(`one_le_probEvent_iff` → `probEvent_eq_one_iff` → `OptionT.run_mk` →
-`StateT.run'_eq` → iterated `support_bind` + `simulateQ_bind` peeling), adapted
-from that (loopless, two-round, *itself still admitted*) proof to this
-three-round protocol *with* the spot-check loop — a sizeable mechanical peel
-(~250+ lines) discharging to `accepts_of_inputRelation`. -/
+**Precise residual (updated 2026-06-10).** The `Pr[…] = 1` goal is now reduced
+to a support-membership obligation via
+`OptionT.probEvent_eq_one_of_simulateQ_support_bind`
+(`ArkLib/ToVCVio/OracleComp/SimSemantics/SimulateQ.lean`, proven): every element
+of the honest run's support must be `some` of an accepting output, which
+`accepts_of_inputRelation` certifies *once the verifier body's queries are
+resolved*. The one remaining gap is a **framework lemma absent from VCVio**:
+resolving `simulateQ (OracleInterface.simOracle2 []ₒ oStmt msgs) (…)` when the
+verifier's `queryG`/`queryF` are lifted through the *composed* `MonadLiftT`
+instance (`instMonadLiftTOfMonadLift ∘ instMonadLiftOfOracleQuery ∘
+SubSpec.toMonadLift`), i.e. the goal shape
+`simulateQ (liftTarget m impl + liftTarget m (impl₁.add impl₂))
+  (liftM (liftM (OracleQuery.mk t id))) = liftM (impl₂ t)`.
+None of `simulateQ_addLift_add_liftM_left/right` (assume a `liftComp∘liftComp`
+decomposition this term does not have, and a `Monad` base that `simOracle2`'s
+`OracleQuery []` target is not), `QueryImpl.simulateQ_add_liftComp_*`, nor
+`QueryImpl.simulateQ_liftM_eq_of_query` match it. Needed upstream: a
+`simulateQ`-over-`simOracle2` query-routing lemma proved by induction on the
+computation using the per-query `SubSpec` embedding (companion to VCVio's
+`simulateQ_liftTarget`); with it, the residual `sorry` discharges to
+`accepts_of_inputRelation`. -/
 theorem oracleReduction_perfectCompleteness
     [SampleableType F] [SampleableType ι]
     {σ : Type} (init : ProbComp σ)
@@ -514,13 +525,17 @@ theorem oracleReduction_perfectCompleteness
   split <;> rename_i hDir2
   swap
   · exact absurd hDir2 (by decide)
-  -- ABF26-C6.2; framework-residual. The prover/verifier are unfolded (above) and
-  -- the query-resolution lemmas are landed (`simulateQ_list_forIn`,
-  -- `simulateQ_addLift_add_liftM_*`); the statement is now the faithful
-  -- fixed-encoding `inputRelationFor encode`. The only remaining gap is the
-  -- ~250-line `OptionT`/`StateT`/`simulateQ` support-peel discharging to
-  -- `accepts_of_inputRelation` — see the theorem docstring's "Precise residual".
-  sorry
+  -- Reduce `Pr[…] = 1` to a support-membership obligation on the (pre-simulation)
+  -- `OracleComp` body via the toolkit lemma, which peels the `(← init)` bind, the
+  -- `simulateQ`/`StateT.run'` layers, and the `OptionT.mk` failure bookkeeping.
+  apply OptionT.probEvent_eq_one_of_simulateQ_support_bind
+  intro x hx
+  -- Support membership: every honest-run support element is `some` of an
+  -- accepting output, by `accepts_of_inputRelation` — once the verifier body's
+  -- `simOracle2` queries are resolved. Blocked on ONE missing upstream lemma
+  -- (`simulateQ`-over-`simOracle2` query routing through the composed
+  -- `MonadLiftT`); see the docstring's "Precise residual (updated 2026-06-10)".
+  sorry -- ABF26-C6.2; framework-residual (upstream VCVio simOracle2 routing lemma).
 
 omit [DecidableEq ι] in
 /-- **Lemma 6.6 of [ABF26]** (knowledge soundness of Construction 6.2).

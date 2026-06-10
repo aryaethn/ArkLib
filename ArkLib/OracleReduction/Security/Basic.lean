@@ -38,6 +38,9 @@ variable {ι : Type} {oSpec : OracleSpec ι}
   -- Note: `σ` may depend on the previous data, like `StmtIn`, `pSpec`, and so on
   {σ : Type} (init : ProbComp σ) (impl : QueryImpl oSpec (StateT σ ProbComp))
 
+local instance {spec : OracleSpec ι} [spec.Fintype] [spec.Inhabited] : IsUniformSpec spec :=
+  IsUniformSpec.ofFintypeInhabited spec
+
 /-
 TODO: the "right" factoring for the security definitions are the following:
 
@@ -62,6 +65,7 @@ TODO: the "right" factoring for the security definitions are the following:
 namespace Reduction
 
 section Completeness
+
 
 /-- A reduction satisfies **completeness** with regards to:
   - an initialization function `init : ProbComp σ` for some ambient state `σ`,

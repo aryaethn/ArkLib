@@ -36,17 +36,29 @@ def pSpecBatching : ProtocolSpec 2 :=
    ![P.A, Fin κ → L]⟩
 
 -- `pSpecSumcheckRound` was lifted to `ArkLib.ProofSystem.Sumcheck.Structured.SingleRound` as a
--- degree-neutral spec. Binius ring-switching is the degree-2 case, so this Binius-local abbrev
--- pins `d := 2` — no instantiation is privileged by a default on the generic spec.
-abbrev pSpecSumcheckRound (L : Type) [Semiring L] : ProtocolSpec 2 :=
-  Sumcheck.Structured.pSpecSumcheckRound L 2
+-- degree-neutral spec. The `WithDegree` names expose the reusable protocol shape; the historical
+-- Binius ring-switching names below pin `d := 2`.
+abbrev pSpecSumcheckRoundWithDegree (L : Type) [Semiring L] (d : ℕ) : ProtocolSpec 2 :=
+  Sumcheck.Structured.pSpecSumcheckRound L d
 
-def pSpecSumcheckLoop := ProtocolSpec.seqCompose (fun (_: Fin ℓ') => pSpecSumcheckRound L)
+abbrev pSpecSumcheckRound (L : Type) [Semiring L] : ProtocolSpec 2 :=
+  pSpecSumcheckRoundWithDegree L 2
+
+@[reducible]
+def pSpecSumcheckLoopWithDegree (d : ℕ) :=
+  ProtocolSpec.seqCompose (fun (_: Fin ℓ') => pSpecSumcheckRoundWithDegree L d)
+
+@[reducible]
+def pSpecSumcheckLoop := pSpecSumcheckLoopWithDegree L ℓ' 2
 
 def pSpecFinalSumcheck : ProtocolSpec 1 := ⟨![Direction.P_to_V], ![L]⟩
 
 @[reducible]
-def pSpecCoreInteraction := (pSpecSumcheckLoop L ℓ') ++ₚ (pSpecFinalSumcheck L)
+def pSpecCoreInteractionWithDegree (d : ℕ) :=
+  (pSpecSumcheckLoopWithDegree L ℓ' d) ++ₚ (pSpecFinalSumcheck L)
+
+@[reducible]
+def pSpecCoreInteraction := pSpecCoreInteractionWithDegree L ℓ' 2
 
 @[reducible]
 def pSpecLargeFieldReduction :=
@@ -68,11 +80,18 @@ instance : ∀ j, OracleInterface ((pSpecBatching κ L K P).Message j)
 -- `ArkLib.ProofSystem.Sumcheck.Structured.SingleRound` along with the spec itself.
 -- Anonymous instances are looked up globally regardless of namespace, so no shim is needed.
 
+instance {d : ℕ} : ∀ j, OracleInterface ((pSpecSumcheckLoopWithDegree (L:=L) ℓ' d).Message j)
+  := instOracleInterfaceMessageSeqCompose
+
 instance : ∀ j, OracleInterface ((pSpecSumcheckLoop (L:=L) ℓ').Message j)
   := instOracleInterfaceMessageSeqCompose
 
 instance : ∀ i, OracleInterface ((pSpecFinalSumcheck (L:=L)).Message i)
   | ⟨0, _⟩ => OracleInterface.instDefault -- final constant c
+
+instance {d : ℕ} : ∀ i,
+    OracleInterface ((pSpecCoreInteractionWithDegree (L:=L) (ℓ':=ℓ') d).Message i) :=
+  instOracleInterfaceMessageAppend
 
 instance : ∀ i, OracleInterface ((pSpecCoreInteraction (L:=L) (ℓ':=ℓ')).Message i) :=
   instOracleInterfaceMessageAppend
@@ -98,11 +117,19 @@ instance : ∀ j, SampleableType ((pSpecBatching κ L K P).Challenge j)
 -- `ArkLib.ProofSystem.Sumcheck.Structured.SingleRound`. Anonymous instances are looked up
 -- globally, so no shim is needed.
 
+instance {d : ℕ} : ∀ j,
+    SampleableType ((pSpecSumcheckLoopWithDegree (L:=L) ℓ' d).Challenge j)
+  := instSampleableTypeChallengeSeqCompose
+
 instance : ∀ j, SampleableType ((pSpecSumcheckLoop (L:=L) ℓ').Challenge j)
   := instSampleableTypeChallengeSeqCompose
 
 instance : ∀ i, SampleableType ((pSpecFinalSumcheck (L:=L)).Challenge i)
   | ⟨0, h0⟩ => by nomatch h0 -- P->V message has no challenge
+
+instance {d : ℕ} : ∀ i,
+    SampleableType ((pSpecCoreInteractionWithDegree (L:=L) (ℓ':=ℓ') d).Challenge i) :=
+  instSampleableTypeChallengeAppend
 
 instance : ∀ i, SampleableType ((pSpecCoreInteraction (L:=L) (ℓ':=ℓ')).Challenge i) :=
   instSampleableTypeChallengeAppend

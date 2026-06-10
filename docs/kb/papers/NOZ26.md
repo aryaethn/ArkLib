@@ -27,6 +27,9 @@ ring-switching abstraction (the first being Binius / [`DP24`](DP24.md)).
 - The packing-layer instantiation: `L = R_q`, carrier `A = R_q`, `φ₀ = id`, `φ₁ = σ₋₁` (order-two
   automorphism), basis `ψ` from its **Theorem 2** — which discharges the profile's reconstruction
   laws for the Hachi instance.
+- Parameter translation: Hachi's Theorem 2 packs `d/k` subfield elements. ArkLib's
+  `RingSwitchingProfile ... κ` uses `2^κ` for this packing rank, so this `κ` is
+  `log₂(d/k)` in Hachi notation, not Hachi's extension-degree parameter `k`/`κ`.
 
 ## Main ArkLib Touchpoints
 
@@ -43,8 +46,8 @@ ring-switching abstraction (the first being Binius / [`DP24`](DP24.md)).
 
 ## Open Formalization Gaps
 
-- Construct `hachiProfile : RingSwitchingProfile R_qH R_q κ` and discharge `decomposeRows_spec` /
-  `decomposeColumns_spec` via Theorem 2.
+- Construct `hachiProfile : RingSwitchingProfile R_qH R_q κ_pack` and discharge
+  `decomposeRows_spec` / `decomposeColumns_spec` via Theorem 2, with `2^κ_pack = d/k`.
 - Formalize Hachi-specific soundness separately (does not reuse the field/domain soundness theorem).
 
 ## Version Notes

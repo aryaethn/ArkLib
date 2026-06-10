@@ -364,13 +364,16 @@ end OracleStatementIndex
 
 -- The structured-sumcheck primitives (`MultilinearPoly`, `MultiquadraticPoly`,
 -- `SumcheckMultiplierParam`, `computeInitialSumcheckPoly`, `projectToMidSumcheckPoly`,
--- `projectToNextSumcheckPoly`) now live in `ArkLib.ProofSystem.Sumcheck.Structured`.
+-- `projectToMidSumcheckPolyWithParam`, `projectToNextSumcheckPolyWithDegree`,
+-- `projectToNextSumcheckPoly`) now live in
+-- `ArkLib.ProofSystem.Sumcheck.Structured`.
 -- We re-export them under the `Binius.BinaryBasefold` namespace so that existing
 -- references — qualified or unqualified — continue to resolve.
 -- See `GENERIC_RING_SWITCHING_PLAN.md` §1.5 for the rationale.
 export Sumcheck.Structured (MultilinearPoly MultiquadraticPoly
   SumcheckMultiplierParam computeInitialSumcheckPoly
-  projectToMidSumcheckPoly projectToNextSumcheckPoly)
+  projectToMidSumcheckPoly projectToMidSumcheckPolyWithParam
+  projectToNextSumcheckPolyWithDegree projectToNextSumcheckPoly)
 
 variable {r : ℕ} [NeZero r]
 variable {L : Type} [Field L] [Fintype L] [DecidableEq L] [CharP L 2]
@@ -506,9 +509,9 @@ def mapOStmtOutRelayStep (i : Fin ℓ) (hNCR : ¬ isCommitmentRound ℓ ϑ i)
 This ensures efficient computability and constraint on the structure of `H_i`
 according to `t`.
 -/
-structure Witness (i : Fin (ℓ + 1)) where
+structure Witness (i : Fin (ℓ + 1)) (d : ℕ := 2) where
   t : L⦃≤ 1⦄[X Fin ℓ] -- The original polynomial t
-  H : L⦃≤ 2⦄[X Fin (ℓ - i)] -- Hᵢ
+  H : L⦃≤ d⦄[X Fin (ℓ - i)] -- Hᵢ
   f: (sDomain 𝔽q β h_ℓ_add_R_rate) ⟨i, by omega⟩ → L -- fᵢ
 
 /-- The extractor that recovers the multilinear polynomial t from f^(i) -/
@@ -816,8 +819,11 @@ variable {Context : Type} {mp : SumcheckMultiplierParam L ℓ Context} -- Sumche
 /-- This condition ensures that the witness polynomial `H` has the
 correct structure `eq(...) * t(...)` -/
 def witnessStructuralInvariant {i : Fin (ℓ + 1)} (stmt : Statement (L := L) Context i)
-    (wit : Witness (L := L) 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i) : Prop :=
-  wit.H = projectToMidSumcheckPoly ℓ wit.t (m:=mp.multpoly stmt.ctx) i stmt.challenges ∧
+    (wit : Witness (L := L) 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i
+      (d := mp.degCombinator + 1)) : Prop :=
+  wit.H.val = (projectToMidSumcheckPolyWithParam (L := L) (ℓ := ℓ)
+    (param := mp) (ctx := stmt.ctx) (t := wit.t) (i := i)
+    (challenges := stmt.challenges)).val ∧
   wit.f = getMidCodewords 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) wit.t stmt.challenges
 
 -- `sumcheckConsistencyProp` now lives in `ArkLib.ProofSystem.Sumcheck.Structured`.
@@ -872,7 +878,7 @@ def nonDoomedFoldingProp (i : Fin (ℓ + 1)) (challenges : Fin i → L)
 omit [CharP L 2] [DecidableEq 𝔽q] h_β₀_eq_1 [NeZero 𝓡] in
 lemma firstOracleWitnessConsistencyProp_relay_preserved (i : Fin ℓ)
     (hNCR : ¬ isCommitmentRound ℓ ϑ i) (wit : Witness (L := L) 𝔽q β
-      (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i.succ)
+      (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i.succ (d := mp.degCombinator + 1))
     (oStmt : ∀ j, OracleStatement 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) ϑ i.castSucc j) :
     firstOracleWitnessConsistencyProp 𝔽q β wit.t (getFirstOracle 𝔽q β oStmt) =
     firstOracleWitnessConsistencyProp 𝔽q β wit.t
@@ -891,7 +897,8 @@ lemma nonDoomedFoldingProp_relay_preserved (i : Fin ℓ) (hNCR : ¬ isCommitment
 def oracleWitnessConsistency
     (stmtIdx : Fin (ℓ + 1)) (oracleIdx : Fin (ℓ + 1))
     (h_le : oracleIdx.val ≤ stmtIdx.val) (stmt : Statement (L := L) (Context := Context) stmtIdx)
-    (wit : Witness (L := L) 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) stmtIdx)
+    (wit : Witness (L := L) 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) stmtIdx
+      (d := mp.degCombinator + 1))
     (oStmt : ∀ j, (OracleStatement 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate)
       ϑ (i := oracleIdx) j)) : Prop :=
   let witnessStructuralInvariant: Prop := witnessStructuralInvariant (mp := mp) (i:=stmtIdx) 𝔽q β
@@ -909,7 +916,8 @@ def oracleWitnessConsistency
 lemma oracleWitnessConsistency_relay_preserved
     (i : Fin ℓ) (hNCR : ¬ isCommitmentRound ℓ ϑ i)
     (stmt : Statement (L := L) Context i.succ)
-    (wit : Witness (L := L) 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i.succ)
+    (wit : Witness (L := L) 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i.succ
+      (d := mp.degCombinator + 1))
     (oStmt : ∀ j, OracleStatement 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) ϑ i.castSucc j) :
     oracleWitnessConsistency (mp := mp) 𝔽q β i.succ i.castSucc
       (le_succ ↑i.castSucc) stmt wit oStmt =
@@ -926,7 +934,8 @@ Formally, = (oracleIdx = stmtIdx)`.
 def masterKStateProp (stmtIdx : Fin (ℓ + 1))
     (oracleIdx : Fin (ℓ + 1))
     (h_le : oracleIdx.val ≤ stmtIdx.val) (stmt : Statement (L := L) Context stmtIdx)
-    (wit : Witness (L := L) 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) stmtIdx)
+    (wit : Witness (L := L) 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) stmtIdx
+      (d := mp.degCombinator + 1))
     (oStmt : ∀ j, (OracleStatement 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) ϑ (i := oracleIdx) j))
     (localChecks : Prop := True) : Prop :=
   let oracleWitnessConsistency: Prop := oracleWitnessConsistency (mp := mp) 𝔽q β
@@ -939,7 +948,8 @@ def masterKStateProp (stmtIdx : Fin (ℓ + 1))
 def roundRelationProp (i : Fin (ℓ + 1))
     (input : (Statement (L := L) Context i ×
       (∀ j, OracleStatement 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) ϑ i j)) ×
-      Witness (L := L) 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i) : Prop :=
+      Witness (L := L) 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i
+        (d := mp.degCombinator + 1)) : Prop :=
   let stmt := input.1.1
   let oStmt := input.1.2
   let wit := input.2
@@ -950,7 +960,8 @@ def roundRelationProp (i : Fin (ℓ + 1))
 def foldStepRelOutProp (i : Fin ℓ)
     (input : (Statement (L := L) Context i.succ ×
       (∀ j, OracleStatement 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) ϑ i.castSucc j)) ×
-      Witness (L := L) 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i.succ) : Prop :=
+      Witness (L := L) 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i.succ
+        (d := mp.degCombinator + 1)) : Prop :=
   let stmt := input.1.1
   let oStmt := input.1.2
   let wit := input.2
@@ -1012,7 +1023,8 @@ def finalNonDoomedFoldingProp {h_le : ϑ ≤ ℓ}
 def foldStepRelOut (i : Fin ℓ) :
     Set ((Statement (L := L) Context i.succ ×
       (∀ j, OracleStatement 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) ϑ i.castSucc j)) ×
-      Witness (L := L) 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i.succ) :=
+      Witness (L := L) 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i.succ
+        (d := mp.degCombinator + 1)) :=
   { input | foldStepRelOutProp (mp := mp) 𝔽q β i input}
 
 /-- Relation at step `i` of the CoreInteraction. `∀ i < ℓ, R_i` must hold at the
@@ -1021,7 +1033,8 @@ the final constant. -/
 def roundRelation (i : Fin (ℓ + 1)) :
     Set ((Statement (L := L) Context i ×
       (∀ j, OracleStatement 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) ϑ i j)) ×
-      Witness (L := L) 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i) :=
+      Witness (L := L) 𝔽q β (h_ℓ_add_R_rate := h_ℓ_add_R_rate) i
+        (d := mp.degCombinator + 1)) :=
   { input | roundRelationProp (mp := mp) 𝔽q β i input}
 
 /-- Relation for final sumcheck step -/

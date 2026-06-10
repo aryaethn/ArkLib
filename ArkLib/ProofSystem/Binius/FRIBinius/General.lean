@@ -155,7 +155,7 @@ noncomputable def fullOracleReduction :
     (OStmt₃ := fun _ : Empty => Unit)
     (pSpec₁ := batchingCorePspec κ L K β ℓ' 𝓡 ϑ h_ℓ_add_R_rate)
     (pSpec₂ := BinaryBasefold.pSpecQuery K β γ_repetitions (h_ℓ_add_R_rate := h_ℓ_add_R_rate))
-    (R₁ := batchingCoreReduction κ L K β ℓ ℓ' 𝓡 ϑ h_ℓ_add_R_rate h_l 
+    (R₁ := batchingCoreReduction κ L K β ℓ ℓ' 𝓡 ϑ h_ℓ_add_R_rate h_l
     )
     (R₂ := QueryPhase.queryOracleReduction K β γ_repetitions
       (h_ℓ_add_R_rate := h_ℓ_add_R_rate) (ϑ:=ϑ))
@@ -168,7 +168,7 @@ noncomputable def fullOracleProof :
     (OStatement := (BinaryBasefoldAbstractOStmtIn κ L K β ℓ' 𝓡 ϑ h_ℓ_add_R_rate).OStmtIn)
     (Witness := BatchingWitIn L K ℓ ℓ')
     (pSpec:= fullPspec κ L K β ℓ' 𝓡 ϑ γ_repetitions (h_ℓ_add_R_rate := h_ℓ_add_R_rate)) :=
-  fullOracleReduction κ L K β ℓ ℓ' 𝓡 ϑ γ_repetitions (h_ℓ_add_R_rate := h_ℓ_add_R_rate) h_l 
+  fullOracleReduction κ L K β ℓ ℓ' 𝓡 ϑ γ_repetitions (h_ℓ_add_R_rate := h_ℓ_add_R_rate) h_l
 
 /-!
 ## Security Properties
@@ -213,10 +213,10 @@ theorem fullOracleReduction_perfectCompleteness :
           𝓡 ϑ (h_ℓ_add_R_rate := h_ℓ_add_R_rate)) 0)
         (rel₃ := BinaryBasefold.finalSumcheckRelOut K β (ϑ:=ϑ) (h_ℓ_add_R_rate := h_ℓ_add_R_rate))
       · apply BatchingPhase.batchingReduction_perfectCompleteness κ L K
-          (biniusProfile κ L K β) ℓ ℓ' h_l 
+          (biniusProfile κ L K β) ℓ ℓ' h_l
           (BinaryBasefoldAbstractOStmtIn κ L K β ℓ' 𝓡 ϑ h_ℓ_add_R_rate)
       · apply CoreInteractionPhase.coreInteractionOracleReduction_perfectCompleteness
-          κ L K β ℓ ℓ' 𝓡 ϑ h_ℓ_add_R_rate h_l 
+          κ L K β ℓ ℓ' 𝓡 ϑ h_ℓ_add_R_rate h_l
     )
     (h₂ := QueryPhase.queryOracleProof_perfectCompleteness K β γ_repetitions
       (h_ℓ_add_R_rate := h_ℓ_add_R_rate) (ϑ:=ϑ) init impl)

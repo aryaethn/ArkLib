@@ -119,9 +119,9 @@ noncomputable def oracleProver :
       r_batching := r_batching
     }
     let h_poly: ↥L⦃≤ 2⦄[X Fin ℓ'] :=
-      projectToMidSumcheckPoly (L := L) (ℓ := ℓ') (t := wit.t')
-        (m := (RingSwitching_SumcheckMultParam κ L K P ℓ ℓ' h_l).multpoly (ctx := ctx))
-        (i := 0) (challenges := Fin.elim0)
+      projectToMidSumcheckPolyWithParam (L := L) (ℓ := ℓ')
+        (param := RingSwitching_SumcheckMultParam κ L K P ℓ ℓ' h_l)
+        (ctx := ctx) (t := wit.t') (i := 0) (challenges := Fin.elim0)
     -- Prover computes s₀ locally for its output witness.
     let s₀ := compute_s0 κ L K P s_hat r_batching
     let stmtOut : Statement (L := L) (ℓ := ℓ') (RingSwitchingBaseContext κ L K ℓ P) 0 := {
@@ -222,9 +222,10 @@ noncomputable def batchingRbrExtractor :
   extractOut _ _ witOut := witOut
 
 /-- RBR knowledge soundness error for the batching phase.
-The only verifier randomness is `r''`. A collision has probability related to `κ/|L|`.
-For simplicity, we can set a placeholder value. -/
-def batchingRBRKnowledgeError (i : (pSpecBatching (κ := κ) (L := L) (K := K) (P := P)).ChallengeIdx) : ℝ≥0 :=
+The only verifier randomness is `r''`; DP24's batching check is a nonzero `κ`-variate multilinear
+identity test, giving the Schwartz-Zippel bound `κ/|L|`. -/
+def batchingRBRKnowledgeError
+    (i : (pSpecBatching (κ := κ) (L := L) (K := K) (P := P)).ChallengeIdx) : ℝ≥0 :=
   match i with
   | ⟨1, _⟩ => (κ : ℝ≥0) / (Fintype.card L : ℝ≥0) -- Schwartz-Zippel error
   | _ => 0 -- No other challenges
@@ -273,9 +274,9 @@ def batchingKStateProp {m : Fin (2 + 1)}
     }
     let witOut : SumcheckWitness L ℓ' 0 := {
       t' := witMid.t',
-      H := projectToMidSumcheckPoly (L := L) (ℓ := ℓ') (t := witMid.t')
-        (m := (RingSwitching_SumcheckMultParam κ L K P ℓ ℓ' h_l).multpoly (ctx := ctx))
-        (i := 0) (challenges := Fin.elim0)
+      H := projectToMidSumcheckPolyWithParam (L := L) (ℓ := ℓ')
+        (param := RingSwitching_SumcheckMultParam κ L K P ℓ ℓ' h_l)
+        (ctx := ctx) (t := witMid.t') (i := 0) (challenges := Fin.elim0)
     }
     exact
       sumcheckRoundRelationProp κ L K P ℓ ℓ' h_l aOStmtIn (i:=0) stmtOut oStmt witOut

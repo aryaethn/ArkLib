@@ -166,8 +166,9 @@ noncomputable def iteratedSumcheckRbrExtractor (i : Fin ℓ') :
   extractOut := fun ⟨stmtIn, oStmtIn⟩ fullTranscript witOut => by
     exact {
       t' := witOut.t',
-      H := projectToMidSumcheckPoly (L := L) (ℓ := ℓ') (t := witOut.t')
-        (m := (RingSwitching_SumcheckMultParam κ L K P ℓ ℓ' h_l).multpoly (ctx := stmtIn.ctx))
+      H := projectToMidSumcheckPolyWithParam (L := L) (ℓ := ℓ')
+        (param := RingSwitching_SumcheckMultParam κ L K P ℓ ℓ' h_l)
+        (ctx := stmtIn.ctx) (t := witOut.t')
         (i := i.castSucc) (challenges := stmtIn.challenges)
     }
 
@@ -203,7 +204,7 @@ def iteratedSumcheckKStateProp (i : Fin ℓ') (m : Fin (2 + 1))
 
   match m with
   | ⟨0, _⟩ => -- equiv s relIn
-    RingSwitching.masterKStateProp κ L K P ℓ ℓ' h_l 
+    RingSwitching.masterKStateProp κ L K P ℓ ℓ' h_l
       aOStmtIn
       (stmtIdx := i.castSucc)
       (stmt := stmt) (oStmt := oStmt) (wit := witMid)
@@ -240,7 +241,7 @@ def iteratedSumcheckKnowledgeStateFunction (i : Fin ℓ') :
       (relOut := sumcheckRoundRelation κ L K P ℓ ℓ' h_l aOStmtIn i.succ)
       (extractor := iteratedSumcheckRbrExtractor κ L K P ℓ ℓ' h_l aOStmtIn i) where
   toFun := fun m ⟨stmt, oStmt⟩ tr witMid =>
-    iteratedSumcheckKStateProp κ L K P ℓ ℓ' h_l 
+    iteratedSumcheckKStateProp κ L K P ℓ ℓ' h_l
       (i := i) (m := m) (tr := tr) (stmt := stmt) (witMid := witMid) (oStmt := oStmt)
   toFun_empty := fun _ _ => by
     simp only [sumcheckRoundRelation, sumcheckRoundRelationProp, Fin.coe_castSucc, cast_eq,
@@ -409,8 +410,9 @@ noncomputable def finalSumcheckRbrExtractor :
 
   extractOut := fun ⟨stmtIn, _⟩ _tr witOut => {
     t' := witOut.t,
-    H := projectToMidSumcheckPoly (L := L) (ℓ := ℓ') (t := witOut.t)
-      (m := (RingSwitching_SumcheckMultParam κ L K P ℓ ℓ' h_l).multpoly (ctx := stmtIn.ctx))
+    H := projectToMidSumcheckPolyWithParam (L := L) (ℓ := ℓ')
+      (param := RingSwitching_SumcheckMultParam κ L K P ℓ ℓ' h_l)
+      (ctx := stmtIn.ctx) (t := witOut.t)
       (i := Fin.last ℓ') (challenges := stmtIn.challenges)
   }
 
@@ -454,7 +456,7 @@ noncomputable def finalSumcheckKnowledgeStateFunction {σ : Type} (init : ProbCo
     (extractor := finalSumcheckRbrExtractor κ L K P ℓ ℓ' h_l aOStmtIn)
   where
   toFun := fun m ⟨stmt, oStmt⟩ tr witMid =>
-    finalSumcheckKStateProp κ L K P ℓ ℓ' h_l 
+    finalSumcheckKStateProp κ L K P ℓ ℓ' h_l
     (m := m) (tr := tr) (stmt := stmt) (witMid := witMid) (oStmt := oStmt)
   toFun_empty := fun stmt witMid => by
     simp only [sumcheckRoundRelation, sumcheckRoundRelationProp, Fin.val_last, cast_eq,
@@ -558,9 +560,29 @@ theorem coreInteraction_perfectCompleteness :
   · exact finalSumcheckOracleReduction_perfectCompleteness (κ:=κ) (L:=L) (K:=K)
       (P:=P) (ℓ:=ℓ) (ℓ':=ℓ') (h_l:=h_l) (aOStmtIn:=aOStmtIn) (init:=init) (impl:=impl)
 
-/-- standard sumcheck error -/
-def coreInteractionRbrKnowledgeError (_ : (pSpecCoreInteraction L ℓ').ChallengeIdx) : ℝ≥0 :=
-  (2 : ℝ≥0) / (Fintype.card L)
+/-- RBR knowledge error for a degree-`d` sumcheck loop, obtained from the `seqCompose`
+challenge-index decomposition. -/
+def sumcheckLoopRbrKnowledgeErrorWithDegree (d : ℕ)
+    (j : (pSpecSumcheckLoopWithDegree L ℓ' d).ChallengeIdx) : ℝ≥0 :=
+  let ij := ProtocolSpec.seqComposeChallengeIdxToSigma
+    (pSpec := fun _ : Fin ℓ' => pSpecSumcheckRoundWithDegree L d) j
+  Sumcheck.Structured.roundKnowledgeError L ℓ' ij.1 d
+
+def sumcheckLoopRbrKnowledgeError (j : (pSpecSumcheckLoop L ℓ').ChallengeIdx) : ℝ≥0 :=
+  sumcheckLoopRbrKnowledgeErrorWithDegree L ℓ' 2 j
+
+/-- RBR knowledge error for the core interaction with a degree-`d` sumcheck loop. The loop
+contributes `d / |L|` per sumcheck challenge; the final sumcheck contributes `1 / |L|`. -/
+def coreInteractionRbrKnowledgeErrorWithDegree (d : ℕ)
+    (j : (pSpecCoreInteractionWithDegree L ℓ' d).ChallengeIdx) : ℝ≥0 :=
+  Sum.elim
+    (f := sumcheckLoopRbrKnowledgeErrorWithDegree L ℓ' d)
+    (g := fun _ => finalSumcheckRbrKnowledgeError (L := L))
+    (ChallengeIdx.sumEquiv.symm j)
+
+/-- Standard Binius ring-switching RBR knowledge error (`d = 2`) with exact final-step splitting. -/
+def coreInteractionRbrKnowledgeError (j : (pSpecCoreInteraction L ℓ').ChallengeIdx) : ℝ≥0 :=
+  coreInteractionRbrKnowledgeErrorWithDegree L ℓ' 2 j
 
 -- TODO: iteratedSumcheckLoop_rbrKnowledgeSoundness
 

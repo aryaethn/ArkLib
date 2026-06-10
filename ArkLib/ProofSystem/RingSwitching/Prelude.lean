@@ -421,9 +421,11 @@ correct structure `A(...) * t'(...)` -/
 def witnessStructuralInvariant {i : Fin (ℓ' + 1)}
     (stmt : Statement (L := L) (RingSwitchingBaseContext κ L K ℓ P) i)
     (wit : SumcheckWitness L ℓ' i) : Prop :=
-  wit.H = projectToMidSumcheckPoly (L := L) (ℓ := ℓ') (t := wit.t') (m :=
-    (RingSwitching_SumcheckMultParam κ L K P ℓ ℓ' h_l).multpoly stmt.ctx)
+  wit.H.val = (projectToMidSumcheckPolyWithParam (L := L) (ℓ := ℓ')
+    (param := RingSwitching_SumcheckMultParam κ L K P ℓ ℓ' h_l)
+    (ctx := stmt.ctx) (t := wit.t')
     (i := i) (challenges := stmt.challenges)
+  ).val
 
 def masterKStateProp (aOStmtIn : AbstractOStmtIn L ℓ') (stmtIdx : Fin (ℓ' + 1))
     (stmt : Statement (L := L) (RingSwitchingBaseContext κ L K ℓ P) stmtIdx)

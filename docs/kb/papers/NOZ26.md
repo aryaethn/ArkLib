@@ -9,19 +9,33 @@ source_metadata: ../sources/NOZ26/metadata.yml
 status: seeded
 related_modules:
   - ArkLib/OracleReduction/Security/CoordinateWiseSpecialSoundness.lean
+  - ArkLib/Data/Lattices/CyclotomicRing/Modulus.lean
+  - ArkLib/CommitmentScheme/Ajtai/Gadget.lean
+  - ArkLib/CommitmentScheme/Ajtai/InnerOuter/Scheme.lean
+  - ArkLib/CommitmentScheme/Ajtai/InnerOuter/Security.lean
 ---
 
 # NOZ26
 
 ## At A Glance
 
-`NOZ26` ("Hachi") is a concretely efficient lattice-based multilinear polynomial commitment scheme
-over extension fields, improving on Greyhound (CRYPTO 2024). For ArkLib its relevance is the
-security-analysis machinery rather than the commitment construction: it states the **multi-round
-form of coordinate-wise special soundness** (Definition 3) and the soundness-error bound (Lemma 4)
-that ArkLib targets for verification.
+`NOZ26` ("Hachi") is the Nguyen–O'Rourke–Zhang concretely efficient lattice-based multilinear
+polynomial commitment scheme over extension fields, improving on Greyhound (CRYPTO 2024). ArkLib
+draws on the paper in two distinct ways: its **commitment-layer building blocks** (the power-of-two
+cyclotomic ring, the base-`b` gadget decomposition, and the inner-outer commitment with weak
+binding) and its **security-analysis machinery** (the multi-round form of coordinate-wise special
+soundness in Definition 3 and the soundness-error bound in Lemma 4).
 
 ## What ArkLib Uses From This Paper
+
+Commitment layer:
+
+- The power-of-two cyclotomic ring `R_q = Z_q[X]/(X^d + 1)` (`powTwoCyclotomic`).
+- The base-`b` digit (gadget) decomposition `G⁻¹` and its reconstruction law.
+- The inner-outer commitment and its weak-binding hypotheses (`q ≡ 5 (mod 8)`, `deg φ` a power
+  of two, `κ² < q`).
+
+Security analysis:
 
 - **Definition 3 (coordinate-wise special soundness, multi-round).** This is the notion ArkLib
   formalizes as `Verifier.coordinateWiseSpecialSound`: existence of a tree-based extractor that
@@ -37,6 +51,12 @@ that ArkLib targets for verification.
 - [`ArkLib/OracleReduction/Security/CoordinateWiseSpecialSoundness.lean`](../../../ArkLib/OracleReduction/Security/CoordinateWiseSpecialSoundness.lean)
   cites `NOZ26` in its module docstring and follows its Definition 3 / Lemma 4 for the multi-round
   notion and the knowledge-error bound.
+- [`ArkLib/Data/Lattices/CyclotomicRing/Modulus.lean`](../../../ArkLib/Data/Lattices/CyclotomicRing/Modulus.lean)
+  — `powTwoCyclotomic`.
+- [`ArkLib/CommitmentScheme/Ajtai/Gadget.lean`](../../../ArkLib/CommitmentScheme/Ajtai/Gadget.lean)
+  — the gadget matrix and `gadgetDecompose`.
+- [`ArkLib/CommitmentScheme/Ajtai/InnerOuter/Security.lean`](../../../ArkLib/CommitmentScheme/Ajtai/InnerOuter/Security.lean)
+  — weak binding.
 
 ## Version Notes
 
@@ -55,8 +75,12 @@ that ArkLib targets for verification.
 - The implication `coordinateWiseSpecialSound_implies_knowledgeSoundness` (Lemma 4) is currently
   stated with a `sorry`; the rewinding/forking construction of the tree of transcripts is future
   work.
+- The norm-growth and short-element invertibility inputs (`Mic07`, `LS18`) are deferred.
+- The sumcheck / ring-switching evaluation machinery of the paper is not yet formalized.
 
 ## Source Access
 
 - Source metadata: [`../sources/NOZ26/metadata.yml`](../sources/NOZ26/metadata.yml)
 - Public reference: [`blueprint/src/references.bib`](../../../blueprint/src/references.bib)
+</content>
+</invoke>

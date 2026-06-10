@@ -1,5 +1,5 @@
 {
-  "count": 46,
+  "count": 51,
   "entries": {
     "ACFY24": {
       "authors": [
@@ -139,6 +139,26 @@
       "url": "",
       "venue": "Annual International Cryptology Conference",
       "year": "2023"
+    },
+    "Ajt96": {
+      "authors": [
+        "Ajtai, Mikl{\\'o}s"
+      ],
+      "authors_text": "Ajtai, Mikl{\\'o}s",
+      "doi": "",
+      "entry_type": "inproceedings",
+      "fields": {
+        "author": "Ajtai, Mikl{\\'o}s",
+        "booktitle": "Proceedings of the 28th Annual ACM Symposium on the Theory of Computing (STOC)",
+        "pages": "99--108",
+        "title": "Generating hard instances of lattice problems (extended abstract)",
+        "year": "1996"
+      },
+      "key": "Ajt96",
+      "title": "Generating hard instances of lattice problems (extended abstract)",
+      "url": "",
+      "venue": "Proceedings of the 28th Annual ACM Symposium on the Theory of Computing (STOC)",
+      "year": "1996"
     },
     "Arc": {
       "authors": [
@@ -764,6 +784,30 @@
       "venue": "",
       "year": "2024"
     },
+    "LS18": {
+      "authors": [
+        "Lyubashevsky, Vadim",
+        "Seiler, Gregor"
+      ],
+      "authors_text": "Lyubashevsky, Vadim and Seiler, Gregor",
+      "doi": "",
+      "entry_type": "inproceedings",
+      "fields": {
+        "author": "Lyubashevsky, Vadim and Seiler, Gregor",
+        "booktitle": "Advances in Cryptology -- EUROCRYPT 2018",
+        "pages": "204--224",
+        "publisher": "Springer",
+        "series": "Lecture Notes in Computer Science",
+        "title": "Short, Invertible Elements in Partially Splitting Cyclotomic Rings and Applications to Lattice-Based Zero-Knowledge Proofs",
+        "volume": "10820",
+        "year": "2018"
+      },
+      "key": "LS18",
+      "title": "Short, Invertible Elements in Partially Splitting Cyclotomic Rings and Applications to Lattice-Based Zero-Knowledge Proofs",
+      "url": "",
+      "venue": "Advances in Cryptology -- EUROCRYPT 2018",
+      "year": "2018"
+    },
     "Lan02": {
       "authors": [
         "Lang, Serge"
@@ -812,6 +856,28 @@
       "venue": "Advances in Cryptology--EUROCRYPT 2020: 39th Annual International Conference on the Theory and Applications of Cryptographic Techniques, Zagreb, Croatia, May 10--14, 2020, Proceedings, Part I 39",
       "year": "2020"
     },
+    "Mic07": {
+      "authors": [
+        "Micciancio, Daniele"
+      ],
+      "authors_text": "Micciancio, Daniele",
+      "doi": "",
+      "entry_type": "article",
+      "fields": {
+        "author": "Micciancio, Daniele",
+        "journal": "Computational Complexity",
+        "number": "4",
+        "pages": "365--411",
+        "title": "Generalized compact knapsacks, cyclic lattices, and efficient one-way functions",
+        "volume": "16",
+        "year": "2007"
+      },
+      "key": "Mic07",
+      "title": "Generalized compact knapsacks, cyclic lattices, and efficient one-way functions",
+      "url": "",
+      "venue": "Computational Complexity",
+      "year": "2007"
+    },
     "NOZ26": {
       "authors": [
         "Nguyen, Ngoc Khanh",
@@ -833,6 +899,30 @@
       "url": "https://eprint.iacr.org/2026/156",
       "venue": "",
       "year": "2026"
+    },
+    "NS24": {
+      "authors": [
+        "Nguyen, Ngoc Khanh",
+        "Seiler, Gregor"
+      ],
+      "authors_text": "Nguyen, Ngoc Khanh and Seiler, Gregor",
+      "doi": "",
+      "entry_type": "inproceedings",
+      "fields": {
+        "author": "Nguyen, Ngoc Khanh and Seiler, Gregor",
+        "booktitle": "Advances in Cryptology -- CRYPTO 2024",
+        "pages": "243--275",
+        "publisher": "Springer",
+        "series": "Lecture Notes in Computer Science",
+        "title": "Greyhound: Fast Polynomial Commitments from Lattices",
+        "volume": "14929",
+        "year": "2024"
+      },
+      "key": "NS24",
+      "title": "Greyhound: Fast Polynomial Commitments from Lattices",
+      "url": "",
+      "venue": "Advances in Cryptology -- CRYPTO 2024",
+      "year": "2024"
     },
     "PS94": {
       "authors": [
@@ -962,6 +1052,30 @@
       "url": "",
       "venue": "Annual International Conference on the Theory and Applications of Cryptographic Techniques",
       "year": "2025"
+    },
+    "WW23": {
+      "authors": [
+        "Wee, Hoeteck",
+        "Wu, David J."
+      ],
+      "authors_text": "Wee, Hoeteck and Wu, David J.",
+      "doi": "",
+      "entry_type": "inproceedings",
+      "fields": {
+        "author": "Wee, Hoeteck and Wu, David J.",
+        "booktitle": "Advances in Cryptology -- EUROCRYPT 2023",
+        "pages": "385--416",
+        "publisher": "Springer",
+        "series": "Lecture Notes in Computer Science",
+        "title": "Succinct Vector, Polynomial, and Functional Commitments from Lattices",
+        "volume": "14006",
+        "year": "2023"
+      },
+      "key": "WW23",
+      "title": "Succinct Vector, Polynomial, and Functional Commitments from Lattices",
+      "url": "",
+      "venue": "Advances in Cryptology -- EUROCRYPT 2023",
+      "year": "2023"
     },
     "Wie88": {
       "authors": [

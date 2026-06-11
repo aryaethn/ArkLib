@@ -17,8 +17,8 @@ This file pins the two generators (`σ_{-1}` with exponent `2^{α+1}-1 ≡ -1`, 
 records their oddness (so they are genuine automorphisms), and provides the explicit exponent
 set `Hexp` enumerating `H` for use by the trace map. The composition law `σ_i ∘ σ_j = σ_{ij}`
 (for odd `i, j`) and `σ_1 = id` are proven via the soundness bridge; the order computation
-`|⟨4k+1⟩| = d/(2k)` (Hachi [NOZ26, §3, Claim 1] / [LS18, Lem 2.4]) remains sorried (number
-theory).
+`|⟨4k+1⟩| = d/(2k)` (Hachi [NOZ26, §3, Claim 1] / [LS18, Lem 2.4]) is proven in
+`CyclotomicRing/Galois/Order.lean` via 2-adic lifting-the-exponent.
 
 ## Main definitions
 
@@ -64,7 +64,7 @@ noncomputable def genAut (α k : ℕ) :
     Rq (powTwoCyclotomic (R := R) α) →+* Rq (powTwoCyclotomic (R := R) α) :=
   galoisRingHom α (genExp k) (genExp_odd k)
 
-/-! ## Group laws (number-theoretic core sorried) -/
+/-! ## Group laws -/
 
 /-- `σ_1 = id`: substituting `X ↦ X^1` is the identity. Proven via the soundness bridge, since
 `aeval X` is the identity on `Polynomial R`. -/
@@ -103,10 +103,10 @@ The hypotheses match Hachi [NOZ26, §3, Claim 1] / [LS18, Lem 2.4]: `k` is a pow
 order exactly `d/(2k)` in `(Z/2^{α+1})ˣ`; the weaker `k ∣ 2^α` (= `k ∣ d`) does not suffice
 (e.g. `k = 2^α` gives `2k ∤ d`, so `2^α/(2k)` is not the true order).
 
-DEFERRED (rated 5): the number-theoretic core is now proven — `two_pow_dvd_four_pow_sub_one_iff`
-gives `2^{α+1} ∣ (4k+1)ⁿ − 1 ↔ 2^{α-κ-1} ∣ n`, from which `a ↦ (4k+1)^a mod 2^{α+1}` is injective
-on `range (2^{α-κ-1})`. What remains is the Finset count: the `±`-reflection is disjoint (mod-4
-parity, `Hexp_odd_mem`-style) and the two halves each have `2^{α-κ-1}` elements, giving
+Proof: the number-theoretic core `two_pow_dvd_four_pow_sub_one_iff` gives
+`2^{α+1} ∣ (4k+1)ⁿ − 1 ↔ 2^{α-κ-1} ∣ n`, from which `a ↦ (4k+1)^a mod 2^{α+1}` is injective on
+`range (2^{α-κ-1})` (`four_pow_injOn`). The Finset count then follows: the `±`-reflection is
+disjoint (mod-4 parity) and the two halves each have `2^{α-κ-1}` elements, giving
 `2·2^{α-κ-1} = 2^α/k`. -/
 theorem Hexp_card (α k : ℕ) (hk2pow : ∃ κ, k = 2 ^ κ) (hk : 2 * k ∣ 2 ^ α) :
     (Hexp α k).card = 2 ^ α / k := by
@@ -173,10 +173,11 @@ theorem Hexp_odd_mem (α k : ℕ) : ∀ i ∈ Hexp α k, Odd i := by
 `i ↦ (g·i) mod 2^{α+1}` is `Hexp` itself, for `g` a generator of `H = ⟨σ_{-1}, σ_{4k+1}⟩`.
 This is the group-translation fact `g • H = H` transported through the `Hexp ↔ H` bridge.
 
-DEFERRED (rated 6): the number-theoretic input is now proven (`two_pow_dvd_four_pow_sub_one_iff`
-⟹ `(4k+1)^{2^{α-κ-1}} ≡ 1` and injectivity of the power enumeration). What remains is the Finset
-permutation: for `g = 4k+1`, multiplication cyclically shifts the `(4k+1)^a` enumeration
-(`a ↦ a+1 mod 2^{α-κ-1}`) and the `±` part in tandem; for `g = conjExp` it swaps the two halves. -/
+Proof: the number-theoretic input (`two_pow_dvd_four_pow_sub_one_iff` ⟹
+`(4k+1)^{2^{α-κ-1}} ≡ 1` and injectivity of the power enumeration) drives the Finset
+permutation. For `g = 4k+1`, multiplication cyclically shifts the `(4k+1)^a` enumeration
+(`a ↦ a+1 mod 2^{α-κ-1}`) and the `±` part in tandem; for `g = conjExp` it swaps the two halves.
+Closed via injectivity + a subset/cardinality argument. -/
 theorem Hexp_generator_smul (α k g : ℕ) (hk2pow : ∃ κ, k = 2 ^ κ) (hk : 2 * k ∣ 2 ^ α)
     (hg : g = conjExp α ∨ g = genExp k) :
     (Hexp α k).image (fun i => (g * i) % 2 ^ (α + 1)) = Hexp α k := by
@@ -220,7 +221,7 @@ theorem Hexp_generator_smul (α k g : ℕ) (hk2pow : ∃ κ, k = 2 ^ κ) (hk : 2
   -- `genExp · pₐ ≡ p_{(a+1) mod o}` (cyclic shift via the order)
   have hmulP : ∀ a, (genExp (2 ^ κ) * ((4 * 2 ^ κ + 1) ^ a % 2 ^ (α + 1))) % 2 ^ (α + 1)
       = (4 * 2 ^ κ + 1) ^ ((a + 1) % 2 ^ (α - κ - 1)) % 2 ^ (α + 1) := fun a => by
-    show (4 * 2 ^ κ + 1) * ((4 * 2 ^ κ + 1) ^ a % 2 ^ (α + 1)) % 2 ^ (α + 1) = _
+    change (4 * 2 ^ κ + 1) * ((4 * 2 ^ κ + 1) ^ a % 2 ^ (α + 1)) % 2 ^ (α + 1) = _
     calc (4 * 2 ^ κ + 1) * ((4 * 2 ^ κ + 1) ^ a % 2 ^ (α + 1))
           ≡ (4 * 2 ^ κ + 1) * (4 * 2 ^ κ + 1) ^ a [MOD 2 ^ (α + 1)] :=
           Nat.ModEq.mul_left _ (Nat.mod_modEq _ _)

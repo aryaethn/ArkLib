@@ -13,9 +13,9 @@ Hachi [NOZ26, §3] uses `Tr_H` (for `H = ⟨σ_{-1}, σ_{4k+1}⟩`) to express i
 subfield `F_{q^k} ≅ R_q^H` as relations over `R_q` (Theorem 2).
 
 Computably, the trace is the finite sum of the automorphism actions over the exponent set `Hexp`.
-It is additive (proven here, from additivity of `galoisAut`). That its image lands in the fixed
-subring `R_q^H` and that `Tr_H` restricted there is `(d/k)·id` on the diagonal (Theorem 2) are
-deferred.
+It is additive (proven here, from additivity of `galoisAut`). Its image lands in the fixed subring
+`R_q^H` (`traceH_mem_fixed`); the diagonal value `(d/k)·id` driving Theorem 2 is established in
+`Subfield/TraceVanishing.lean` and `Subfield/TraceInnerProduct.lean`.
 
 ## Main definitions
 

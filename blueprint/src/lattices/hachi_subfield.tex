@@ -1,0 +1,229 @@
+\section{The Subfield $R_q^H \cong \F_{q^k}$ (Hachi Lemma 5)}\label{sec:hachi_subfield}
+
+This section is a blueprint for the one missing piece of Hachi~\cite{NOZ26} \S3, Lemma~5:
+that the fixed subring $R_q^H$ is a \emph{field} and is isomorphic to $\F_{q^k}$.
+The packing map $\psi$ and the trace formula of Theorem~2 (the rest of \S3) are already
+formalized; what remains is to upgrade $R_q^H$ from ``a \texttt{Subring} of cardinality $q^k$''
+to ``a field $\cong \F_{q^k}$''.
+
+Throughout, $d = 2^\alpha$, $R_q = \Z_q[X]/(X^{d}+1)$ with $q$ an odd prime, $k = 2^\kappa$ a
+divisor of $d/2$ (i.e.\ $2k \mid d$), and $H = \langle \sigma_{-1}, \sigma_{4k+1}\rangle$.
+For the field statement we additionally assume $q \equiv 5 \pmod 8$.
+
+\subsection{What already exists}
+
+\begin{definition}[Fixed subring]\label{def:fixedSubring}
+\lean{ArkLib.Lattices.CyclotomicModulus.fixedSubring}\leanok
+$R_q^H := \{x \in R_q : \sigma_{-1}(x) = x \wedge \sigma_{4k+1}(x) = x\}$, defined as the meet of
+two \texttt{eqLocus}'s, hence a \texttt{Subring}.
+\end{definition}
+
+\begin{theorem}[Cardinality, Eq.~7]\label{thm:card_fixedSubring}
+\lean{ArkLib.Lattices.CyclotomicModulus.card_fixedSubring_eq}\leanok
+\uses{def:fixedSubring}
+Over $R = \Z_q$ with $q$ prime and $2k \mid d$, $\;|R_q^H| = q^{k}$.
+\end{theorem}
+
+\begin{theorem}[Packing bijection, Theorem~2]\label{thm:psi_bijective}
+\lean{ArkLib.Lattices.CyclotomicModulus.psi_bijective}\leanok
+\uses{def:fixedSubring}
+The map $\psi : (R_q^H)^{d/k} \to R_q$ is a bijection.
+\end{theorem}
+
+These two are proven with no \texttt{sorry}. The blueprint below adds the field structure on top.
+
+\subsection{Target}
+
+\begin{theorem}[Lemma 5: field isomorphism]\label{thm:fixedSubring_equiv_galoisField}
+\lean{ArkLib.Lattices.CyclotomicModulus.fixedSubringEquivGaloisField}
+\uses{thm:fixedSubring_isField, thm:card_fixedSubring}
+Let $q$ be prime with $q \equiv 5 \pmod 8$ and $2 \cdot 2^\kappa \mid 2^\alpha$. Then there is a
+ring isomorphism
+\[
+  R_q^{H} \;\cong\; \F_{q^{2^\kappa}} \quad\bigl(\texttt{GaloisField } q\ (2^\kappa)\bigr).
+\]
+\end{theorem}
+
+\begin{proof}\uses{thm:fixedSubring_isField, thm:card_fixedSubring, lem:finiteField_ringEquiv_of_card}
+By Theorem~\ref{thm:fixedSubring_isField} $R_q^H$ is a finite field, and by
+Theorem~\ref{thm:card_fixedSubring} it has cardinality $q^{2^\kappa}$. Any finite field of
+cardinality $q^{2^\kappa}$ is isomorphic to $\texttt{GaloisField } q\ (2^\kappa)$
+(Lemma~\ref{lem:finiteField_ringEquiv_of_card}).
+\end{proof}
+
+\noindent
+The point of this decomposition is that \emph{the cardinality is already known}
+(Theorem~\ref{thm:card_fixedSubring}), so once field-ness is established we get the isomorphism
+\emph{without} any finite-field Galois-descent analysis of the $\sigma_{4k+1}$-action.
+
+\subsection{Reduction to ``$R_q^H$ is a field''}
+
+The whole difficulty concentrates in field-ness; everything else is generic algebra reused from
+Mathlib.
+
+\begin{lemma}[Finite field by cardinality]\label{lem:finiteField_ringEquiv_of_card}
+Two finite fields of equal cardinality are isomorphic; in particular a finite field of
+cardinality $q^{n}$ is isomorphic to $\texttt{GaloisField } q\ n$. \emph{(Mathlib;}
+\texttt{GaloisField}/\texttt{FiniteField} \emph{API.)}
+\end{lemma}
+
+\begin{lemma}[Subring of a domain is a domain]\label{lem:subring_isDomain}
+\uses{def:conjFixedSubring}
+If $S \le T$ is a subring of an integral domain $T$, then $S$ is an integral domain
+(it inherits \texttt{NoZeroDivisors}; \texttt{Mathlib}).
+\end{lemma}
+
+\begin{lemma}[Finite domain is a field]\label{lem:finite_domain_field}
+A finite nontrivial commutative integral domain is a field. \emph{(Mathlib;}
+\texttt{Finite.isField\_of\_domain} \emph{/} \texttt{Fintype.fieldOfDomain}.\emph{)}
+\end{lemma}
+
+\begin{theorem}[$R_q^H$ is a field]\label{thm:fixedSubring_isField}
+\lean{ArkLib.Lattices.CyclotomicModulus.fixedSubring_isField}
+\uses{thm:conjFixedSubring_isField, lem:subring_isDomain, lem:finite_domain_field,
+      lem:fixedSubring_le_conjFixedSubring}
+For $q$ prime, $q \equiv 5 \pmod 8$, $2k \mid d$, the ring $R_q^H$ is a field.
+\end{theorem}
+
+\begin{proof}
+\uses{thm:conjFixedSubring_isField, lem:subring_isDomain, lem:finite_domain_field,
+      lem:fixedSubring_le_conjFixedSubring}
+$R_q^H \subseteq R_q^{\sigma_{-1}}$ (Lemma~\ref{lem:fixedSubring_le_conjFixedSubring}), and
+$R_q^{\sigma_{-1}}$ is a field (Theorem~\ref{thm:conjFixedSubring_isField}). A subring of a field
+is an integral domain (Lemma~\ref{lem:subring_isDomain}); $R_q^H$ is finite
+(\texttt{fixedSubring.fintype}) and nontrivial, hence a field
+(Lemma~\ref{lem:finite_domain_field}).
+\end{proof}
+
+\begin{definition}[Conjugation-fixed subring $R_q^{\sigma_{-1}}$]\label{def:conjFixedSubring}
+\lean{ArkLib.Lattices.CyclotomicModulus.conjFixedSubring}
+$R_q^{\sigma_{-1}} := \{x \in R_q : \sigma_{-1}(x) = x\} = \texttt{eqLocus}\ \sigma_{-1}\ \mathrm{id}$.
+\end{definition}
+
+\begin{lemma}[$R_q^H \le R_q^{\sigma_{-1}}$]\label{lem:fixedSubring_le_conjFixedSubring}
+\lean{ArkLib.Lattices.CyclotomicModulus.fixedSubring_le_conjFixedSubring}
+\uses{def:fixedSubring, def:conjFixedSubring}
+$R_q^H \subseteq R_q^{\sigma_{-1}}$, immediate from the definition of $R_q^H$ as a meet whose first
+factor is $R_q^{\sigma_{-1}}$.
+\end{lemma}
+
+\subsection{The crux: $R_q^{\sigma_{-1}}$ is a field}
+
+This is the only genuinely new mathematics. The route is the \emph{two-factor} decomposition of
+$R_q$ that is special to $q \equiv 5 \pmod 8$.
+
+\begin{lemma}[Order of $q$ modulo the conductor]\label{lem:order_q}
+\lean{ArkLib.Lattices.CyclotomicModulus.orderOf_q_eq}
+For $q \equiv 5 \pmod 8$ and $\alpha \ge 1$, the multiplicative order of $q$ in
+$(\Z/2^{\alpha+1})^\times$ is $2^{\alpha-1}$.
+\end{lemma}
+
+\begin{proof}
+$(\Z/2^{\alpha+1})^\times \cong \langle -1\rangle \times \langle 5\rangle$ with
+$|\langle 5\rangle| = 2^{\alpha-1}$. Writing $q \equiv (-1)^a 5^b$, the congruence $q \equiv 5
+\pmod 8$ forces $a = 0$ and $b$ odd; since $b$ is odd it is a unit mod $2^{\alpha-1}$, so
+$q$ generates $\langle 5\rangle$ and $\operatorname{ord}(q) = 2^{\alpha-1}$. The $2$-adic
+computation is the same lifting-the-exponent toolkit already used in
+\texttt{Galois/Order.lean} (\texttt{two\_pow\_dvd\_four\_pow\_sub\_one\_iff}).
+\end{proof}
+
+\begin{lemma}[Two irreducible factors]\label{lem:two_factors}
+\lean{ArkLib.Lattices.CyclotomicModulus.Xpow_add_one_factors}
+\uses{lem:order_q}
+Over $\F_q$ with $q \equiv 5 \pmod 8$, the polynomial $X^{2^\alpha}+1 = \Phi_{2^{\alpha+1}}(X)$
+factors as a product of exactly two distinct monic irreducible polynomials, each of degree
+$2^{\alpha-1} = d/2$.
+\end{lemma}
+
+\begin{proof}\uses{lem:order_q}
+$X^{2^\alpha}+1$ is the $2^{\alpha+1}$-th cyclotomic polynomial. Since $q \nmid 2^{\alpha+1}$ it is
+separable over $\F_q$, and over a finite field every irreducible factor of $\Phi_n$ has degree
+$\operatorname{ord}_n(q)$; the number of factors is $\varphi(n)/\operatorname{ord}_n(q)$. With
+$n = 2^{\alpha+1}$, $\varphi(n) = 2^\alpha$ and $\operatorname{ord}_n(q) = 2^{\alpha-1}$
+(Lemma~\ref{lem:order_q}), giving exactly $2$ factors of degree $2^{\alpha-1}$.
+\emph{Mathlib hooks:} \texttt{Polynomial.cyclotomic} over a finite field, separability of
+cyclotomics, and the irreducible-factor-degree fact (may need a small amount of new API around
+the factor \emph{count}).
+\end{proof}
+
+\begin{theorem}[Two-factor CRT decomposition]\label{thm:crt_two_factor}
+\lean{ArkLib.Lattices.CyclotomicModulus.Rq_ringEquiv_prod}
+\uses{lem:two_factors}
+There is a ring isomorphism
+\[
+  R_q \;\cong\; K \times K, \qquad K := \texttt{GaloisField } q\ (2^{\alpha-1}) \cong \F_{q^{d/2}},
+\]
+where the two coordinates are the residue rings modulo the two irreducible factors of
+Lemma~\ref{lem:two_factors}.
+\end{theorem}
+
+\begin{proof}\uses{lem:two_factors}
+The two factors are coprime, so the Chinese Remainder Theorem
+(\texttt{Ideal.quotientEquivPi} / \texttt{Polynomial} CRT) gives
+$\F_q[X]/(X^{d}+1) \cong \prod_{i} \F_q[X]/(p_i)$. Each $p_i$ is irreducible of degree
+$2^{\alpha-1}$, so $\F_q[X]/(p_i)$ is a field of cardinality $q^{2^{\alpha-1}}$
+(\texttt{AdjoinRoot} of an irreducible is a field), hence $\cong K$ by
+Lemma~\ref{lem:finiteField_ringEquiv_of_card}. Finally transport across
+$R_q \cong \F_q[X]/(X^d+1)$ (\texttt{Rq.equivQuotient}).
+\end{proof}
+
+\begin{lemma}[$\sigma_{-1}$ swaps the two factors]\label{lem:conj_swaps}
+\lean{ArkLib.Lattices.CyclotomicModulus.conjAut_swaps_factors}
+\uses{thm:crt_two_factor}
+Under the isomorphism $R_q \cong K \times K$ of Theorem~\ref{thm:crt_two_factor}, the automorphism
+$\sigma_{-1}$ does \emph{not} fix the factor idempotents: it sends $e_1 = (1,0)$ to $e_2 = (0,1)$.
+Equivalently, $\sigma_{-1}$ is of swap type, $\sigma_{-1}(u,v) = (\theta(v), \theta^{-1}(u))$ for a
+field isomorphism $\theta : K \to K$.
+\end{lemma}
+
+\begin{proof}\uses{thm:crt_two_factor}
+The two factors correspond to the two cosets of $\langle q\rangle$ in $(\Z/2^{\alpha+1})^\times$,
+namely $\langle 5\rangle$ and $-\langle 5\rangle$ (index $2$, since $\operatorname{ord}(q) =
+2^{\alpha-1} = \tfrac12\varphi$). The automorphism $\sigma_{-1}$ acts on root-indices by $j \mapsto
+-j$, which interchanges these two cosets because $-1 \notin \langle q\rangle$ (a consequence of
+$q \equiv 5 \pmod 8$, i.e.\ the $\langle -1\rangle$-component of $q$ is trivial). Hence $\sigma_{-1}$
+permutes the two factor idempotents nontrivially. \emph{This is the most delicate Lean step:} it
+requires tracking $\sigma_{-1}$ (defined as a coefficient action) through the CRT iso. A
+self-contained alternative avoids naming cosets: the nontrivial idempotents of $K \times K$ are
+exactly $e_1, e_2$; $\sigma_{-1}$ permutes idempotents, so $\sigma_{-1}(e_1) \in \{e_1, e_2\}$, and
+one rules out $\sigma_{-1}(e_1) = e_1$ by exhibiting a single witness (e.g.\ evaluating on the
+generator $X$, whose image $X^{-1}$ lies in the opposite factor).
+\end{proof}
+
+\begin{theorem}[$R_q^{\sigma_{-1}}$ is a field]\label{thm:conjFixedSubring_isField}
+\lean{ArkLib.Lattices.CyclotomicModulus.conjFixedSubring_isField}
+\uses{lem:conj_swaps, thm:crt_two_factor}
+For $q$ prime with $q \equiv 5 \pmod 8$ and $\alpha \ge 1$, $R_q^{\sigma_{-1}}$ is a field.
+\end{theorem}
+
+\begin{proof}\uses{lem:conj_swaps, thm:crt_two_factor}
+Transport along $R_q \cong K \times K$. By Lemma~\ref{lem:conj_swaps} the fixed set of
+$\sigma_{-1}$ is $\{(u, \theta^{-1}(u)) : u \in K\}$, the graph of a field isomorphism, which is a
+subring isomorphic to $K$ via the first projection $u \mapsto (u, \theta^{-1}(u))$. As $K$ is a
+field, so is $R_q^{\sigma_{-1}}$.
+(A shortcut to \emph{field-ness alone}: it suffices to prove $R_q^{\sigma_{-1}}$ is an integral
+domain. If $(u_1,v_1)(u_2,v_2) = 0$ with both factors $\sigma_{-1}$-fixed, then $u_1 u_2 = 0$ in
+the field $K$, so some $u_i = 0$; and a fixed element is $0$ iff its first coordinate is $0$,
+giving the corresponding factor $= 0$.)
+\end{proof}
+
+\subsection{Dependency summary and milestones}
+
+\begin{itemize}
+  \item \textbf{Reused, done:} \ref{def:fixedSubring}, \ref{thm:card_fixedSubring},
+        \ref{thm:psi_bijective}, the \texttt{fintype} instance, and the LTE order toolkit in
+        \texttt{Galois/Order.lean}.
+  \item \textbf{Generic Mathlib glue (low risk):} \ref{lem:finiteField_ringEquiv_of_card},
+        \ref{lem:subring_isDomain}, \ref{lem:finite_domain_field}, and the assembly theorems
+        \ref{thm:fixedSubring_isField}, \ref{thm:fixedSubring_equiv_galoisField}.
+  \item \textbf{New number theory (medium):} \ref{lem:order_q} (reuses LTE),
+        \ref{lem:two_factors} (cyclotomic factor count over $\F_q$ --- possible Mathlib gap on the
+        \emph{count}).
+  \item \textbf{New structural work (high):} \ref{thm:crt_two_factor} (CRT + \texttt{AdjoinRoot}),
+        and especially \ref{lem:conj_swaps} (pushing $\sigma_{-1}$ through CRT).
+\end{itemize}
+
+\noindent
+Suggested file: \texttt{ArkLib/Data/Lattices/CyclotomicRing/Subfield/Field.lean}, importing
+\texttt{Subfield/Cardinality.lean} and \texttt{Galois/Order.lean}, with the
+$\sigma_{-1}$-fixed subring helper placed alongside \texttt{Galois/FixedSubring.lean}.

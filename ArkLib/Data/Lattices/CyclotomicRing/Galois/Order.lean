@@ -108,4 +108,10 @@ theorem four_pow_mod_period (κ α n : ℕ) (hκ : κ + 1 ≤ α) :
         Nat.ModEq.mul_right _ (Nat.ModEq.pow _ (four_pow_order_modEq_one κ α hκ).symm)
     _ = (4 * 2 ^ κ + 1) ^ (n % 2 ^ (α - κ - 1)) := by rw [one_pow, one_mul]
 
+/-- If the conductor `2k = 2^{κ+1}` divides `d = 2^α` (i.e. `2·2^κ ∣ 2^α`), then `κ + 1 ≤ α`.
+The recurring side condition `κ + 1 ≤ α` of the Hachi `R_q^H` lemmas, extracted once. -/
+theorem succ_le_of_two_mul_two_pow_dvd {α κ : ℕ} (hk : 2 * 2 ^ κ ∣ 2 ^ α) : κ + 1 ≤ α := by
+  have hd : 2 ^ (κ + 1) ∣ 2 ^ α := by rw [pow_succ, mul_comm]; exact hk
+  exact (Nat.pow_dvd_pow_iff_le_right (by norm_num : (1 : ℕ) < 2)).mp hd
+
 end ArkLib.Lattices.CyclotomicModulus

@@ -19507,7 +19507,7 @@
           "signature": "def Hexp (\u03b1 k : \u2115) : Finset \u2115 :="
         },
         {
-          "doc": "`|H| = d/k = 2^\u03b1 / k` (Hachi [NOZ26, \u00a73], from `|\u27e84k+1\u27e9| = d/(2k)` and the `\u00b1` factor). The hypotheses match Hachi [NOZ26, \u00a73, Claim 1] / [LS18, Lem 2.4]: `k` is a power of two (`hk2pow`) and divides `d/2`, i.e. `2k \u2223 d = 2^\u03b1` (`hk`). Both are needed for `4k+1` to have order exactly `d/(2k)` in `(Z/2^{\u03b1+1})\u02e3`; the weaker `k \u2223 2^\u03b1` (= `k \u2223 d`) does not suffice (e.g. `k = 2^\u03b1` gives `2k \u2224 d`, so `2^\u03b1/(2k)` is not the true order). DEFERRED (rated 5): the number-theoretic core is now proven \u2014 `two_pow_dvd_four_pow_sub_one_iff` gives `2^{\u03b1+1} \u2223 (4k+1)\u207f \u2212 1 \u2194 2^{\u03b1-\u03ba-1} \u2223 n`, from which `a \u21a6 (4k+1)^a",
+          "doc": "`|H| = d/k = 2^\u03b1 / k` (Hachi [NOZ26, \u00a73], from `|\u27e84k+1\u27e9| = d/(2k)` and the `\u00b1` factor). The hypotheses match Hachi [NOZ26, \u00a73, Claim 1] / [LS18, Lem 2.4]: `k` is a power of two (`hk2pow`) and divides `d/2`, i.e. `2k \u2223 d = 2^\u03b1` (`hk`). Both are needed for `4k+1` to have order exactly `d/(2k)` in `(Z/2^{\u03b1+1})\u02e3`; the weaker `k \u2223 2^\u03b1` (= `k \u2223 d`) does not suffice (e.g. `k = 2^\u03b1` gives `2k \u2224 d`, so `2^\u03b1/(2k)` is not the true order). Proof: the number-theoretic core `two_pow_dvd_four_pow_sub_one_iff` gives `2^{\u03b1+1} \u2223 (4k+1)\u207f \u2212 1 \u2194 2^{\u03b1-\u03ba-1} \u2223 n`, from which `a \u21a6 (4k+1)^a mod 2^{\u03b1+1}` is injective on",
           "kind": "theorem",
           "line": 111,
           "name": "ArkLib.Lattices.CyclotomicModulus.Hexp_card",
@@ -19525,9 +19525,9 @@
           "signature": "theorem Hexp_odd_mem (\u03b1 k : \u2115) : \u2200 i \u2208 Hexp \u03b1 k, Odd i := by"
         },
         {
-          "doc": "Multiplication by a generator permutes `Hexp` (as a `Finset`), i.e. the image under `i \u21a6 (g\u00b7i) mod 2^{\u03b1+1}` is `Hexp` itself, for `g` a generator of `H = \u27e8\u03c3_{-1}, \u03c3_{4k+1}\u27e9`. This is the group-translation fact `g \u2022 H = H` transported through the `Hexp \u2194 H` bridge. DEFERRED (rated 6): the number-theoretic input is now proven (`two_pow_dvd_four_pow_sub_one_iff` \u27f9 `(4k+1)^{2^{\u03b1-\u03ba-1}} \u2261 1` and injectivity of the power enumeration). What remains is the Finset permutation: for `g = 4k+1`, multiplication cyclically shifts the `(4k+1)^a` enumeration (`a \u21a6 a+1 mod 2^{\u03b1-\u03ba-1}`) and the `\u00b1` part in tandem",
+          "doc": "Multiplication by a generator permutes `Hexp` (as a `Finset`), i.e. the image under `i \u21a6 (g\u00b7i) mod 2^{\u03b1+1}` is `Hexp` itself, for `g` a generator of `H = \u27e8\u03c3_{-1}, \u03c3_{4k+1}\u27e9`. This is the group-translation fact `g \u2022 H = H` transported through the `Hexp \u2194 H` bridge. Proof: the number-theoretic input (`two_pow_dvd_four_pow_sub_one_iff` \u27f9 `(4k+1)^{2^{\u03b1-\u03ba-1}} \u2261 1` and injectivity of the power enumeration) drives the Finset permutation. For `g = 4k+1`, multiplication cyclically shifts the `(4k+1)^a` enumeration (`a \u21a6 a+1 mod 2^{\u03b1-\u03ba-1}`) and the `\u00b1` part in tandem; for `g = conjExp` it swaps the two ",
           "kind": "theorem",
-          "line": 180,
+          "line": 181,
           "name": "ArkLib.Lattices.CyclotomicModulus.Hexp_generator_smul",
           "namespace": "ArkLib.Lattices.CyclotomicModulus",
           "short_name": "Hexp_generator_smul",
@@ -20311,9 +20311,27 @@
           "signature": "def toQuotientHom : Rq \u03a6 \u2192+* \u03a6.CyclotomicRing where"
         },
         {
+          "doc": "`toQuotient` is surjective: `quotientHom` is `(Ideal.Quotient.mk) \u2218 ringEquiv`, a composite of surjections, and every class has a (reduced) representative.",
+          "kind": "theorem",
+          "line": 153,
+          "name": "ArkLib.Lattices.CyclotomicModulus.Rq.toQuotient_surjective",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus.Rq",
+          "short_name": "toQuotient_surjective",
+          "signature": "theorem toQuotient_surjective : Function.Surjective (Rq.toQuotient \u03a6) := by"
+        },
+        {
+          "doc": "The **ring isomorphism `\u03a6.Rq \u2243+* \u03a6.CyclotomicRing`** between the computable reduced-rep ring and the semantic quotient. Bundles `toQuotient` (injective and surjective). Lets `IsUnit` and other ring-theoretic properties transfer between the two presentations.",
+          "kind": "def",
+          "line": 165,
+          "name": "ArkLib.Lattices.CyclotomicModulus.Rq.equivQuotient",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus.Rq",
+          "short_name": "equivQuotient",
+          "signature": "def equivQuotient : Rq \u03a6 \u2243+* \u03a6.CyclotomicRing :="
+        },
+        {
           "doc": "Subtraction of canonical reduced representatives is coefficientwise: the underlying `CPolynomial` of `a - b` is `a.1 - b.1` (no further reduction occurs, as both operands already have degree below `deg \u03c6`).",
           "kind": "theorem",
-          "line": 154,
+          "line": 171,
           "name": "ArkLib.Lattices.CyclotomicModulus.Rq.sub_val",
           "namespace": "ArkLib.Lattices.CyclotomicModulus.Rq",
           "short_name": "sub_val",
@@ -20322,7 +20340,7 @@
         {
           "doc": "Addition of canonical reduced representatives is coefficientwise.",
           "kind": "theorem",
-          "line": 162,
+          "line": 179,
           "name": "ArkLib.Lattices.CyclotomicModulus.Rq.add_val",
           "namespace": "ArkLib.Lattices.CyclotomicModulus.Rq",
           "short_name": "add_val",
@@ -20331,7 +20349,7 @@
         {
           "doc": "",
           "kind": "theorem",
-          "line": 169,
+          "line": 186,
           "name": "ArkLib.Lattices.CyclotomicModulus.Rq.zero_val",
           "namespace": "ArkLib.Lattices.CyclotomicModulus.Rq",
           "short_name": "zero_val",
@@ -20340,7 +20358,7 @@
         {
           "doc": "Reading off the `k`-th coefficient of the underlying polynomial, as an additive homomorphism `Rq \u03a6 \u2192+ R`.",
           "kind": "def",
-          "line": 176,
+          "line": 193,
           "name": "ArkLib.Lattices.CyclotomicModulus.Rq.coeffHom",
           "namespace": "ArkLib.Lattices.CyclotomicModulus.Rq",
           "short_name": "coeffHom",
@@ -20349,7 +20367,7 @@
         {
           "doc": "",
           "kind": "theorem",
-          "line": 181,
+          "line": 198,
           "name": "ArkLib.Lattices.CyclotomicModulus.Rq.coeffHom_apply",
           "namespace": "ArkLib.Lattices.CyclotomicModulus.Rq",
           "short_name": "coeffHom_apply",
@@ -20358,7 +20376,7 @@
         {
           "doc": "The reduced representative with prescribed finite coefficients `\u03a3_{k<N} c\u2096 X\u1d4f`, valid when `N` does not exceed the degree of the modulus.",
           "kind": "def",
-          "line": 185,
+          "line": 202,
           "name": "ArkLib.Lattices.CyclotomicModulus.Rq.ofFinCoeff",
           "namespace": "ArkLib.Lattices.CyclotomicModulus.Rq",
           "short_name": "ofFinCoeff",
@@ -20367,7 +20385,7 @@
         {
           "doc": "",
           "kind": "theorem",
-          "line": 188,
+          "line": 205,
           "name": "ArkLib.Lattices.CyclotomicModulus.Rq.ofFinCoeff_coeff",
           "namespace": "ArkLib.Lattices.CyclotomicModulus.Rq",
           "short_name": "ofFinCoeff_coeff",
@@ -20376,7 +20394,7 @@
         {
           "doc": "`Rq.mk` commutes with addition: reduction is additive in the quotient.",
           "kind": "theorem",
-          "line": 199,
+          "line": 216,
           "name": "ArkLib.Lattices.CyclotomicModulus.Rq.mk_add",
           "namespace": "ArkLib.Lattices.CyclotomicModulus.Rq",
           "short_name": "mk_add",
@@ -20385,7 +20403,7 @@
         {
           "doc": "`Rq.mk` commutes with finite sums.",
           "kind": "theorem",
-          "line": 206,
+          "line": 223,
           "name": "ArkLib.Lattices.CyclotomicModulus.Rq.mk_sum",
           "namespace": "ArkLib.Lattices.CyclotomicModulus.Rq",
           "short_name": "mk_sum",
@@ -20394,20 +20412,365 @@
         {
           "doc": "",
           "kind": "class",
-          "line": 208,
-          "name": "ArkLib.Lattices.CyclotomicModulus.Rq._anon_class_208",
+          "line": 225,
+          "name": "ArkLib.Lattices.CyclotomicModulus.Rq._anon_class_225",
           "namespace": "ArkLib.Lattices.CyclotomicModulus.Rq",
-          "short_name": "_anon_class_208",
+          "short_name": "_anon_class_225",
           "signature": "class classical"
         },
         {
           "doc": "A reduced representative of the power-of-two cyclotomic ring has `natDegree` below the ring dimension `2^\u03b1`.",
           "kind": "theorem",
-          "line": 216,
+          "line": 233,
           "name": "ArkLib.Lattices.CyclotomicModulus.Rq.natDegree_val_toPoly_lt",
           "namespace": "ArkLib.Lattices.CyclotomicModulus.Rq",
           "short_name": "natDegree_val_toPoly_lt",
           "signature": "theorem natDegree_val_toPoly_lt (\u03b1 : \u2115) (a : Rq (powTwoCyclotomic (R := R) \u03b1)) :"
+        }
+      ]
+    },
+    "ArkLib/Data/Lattices/CyclotomicRing/Subfield/Basis.lean": {
+      "declarations": [
+        {
+          "doc": "The reduced element `X^i \u2208 Rq \u03a6`: the monomial `X^i` with coefficient `1`, reduced modulo the cyclotomic modulus. For `i < d` this is just `monomial i 1`; for `i \u2265 d` the reduction folds it back (with a sign) into degree `< d`.",
+          "kind": "def",
+          "line": 48,
+          "name": "ArkLib.Lattices.CyclotomicModulus.Xpow",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "Xpow",
+          "signature": "def Xpow (\u03a6 : CyclotomicModulus R) [IsCyclotomic \u03a6] (i : \u2115) : Rq \u03a6 :="
+        },
+        {
+          "doc": "For `i < 2^\u03b1` (below the modulus degree), `X^i` is already reduced, so its `j`-th coefficient is the Kronecker delta `[j = i]`.",
+          "kind": "theorem",
+          "line": 53,
+          "name": "ArkLib.Lattices.CyclotomicModulus.Xpow_coeff_of_lt",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "Xpow_coeff_of_lt",
+          "signature": "theorem Xpow_coeff_of_lt (\u03b1 : \u2115) {i : \u2115} (hi : i < 2 ^ \u03b1) (j : \u2115) :"
+        },
+        {
+          "doc": "**`\u03c3_m (X^i) = X^{i\u00b7m}`** (reduced). For `i < 2^\u03b1` the monomial-remap defining `galoisAut` collapses to the single surviving term. This is the key input to the trace-of-monomial computation in `TraceInnerProduct.lean`.",
+          "kind": "theorem",
+          "line": 70,
+          "name": "ArkLib.Lattices.CyclotomicModulus.galoisAut_Xpow",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "galoisAut_Xpow",
+          "signature": "theorem galoisAut_Xpow (\u03b1 m : \u2115) {i : \u2115} (hi : i < 2 ^ \u03b1) :"
+        },
+        {
+          "doc": "`X^n` lifts to the class of `X^n` in the semantic quotient.",
+          "kind": "theorem",
+          "line": 94,
+          "name": "ArkLib.Lattices.CyclotomicModulus.Xpow_toQuotient",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "Xpow_toQuotient",
+          "signature": "theorem Xpow_toQuotient (\u03a6 : CyclotomicModulus R) [IsCyclotomic \u03a6] (n : \u2115) :"
+        },
+        {
+          "doc": "`X^{a+b} = X^a \u00b7 X^b`.",
+          "kind": "theorem",
+          "line": 100,
+          "name": "ArkLib.Lattices.CyclotomicModulus.Xpow_add",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "Xpow_add",
+          "signature": "theorem Xpow_add (\u03a6 : CyclotomicModulus R) [IsCyclotomic \u03a6] (a b : \u2115) :"
+        },
+        {
+          "doc": "`X^{a\u00b7t} = (X^a)^t`.",
+          "kind": "theorem",
+          "line": 111,
+          "name": "ArkLib.Lattices.CyclotomicModulus.Xpow_mul",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "Xpow_mul",
+          "signature": "theorem Xpow_mul (\u03a6 : CyclotomicModulus R) [IsCyclotomic \u03a6] (a t : \u2115) :"
+        },
+        {
+          "doc": "**The key relation `X^{2^\u03b1} = -1`** (`X^d = -1`), proven via the quotient: `X^d + 1` is the modulus, so it vanishes in the quotient.",
+          "kind": "theorem",
+          "line": 122,
+          "name": "ArkLib.Lattices.CyclotomicModulus.Xpow_natDegree",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "Xpow_natDegree",
+          "signature": "theorem Xpow_natDegree (\u03b1 : \u2115) : Xpow (powTwoCyclotomic (R := R) \u03b1) (2 ^ \u03b1) = -1 := by"
+        },
+        {
+          "doc": "**Folding**: `X^n = (-1)^{n/2^\u03b1} \u00b7 X^{n mod 2^\u03b1}` (the reduction mod `X^d+1` of a high-degree monomial, expressed as a sign times a genuine monomial of degree `< d`).",
+          "kind": "theorem",
+          "line": 139,
+          "name": "ArkLib.Lattices.CyclotomicModulus.Xpow_fold",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "Xpow_fold",
+          "signature": "theorem Xpow_fold (\u03b1 n : \u2115) :"
+        },
+        {
+          "doc": "The scaled monomial `c\u00b7X^j \u2208 Rq \u03a6` factors as `(constant c)\u00b7X^j`.",
+          "kind": "theorem",
+          "line": 148,
+          "name": "ArkLib.Lattices.CyclotomicModulus.mk_monomial_eq",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "mk_monomial_eq",
+          "signature": "theorem mk_monomial_eq (\u03a6 : CyclotomicModulus R) [IsCyclotomic \u03a6] (j : \u2115) (c : R) :"
+        },
+        {
+          "doc": "**Monomial folding in `Rq`**: `c\u00b7X^j = (-1)^{j/d}\u00b7(c\u00b7X^{j mod d})`. The reduction of a high-degree scaled monomial is a sign times a genuine (degree `< d`) scaled monomial.",
+          "kind": "theorem",
+          "line": 160,
+          "name": "ArkLib.Lattices.CyclotomicModulus.mk_monomial_fold",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "mk_monomial_fold",
+          "signature": "theorem mk_monomial_fold (\u03b1 j : \u2115) (c : R) :"
+        },
+        {
+          "doc": "**`\u03c3_m` as a monomial sum (the coefficient action)**: the Galois automorphism sends the monomial decomposition `x = \u03a3_{k<d} x_k X^k` to `\u03a3_{k<d} x_k X^{k\u00b7m}`. Combined with `mk_monomial_fold` (each `X^{k\u00b7m}` folds to `\u00b1X^{(k\u00b7m) mod d}`), this expresses `\u03c3_m` as the signed coefficient permutation underlying the Eq. 7 fixed-subring analysis.",
+          "kind": "theorem",
+          "line": 171,
+          "name": "ArkLib.Lattices.CyclotomicModulus.galoisAut_eq_sum",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "galoisAut_eq_sum",
+          "signature": "theorem galoisAut_eq_sum (\u03a6 : CyclotomicModulus R) [IsCyclotomic \u03a6] (m : \u2115) (x : Rq \u03a6) :"
+        },
+        {
+          "doc": "**`\u03c3_m (X^j) = X^{j\u00b7m}` for any exponent `j`** (`m` odd, so `\u03c3_m` is a genuine automorphism). Unlike `galoisAut_Xpow`, no `j < d` bound: routes through the semantic side, where `\u03c3_m` is `aeval (X^m)` and `X^j \u21a6 (X^m)^j = X^{jm}`.",
+          "kind": "theorem",
+          "line": 181,
+          "name": "ArkLib.Lattices.CyclotomicModulus.galoisAut_Xpow'",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "galoisAut_Xpow'",
+          "signature": "theorem galoisAut_Xpow' (\u03b1 m j : \u2115) (hm : Odd m) :"
+        },
+        {
+          "doc": "`X^{2^{\u03b1+1}} = 1` (the conductor `2d = 2^{\u03b1+1}` is the order of `X`): `X^{2d} = (X^d)^2 = 1`.",
+          "kind": "theorem",
+          "line": 189,
+          "name": "ArkLib.Lattices.CyclotomicModulus.Xpow_conductor",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "Xpow_conductor",
+          "signature": "theorem Xpow_conductor (\u03b1 : \u2115) : Xpow (powTwoCyclotomic (R := R) \u03b1) (2 ^ (\u03b1 + 1)) = 1 := by"
+        },
+        {
+          "doc": "**Conductor periodicity**: `X^n = X^{n mod 2^{\u03b1+1}}` (no sign \u2014 `X` has order `2d`).",
+          "kind": "theorem",
+          "line": 193,
+          "name": "ArkLib.Lattices.CyclotomicModulus.Xpow_periodic",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "Xpow_periodic",
+          "signature": "theorem Xpow_periodic (\u03b1 n : \u2115) :"
+        },
+        {
+          "doc": "`X^a = X^b` whenever `a \u2261 b (mod 2^{\u03b1+1})`.",
+          "kind": "theorem",
+          "line": 200,
+          "name": "ArkLib.Lattices.CyclotomicModulus.Xpow_congr_mod",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "Xpow_congr_mod",
+          "signature": "theorem Xpow_congr_mod (\u03b1 : \u2115) {a b : \u2115} (h : a % 2 ^ (\u03b1 + 1) = b % 2 ^ (\u03b1 + 1)) :"
+        },
+        {
+          "doc": "**Conjugation negates a square-root-of-`-1` monomial**: if `X^{2j} = -1` then `\u03c3_{-1}(X^j) = X^{j\u00b7conjExp} = -X^j`. The exponent `j\u00b7conjExp \u2261 -j`, so `X^{j\u00b7conjExp}` is the inverse of `X^j`; and `X^j\u00b7(-X^j) = -(X^j)\u00b2 = -X^{2j} = 1`, so the inverse is `-X^j`.",
+          "kind": "theorem",
+          "line": 207,
+          "name": "ArkLib.Lattices.CyclotomicModulus.Xpow_mul_conjExp",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "Xpow_mul_conjExp",
+          "signature": "theorem Xpow_mul_conjExp (\u03b1 j : \u2115)"
+        },
+        {
+          "doc": "`2` is a unit in `Rq \u03a6` when it is a unit in `R` (e.g. `R = ZMod q`, `q` odd). Transferred from `R` through the algebra map into the semantic quotient and back across `equivQuotient`.",
+          "kind": "theorem",
+          "line": 230,
+          "name": "ArkLib.Lattices.CyclotomicModulus.isUnit_two",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "isUnit_two",
+          "signature": "theorem isUnit_two (\u03a6 : CyclotomicModulus R) [IsCyclotomic \u03a6] (h2 : (2 : R) \u2260 0) :"
+        },
+        {
+          "doc": "**`X^c - 1` is a unit** whenever some `X^{c\u00b72^t} = -1`. Then `(\u2211_{j<2^t} (X^c)^j)\u00b7(X^c - 1) = (X^c)^{2^t} - 1 = -2`, a unit (`isUnit_two`), so `X^c - 1` is a unit. This is the crux of the trace-of-monomial vanishing (Hachi [NOZ26, \u00a73, Claim 2]): it makes the geometric sum collapse without a domain.",
+          "kind": "theorem",
+          "line": 243,
+          "name": "ArkLib.Lattices.CyclotomicModulus.Xpow_sub_one_isUnit",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "Xpow_sub_one_isUnit",
+          "signature": "theorem Xpow_sub_one_isUnit (\u03b1 : \u2115) (h2 : (2 : R) \u2260 0) {c t : \u2115}"
+        }
+      ]
+    },
+    "ArkLib/Data/Lattices/CyclotomicRing/Subfield/Packing.lean": {
+      "declarations": [
+        {
+          "doc": "The **packing exponent map**: index `j` of the packed vector contributes the monomial `X^{packExp j}`. The first half `[0, d/2k)` maps to `[0, d/2k)`; the second half `[d/2k, d/k)` maps to `[d/2, d/2 + d/2k)` via the `X^{d/2}` shift.",
+          "kind": "def",
+          "line": 56,
+          "name": "ArkLib.Lattices.CyclotomicModulus.packExp",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "packExp",
+          "signature": "def packExp (\u03b1 k j : \u2115) : \u2115 :="
+        },
+        {
+          "doc": "The **packing map** `\u03c8 : (R_q^H)^{d/k} \u2192 R_q` of Hachi [NOZ26, \u00a73, Eq. 8], as the single sum `\u03a3_{j} a_j \u00b7 X^{packExp j}` over the index set `Fin (d/k)`.",
+          "kind": "def",
+          "line": 61,
+          "name": "ArkLib.Lattices.CyclotomicModulus.psi",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "psi",
+          "signature": "def psi (\u03b1 k : \u2115) (a : Fin (2 ^ \u03b1 / k) \u2192 fixedSubring (R := R) \u03b1 k) :"
+        },
+        {
+          "doc": "",
+          "kind": "theorem",
+          "line": 66,
+          "name": "ArkLib.Lattices.CyclotomicModulus.psi_zero",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "psi_zero",
+          "signature": "theorem psi_zero (\u03b1 k : \u2115) :"
+        },
+        {
+          "doc": "`\u03c8` is additive (it is a `Z_q`-linear / additive map; additivity is what the injectivity argument needs).",
+          "kind": "theorem",
+          "line": 74,
+          "name": "ArkLib.Lattices.CyclotomicModulus.psi_add",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "psi_add",
+          "signature": "theorem psi_add (\u03b1 k : \u2115) (a b : Fin (2 ^ \u03b1 / k) \u2192 fixedSubring (R := R) \u03b1 k) :"
+        }
+      ]
+    },
+    "ArkLib/Data/Lattices/CyclotomicRing/Subfield/TraceInnerProduct.lean": {
+      "declarations": [
+        {
+          "doc": "**`Tr_H(X^i) = \u03a3_{m\u2208H} X^{i\u00b7m}`** (for `i` below the modulus degree): the trace of a monomial is the sum of its images under all of `H`, each a single (reduced) monomial.",
+          "kind": "theorem",
+          "line": 54,
+          "name": "ArkLib.Lattices.CyclotomicModulus.traceH_Xpow",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "traceH_Xpow",
+          "signature": "theorem traceH_Xpow (\u03b1 k : \u2115) {i : \u2115} (hi : i < 2 ^ \u03b1) :"
+        },
+        {
+          "doc": "**`Tr_H(X^j) = \u03a3_{m\u2208H} X^{j\u00b7m}` for any exponent `j`** (no `j < d` bound), via the general `galoisAut_Xpow'` and oddness of the `Hexp` exponents. Needed for the Theorem 2 kernel, where the exponents `e_p + e_q\u00b7\u03c3_{-1}` are large.",
+          "kind": "theorem",
+          "line": 63,
+          "name": "ArkLib.Lattices.CyclotomicModulus.traceH_Xpow'",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "traceH_Xpow'",
+          "signature": "theorem traceH_Xpow' (\u03b1 k j : \u2115) :"
+        },
+        {
+          "doc": "**`Tr_H(1) = (d/k)\u00b71`** (Hachi [NOZ26, \u00a73], `Tr_H(X^0)`): each `\u03c3_m` fixes `1`, so the trace is `|H| = d/k` copies of `1`.",
+          "kind": "theorem",
+          "line": 71,
+          "name": "ArkLib.Lattices.CyclotomicModulus.traceH_one",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "traceH_one",
+          "signature": "theorem traceH_one (\u03b1 k : \u2115) (hk2pow : \u2203 \u03ba, k = 2 ^ \u03ba) (hk : 2 * k \u2223 2 ^ \u03b1) :"
+        },
+        {
+          "doc": "**Geometric sum vanishes when `r-1` is a unit**: if `r^n = 1` and `r - 1` is a unit (no domain needed), then `\u2211_{i<n} r^i = 0`. Follows from `(\u2211 r^i)(r-1) = r^n - 1 = 0` and cancelling the unit `r - 1`. This is what closes Claim 2 once `X^{4ki} - 1` is shown to be a unit.",
+          "kind": "theorem",
+          "line": 83,
+          "name": "ArkLib.Lattices.CyclotomicModulus.geom_sum_eq_zero_of_isUnit",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "geom_sum_eq_zero_of_isUnit",
+          "signature": "theorem geom_sum_eq_zero_of_isUnit {A : Type*} [CommRing A] {r : A} {n : \u2115}"
+        },
+        {
+          "doc": "The geometric sum `\u2211_{j<d/2k} (X^{4ki})^j = 0` when `d/2k \u2224 i`. The ratio `r = X^{4ki}` satisfies `r^{d/2k} = X^{2di} = 1`, and `r - 1` is a unit (`Xpow_sub_one_isUnit`, since `X^{4ki\u00b72^t} = -1` for a suitable `t` extracted from the `2`-adic valuation of `i`).",
+          "kind": "theorem",
+          "line": 91,
+          "name": "ArkLib.Lattices.CyclotomicModulus.four_pow_i_geom_zero",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "four_pow_i_geom_zero",
+          "signature": "theorem four_pow_i_geom_zero (\u03b1 \u03ba i : \u2115) (h2 : (2 : R) \u2260 0) (h\u03ba : \u03ba + 1 \u2264 \u03b1)"
+        },
+        {
+          "doc": "**Claim 1 reindex**: `\u2211_{a<n} X^{i\u00b7((4k+1)^a mod 2d)} = X^i\u00b7\u2211_{j<n} (X^{4ki})^j`. The subgroup `\u27e84k+1\u27e9 = {(4k+1)^a mod 2d}` equals the arithmetic progression `{4k\u00b7j+1 : j<n}` (both have `n` distinct elements, and `(4k+1)^a \u2261 1 mod 4k`), which linearizes the exponent and exposes the geometric series.",
+          "kind": "theorem",
+          "line": 125,
+          "name": "ArkLib.Lattices.CyclotomicModulus.four_pow_i_reindex",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "four_pow_i_reindex",
+          "signature": "theorem four_pow_i_reindex (\u03b1 \u03ba i : \u2115) (h\u03ba : \u03ba + 1 \u2264 \u03b1) :"
+        },
+        {
+          "doc": "**(Claim 2)** `Tr_H(X^i) = 0` whenever `d/2k \u2224 i`. Splitting `H = \u27e8\u03c3_{-1}, \u03c3_{4k+1}\u27e9` into the `\u27e84k+1\u27e9`-orbit `{p_a}` and its conjugate `{q_a = -p_a}`, the orbit sum is `X^i\u00b7\u2211_{j}(X^{4ki})^j` (`four_pow_i_reindex`), which vanishes (`four_pow_i_geom_zero`); the conjugate sum is its image under `\u03c3_{-1}`, hence also `0`.",
+          "kind": "theorem",
+          "line": 191,
+          "name": "ArkLib.Lattices.CyclotomicModulus.traceH_Xpow_eq_zero",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "traceH_Xpow_eq_zero",
+          "signature": "theorem traceH_Xpow_eq_zero (\u03b1 k : \u2115) (h2 : (2 : R) \u2260 0) (hk2pow : \u2203 \u03ba, k = 2 ^ \u03ba)"
+        },
+        {
+          "doc": "**Generalized Claim 3**: `Tr_H(X^j) = 0` for any `j` with `X^{2j} = -1` (equivalently `2j \u2261 d mod 2d`, i.e. `j` an odd multiple of `d/2`). Proven by a fixed-point-free involution on `H`: conjugation `m \u21a6 -m` sends `X^{j\u00b7m}` to its negation, since `(X^{j\u00b7m})\u00b2 = (X^{2j})^m = (-1)^m = -1` (`m` odd) and conjugation inverts a square-root of `-1`.",
+          "kind": "theorem",
+          "line": 269,
+          "name": "ArkLib.Lattices.CyclotomicModulus.traceH_Xpow_neg_one_sq",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "traceH_Xpow_neg_one_sq",
+          "signature": "theorem traceH_Xpow_neg_one_sq (\u03b1 k j : \u2115) (hk2pow : \u2203 \u03ba, k = 2 ^ \u03ba) (hk : 2 * k \u2223 2 ^ \u03b1)"
+        },
+        {
+          "doc": "**(Claim 3)** `Tr_H(X^{d/2}) = 0` \u2014 the `j = d/2` instance of `traceH_Xpow_neg_one_sq` (`X^{2\u00b7d/2} = X^d = -1`).",
+          "kind": "theorem",
+          "line": 351,
+          "name": "ArkLib.Lattices.CyclotomicModulus.traceH_Xpow_half",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "traceH_Xpow_half",
+          "signature": "theorem traceH_Xpow_half (\u03b1 k : \u2115) (hk2pow : \u2203 \u03ba, k = 2 ^ \u03ba) (hk : 2 * k \u2223 2 ^ \u03b1) :"
+        },
+        {
+          "doc": "Every `\u03c3_m` with `m \u2208 Hexp` fixes `R_q^H`: modulo `2d`, `m` is `\u00b1(4k+1)^a`, and the two generators `\u03c3_{4k+1}`, `\u03c3_{-1}` fix `R_q^H` (so does any composite).",
+          "kind": "theorem",
+          "line": 365,
+          "name": "ArkLib.Lattices.CyclotomicModulus.galoisAut_fixed_of_mem",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "galoisAut_fixed_of_mem",
+          "signature": "theorem galoisAut_fixed_of_mem (\u03b1 k : \u2115) {c : Rq (powTwoCyclotomic (R := R) \u03b1)}"
+        },
+        {
+          "doc": "**`Tr_H` is `R_q^H`-linear**: `Tr_H(c\u00b7y) = c\u00b7Tr_H(y)` for `c \u2208 R_q^H`, since each `\u03c3_m` (`m \u2208 Hexp`) fixes `c` and is multiplicative.",
+          "kind": "theorem",
+          "line": 412,
+          "name": "ArkLib.Lattices.CyclotomicModulus.traceH_smul_fixed",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "traceH_smul_fixed",
+          "signature": "theorem traceH_smul_fixed (\u03b1 k : \u2115) {c : Rq (powTwoCyclotomic (R := R) \u03b1)}"
+        },
+        {
+          "doc": "**The kernel `Tr_H(X^{e_p + e_q\u00b7\u03c3_{-1}}) = (d/k)\u00b7[p = q]`** (Hachi [NOZ26, \u00a73, Theorem 2]). With `e_v = packExp v` and `n = d/2k`: on the diagonal the exponent is `e_p\u00b72d`, so `X^{\u2026} = 1` and the trace is `d/k`; off the diagonal, `n \u2223 (e_p + e_q\u00b7\u03c3_{-1}) \u2194 p \u2261 q mod n`, so when `p \u2262 q mod n` Claim 2 applies, and when `p \u2261 q mod n` (but `p \u2260 q`) the exponent is `\u00b1d/2`, so `X^{2\u00b7(\u2026)} = -1` and the generalized Claim 3 applies.",
+          "kind": "theorem",
+          "line": 427,
+          "name": "ArkLib.Lattices.CyclotomicModulus.traceH_kernel",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "traceH_kernel",
+          "signature": "theorem traceH_kernel (\u03b1 \u03ba : \u2115) (h2 : (2 : R) \u2260 0) (h\u03ba : \u03ba + 1 \u2264 \u03b1)"
+        },
+        {
+          "doc": "`Tr_H` distributes over finite sums (it is additive).",
+          "kind": "theorem",
+          "line": 533,
+          "name": "ArkLib.Lattices.CyclotomicModulus.traceH_sum",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "traceH_sum",
+          "signature": "theorem traceH_sum (\u03b1 k : \u2115) {\u03b9 : Type*} (s : Finset \u03b9)"
+        },
+        {
+          "doc": "",
+          "kind": "class",
+          "line": 536,
+          "name": "ArkLib.Lattices.CyclotomicModulus._anon_class_536",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "_anon_class_536",
+          "signature": "class classical"
+        },
+        {
+          "doc": "**Hachi [NOZ26, \u00a73, Theorem 2]**: `Tr_H(\u03c8(a)\u00b7\u03c3_{-1}(\u03c8(b))) = (d/k)\u00b7\u27e8a,b\u27e9`, where `\u27e8a,b\u27e9 = \u03a3_i a_i b_i` is the inner product over `R_q^H`. Expand the product as a double sum, pull the `R_q^H`-coefficients out of `Tr_H` (`traceH_smul_fixed`), evaluate the monomial kernel (`traceH_kernel`, which is `(d/k)\u00b7[p=q]`), and collapse the diagonal.",
+          "kind": "theorem",
+          "line": 549,
+          "name": "ArkLib.Lattices.CyclotomicModulus.traceH_psi_mul_conj",
+          "namespace": "ArkLib.Lattices.CyclotomicModulus",
+          "short_name": "traceH_psi_mul_conj",
+          "signature": "theorem traceH_psi_mul_conj (\u03b1 k : \u2115) (h2 : (2 : R) \u2260 0) (hk2pow : \u2203 \u03ba, k = 2 ^ \u03ba)"
         }
       ]
     },
@@ -40516,8 +40879,8 @@
   },
   "stats": {
     "ArkLib": {
-      "declarations": 4399,
-      "files": 234
+      "declarations": 4438,
+      "files": 237
     }
   }
 }

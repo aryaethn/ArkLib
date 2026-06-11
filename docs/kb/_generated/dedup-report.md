@@ -4,7 +4,7 @@ Generated from `docs/kb/_generated/declarations.json`. **Eyeball, do not auto-re
 
 ## Stats
 
-- `ArkLib` — 234 files, 4399 declarations
+- `ArkLib` — 237 files, 4438 declarations
 
 ## Same short-name across multiple files (120 groups)
 
@@ -569,12 +569,12 @@ Each group lists declarations sharing a short name across ≥2 files. Most are l
 
 ### `coeffHom` (2 declarations, 2 files)
 
-- `def ArkLib.Lattices.CyclotomicModulus.Rq.coeffHom` [ArkLib/Data/Lattices/CyclotomicRing/Rq.lean:176](../../../ArkLib/Data/Lattices/CyclotomicRing/Rq.lean#L176) — Reading off the `k`-th coefficient of the underlying polynomial, as an additive homomorphism `Rq Φ →
+- `def ArkLib.Lattices.CyclotomicModulus.Rq.coeffHom` [ArkLib/Data/Lattices/CyclotomicRing/Rq.lean:193](../../../ArkLib/Data/Lattices/CyclotomicRing/Rq.lean#L193) — Reading off the `k`-th coefficient of the underlying polynomial, as an additive homomorphism `Rq Φ →
 - `def CompPoly.CPolynomial.coeffHom` [ArkLib/ToCompPoly/Univariate/Basic.lean:284](../../../ArkLib/ToCompPoly/Univariate/Basic.lean#L284) — Extracting the `k`-th coefficient as an additive homomorphism.
 
 ### `coeffHom_apply` (2 declarations, 2 files)
 
-- `theorem ArkLib.Lattices.CyclotomicModulus.Rq.coeffHom_apply` [ArkLib/Data/Lattices/CyclotomicRing/Rq.lean:181](../../../ArkLib/Data/Lattices/CyclotomicRing/Rq.lean#L181) — (no docstring)
+- `theorem ArkLib.Lattices.CyclotomicModulus.Rq.coeffHom_apply` [ArkLib/Data/Lattices/CyclotomicRing/Rq.lean:198](../../../ArkLib/Data/Lattices/CyclotomicRing/Rq.lean#L198) — (no docstring)
 - `theorem CompPoly.CPolynomial.coeffHom_apply` [ArkLib/ToCompPoly/Univariate/Basic.lean:290](../../../ArkLib/ToCompPoly/Univariate/Basic.lean#L290) — (no docstring)
 
 ### `coreInteractionOracleRbrKnowledgeError` (2 declarations, 2 files)
@@ -689,7 +689,7 @@ Each group lists declarations sharing a short name across ≥2 files. Most are l
 
 ### `ofFinCoeff` (2 declarations, 2 files)
 
-- `def ArkLib.Lattices.CyclotomicModulus.Rq.ofFinCoeff` [ArkLib/Data/Lattices/CyclotomicRing/Rq.lean:185](../../../ArkLib/Data/Lattices/CyclotomicRing/Rq.lean#L185) — The reduced representative with prescribed finite coefficients `Σ_{k<N} cₖ Xᵏ`, valid when `N` does 
+- `def ArkLib.Lattices.CyclotomicModulus.Rq.ofFinCoeff` [ArkLib/Data/Lattices/CyclotomicRing/Rq.lean:202](../../../ArkLib/Data/Lattices/CyclotomicRing/Rq.lean#L202) — The reduced representative with prescribed finite coefficients `Σ_{k<N} cₖ Xᵏ`, valid when `N` does 
 - `def CompPoly.CPolynomial.ofFinCoeff` [ArkLib/ToCompPoly/Univariate/Basic.lean:293](../../../ArkLib/ToCompPoly/Univariate/Basic.lean#L293) — The polynomial with prescribed finite coefficient function: `Σ_{k<N} cₖ Xᵏ`.
 
 ### `pSpecCoreInteraction` (2 declarations, 2 files)

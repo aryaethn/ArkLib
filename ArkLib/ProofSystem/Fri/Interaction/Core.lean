@@ -4,7 +4,6 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Quang Dao
 -/
 import ArkLib.Data.CompPoly.Fold
-import ArkLib.Data.CodingTheory.ReedSolomon.FftDomain
 import ArkLib.Data.GroupTheory.Smooth
 import ArkLib.Interaction.Oracle.Core
 import ArkLib.Interaction.Oracle.Protocol

@@ -15,6 +15,8 @@ ArkLib/
   CommitmentScheme/   commitments and opening arguments
   ProofSystem/        protocol families and higher-level proofs
   ToMathlib/          local additions not upstreamed to Mathlib
+  ToCompPoly/         local additions not upstreamed to CompPoly
+  ToVCVio/            local additions not upstreamed to VCV-io
 blueprint/src/        blueprint sources and references.bib
 docs/kb/             persistent paper, concept, audit, and query knowledge base
 scripts/              repo utilities
@@ -23,10 +25,12 @@ home_page/            site assets and assembled website root
 
 ## Conceptual Layering
 
-- `ArkLib/Interaction/` is the new conceptual center, replacing `ArkLib/OracleReduction/`.
+- `ArkLib/Interaction/` is the target conceptual center for the ongoing rebuild;
+  `ArkLib/OracleReduction/` remains the legacy center until cutover completes.
 - `ArkLib/Interaction/BCS/` contains the generalized BCS transformation (hybrid decoration,
   spec transform, prover/verifier lifting, security theorems).
-- `ArkLib/Data/` and `ArkLib/ToMathlib/` support the core with reusable definitions and lemmas.
+- `ArkLib/Data/`, `ArkLib/ToMathlib/`, `ArkLib/ToCompPoly/`, and `ArkLib/ToVCVio/` support the
+  core with reusable definitions and lemmas.
 - `ArkLib/CommitmentScheme/` and `ArkLib/ProofSystem/` build on top of those foundations.
 - When changing a protocol subtree, read the local subtree plus one layer of imports toward
   `Data/` or `OracleReduction/` before making architectural edits.
@@ -39,13 +43,20 @@ home_page/            site assets and assembled website root
 - Working on the BCS transformation or hybrid oracle protocols: start in `ArkLib/Interaction/BCS/`.
 - Working on protocol statements or proofs: start in `ArkLib/ProofSystem/`.
 - Updating commitment interfaces or concrete schemes: start in `ArkLib/CommitmentScheme/`.
-- Moving reusable helper lemmas that ideally belong upstream: start in `ArkLib/ToMathlib/`.
+- Moving reusable helper lemmas that ideally belong upstream: start in `ArkLib/ToMathlib/`,
+  `ArkLib/ToCompPoly/`, or `ArkLib/ToVCVio/`, depending on the upstream project.
 - Updating theory docs, references, or long-form exposition: start in `blueprint/src/`.
 - Updating repository-local paper summaries, audits, or reference context: start in `docs/kb/`.
 
 ## Navigation Notes
 
 - `ArkLib.lean` is a generated umbrella import file, not a hand-maintained module index.
+- `ArkLib/ToVCVio/` mirrors VCV-io module structure under the importable Lean prefix
+  `ArkLib.ToVCVio`; use it for reusable `VCVio` helper lemmas before they are upstreamed.
+- KZG commitment-scheme modules live under `ArkLib/CommitmentScheme/KZG/`: `Basic` for the
+  construction and scheme instance, `Correctness` for correctness proofs, `FunctionBinding` for
+  the function-binding reduction, and `Binding` for evaluation binding. Shared
+  CPolynomial/Polynomial division bridge lemmas live under `ArkLib/ToCompPoly/`.
 - The Merkle tree implementations now live upstream in `VCVio`, so use
   `VCVio.CryptoFoundations.MerkleTree` or `VCVio.CryptoFoundations.InductiveMerkleTree`
   instead of the old ArkLib-local modules.

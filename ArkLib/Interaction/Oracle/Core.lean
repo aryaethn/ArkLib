@@ -5,7 +5,7 @@ Authors: Quang Dao
 -/
 import ArkLib.Interaction.Reduction
 import ArkLib.Interaction.Oracle.Spec
-import VCVio.Interaction.TwoParty.Refine
+import PolyFun.Interaction.TwoParty.Refine
 
 open Interaction.TwoParty
 

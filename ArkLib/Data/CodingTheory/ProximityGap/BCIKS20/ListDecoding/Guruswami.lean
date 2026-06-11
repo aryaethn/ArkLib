@@ -52,10 +52,10 @@ lemma guruswami_sudan_for_proximity_gap_property {k m : ℕ} {ωs : Fin n ↪ F}
     (hk : k + 2 ≤ n) (hm : 1 ≤ m)
     (cond : Conditions (k + 1) m (_root_.proximity_gap_degree_bound (k + 1) n m) ωs w Q)
     {p : ReedSolomon.code ωs (k + 1)}
-    (h : (↑Δ₀(w, fun i ↦ Polynomial.eval (ωs i) (ReedSolomon.codewordToPoly p)) : ℝ) / ↑n <
+    (h : (↑Δ₀(w, fun i ↦ Polynomial.eval (ωs i) (ReedSolomon.toPolynomial p)) : ℝ) / ↑n <
          _root_.proximity_gap_johnson (k + 1) n m)
     :
-    (Polynomial.X - Polynomial.C (ReedSolomon.codewordToPoly p)) ∣ Q :=
+    (Polynomial.X - Polynomial.C (ReedSolomon.toPolynomial p)) ∣ Q :=
   GuruswamiSudan.proximity_gap_divisibility hk hm p cond h
 
 /-- The Guruswami-Sudan condition as it is stated in [BCIKS20]. -/
@@ -78,7 +78,7 @@ structure ModifiedGuruswami
     degreeX Q < D_X ((k + 1) / (n : ℚ)) n m
   /-- The Y-degree bound. -/
   Q_D_Y :
-    D_Y Q < D_X (k + 1 / (n : ℚ)) n m / k
+    D_Y Q < D_X ((k + 1 : ℚ) / n) n m / k
   /-- The YZ-degree bound. -/
   Q_D_YZ :
     D_YZ Q ≤ n * (m + 1/(2 : ℚ))^3 / (6 * Real.sqrt ((k + 1) / n))

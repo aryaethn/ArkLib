@@ -3,8 +3,8 @@ Copyright (c) 2024-2025 ArkLib Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Quang Dao
 -/
-import VCVio.Interaction.Basic.Replicate
-import VCVio.Interaction.TwoParty.Compose
+import PolyFun.Interaction.Basic.Replicate
+import PolyFun.Interaction.TwoParty.Compose
 import ArkLib.Interaction.Reduction
 import ArkLib.Interaction.RoleChain
 import ArkLib.ProofSystem.Sumcheck.Interaction.CompPoly

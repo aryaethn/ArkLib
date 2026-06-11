@@ -3,9 +3,9 @@ Copyright (c) 2026 ArkLib Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Quang Dao
 -/
-import VCVio.Interaction.Basic.Spec
-import VCVio.Interaction.Basic.Append
-import VCVio.Interaction.TwoParty.Strategy
+import PolyFun.Interaction.Basic.Spec
+import PolyFun.Interaction.Basic.Append
+import PolyFun.Interaction.TwoParty.Strategy
 import ArkLib.Interaction.Reduction
 import ArkLib.OracleReduction.OracleInterface
 
@@ -315,13 +315,13 @@ def FullTranscript.ofInteractionTranscript (s : Spec) :
 abbrev pairedSyntaxOver (m : Type → Type) :
     _root_.Interaction.SyntaxOver executionLens _root_.Interaction.TwoParty.Participant.{0}
       (fun _ : Position => _root_.Interaction.TwoParty.Role) :=
-  _root_.Interaction.TwoParty.pairedSyntaxOver executionLens m
+  SyntaxOver.TwoParty.paired executionLens m
 
 /-- Functorial shape for lens-native paired syntax on oracle specs. -/
 abbrev pairedShapeOver (m : Type → Type) [Functor m] :
     _root_.Interaction.ShapeOver executionLens _root_.Interaction.TwoParty.Participant.{0}
       (fun _ : Position => _root_.Interaction.TwoParty.Role) :=
-  _root_.Interaction.TwoParty.pairedShapeOver executionLens m
+  ShapeOver.TwoParty.paired executionLens m
 
 /-- Lens-native role-aware strategy over an oracle spec.
 

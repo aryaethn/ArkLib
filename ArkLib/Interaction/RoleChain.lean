@@ -3,8 +3,9 @@ Copyright (c) 2026 ArkLib Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Quang Dao
 -/
-import VCVio.Interaction.Basic.Replicate
-import VCVio.Interaction.TwoParty.Compose
+import PolyFun.Interaction.Basic.Replicate
+import PolyFun.Interaction.TwoParty.Compose
+import ArkLib.Interaction.Compat
 
 open Interaction.TwoParty
 
@@ -127,8 +128,8 @@ def RoundSteps {m : Type u → Type u} [Monad m]
   | 0, _ => PUnit
   | n + 1, c =>
       ((state : State c) →
-        m (StrategyOver (pairedSyntax m) TwoParty.Participant.focal
-          c.1 c.2.1 (fun tr => State (c.2.2 tr)))) ×
+        m (_root_.Interaction.StrategyOver (pairedSyntax m) TwoParty.Participant.focal
+          c.1 c.2.1 (fun (tr : PFunctor.FreeM.Path c.1) => State (c.2.2 tr)))) ×
       ((tr : Transcript c.1) →
         RoundSteps (m := m) State n (c.2.2 tr))
 
@@ -137,13 +138,13 @@ def ofChain {m : Type u → Type u} [Monad m]
     (State : {k : Nat} → RoleChain.{u} k → Type u) :
     (n : Nat) → (c : RoleChain.{u} n) → State c →
       RoundSteps (m := m) State n c →
-    m (StrategyOver (pairedSyntax m) TwoParty.Participant.focal (RoleChain.toSpec n c)
-      (RoleChain.toRoles n c)
-      (fun tr => RoleChain.outputFamily State n c tr))
+    m (_root_.Interaction.StrategyOver (pairedSyntax m) TwoParty.Participant.focal
+      (RoleChain.toSpec n c) (RoleChain.toRoles n c)
+      (fun (tr : PFunctor.FreeM.Path (RoleChain.toSpec n c)) => RoleChain.outputFamily State n c tr))
   | 0, _, state, _ => pure state
   | n + 1, ⟨spec, roles, cont⟩, state, steps => do
     let strat ← steps.1 state
-    @TwoParty.Focal.comp m _ spec (fun tr => RoleChain.toSpec n (cont tr))
+    @StrategyOver.TwoParty.Focal.comp m _ spec (fun tr => RoleChain.toSpec n (cont tr))
       roles (fun tr => RoleChain.toRoles n (cont tr))
       (fun tr => State (cont tr))
       (fun tr₁ tr₂ => RoleChain.outputFamily State n (cont tr₁) tr₂)
@@ -164,8 +165,8 @@ def RoundSteps {m : Type u → Type u} [Monad m]
   | 0, _ => PUnit
   | n + 1, c =>
       ((state : State c) →
-        StrategyOver (pairedSyntax m) TwoParty.Participant.counterpart
-          c.1 c.2.1 (fun tr => State (c.2.2 tr))) ×
+        _root_.Interaction.StrategyOver (pairedSyntax m) TwoParty.Participant.counterpart
+          c.1 c.2.1 (fun (tr : PFunctor.FreeM.Path c.1) => State (c.2.2 tr))) ×
       ((tr : Transcript c.1) →
         RoundSteps (m := m) State n (c.2.2 tr))
 
@@ -174,11 +175,12 @@ def ofChain {m : Type u → Type u} [Monad m]
     (State : {k : Nat} → RoleChain.{u} k → Type u) :
     (n : Nat) → (c : RoleChain.{u} n) → State c →
       RoundSteps (m := m) State n c →
-    StrategyOver (pairedSyntax m) TwoParty.Participant.counterpart (RoleChain.toSpec n c)
-      (RoleChain.toRoles n c) (fun tr => RoleChain.outputFamily State n c tr)
+    _root_.Interaction.StrategyOver (pairedSyntax m) TwoParty.Participant.counterpart
+      (RoleChain.toSpec n c) (RoleChain.toRoles n c)
+      (fun (tr : PFunctor.FreeM.Path (RoleChain.toSpec n c)) => RoleChain.outputFamily State n c tr)
   | 0, _, state, _ => state
   | n + 1, ⟨spec, roles, cont⟩, state, steps =>
-    @TwoParty.Counterpart.append m _ spec (fun tr => RoleChain.toSpec n (cont tr))
+    @StrategyOver.TwoParty.Counterpart.append m _ spec (fun tr => RoleChain.toSpec n (cont tr))
       roles (fun tr => RoleChain.toRoles n (cont tr))
       (fun tr => State (cont tr))
       (fun tr₁ tr₂ => RoleChain.outputFamily State n (cont tr₁) tr₂)

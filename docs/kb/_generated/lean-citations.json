@@ -1,8 +1,8 @@
 {
   "counts": {
     "files_with_citations": 89,
-    "keys_cited": 25,
-    "total_citation_edges": 123
+    "keys_cited": 26,
+    "total_citation_edges": 127
   },
   "files": {
     "ArkLib/AGM/Basic.lean": [
@@ -161,6 +161,7 @@
       "Poseidon2"
     ],
     "ArkLib/Data/Lattices/CyclotomicRing/Core.lean": [
+      "LNP22",
       "NOZ26"
     ],
     "ArkLib/Data/Lattices/CyclotomicRing/Core/Modulus.lean": [
@@ -175,9 +176,11 @@
       "NOZ26"
     ],
     "ArkLib/Data/Lattices/CyclotomicRing/Galois/Automorphism.lean": [
+      "LNP22",
       "NOZ26"
     ],
     "ArkLib/Data/Lattices/CyclotomicRing/Galois/FixedSubring.lean": [
+      "LNP22",
       "NOZ26"
     ],
     "ArkLib/Data/Lattices/CyclotomicRing/Galois/Group.lean": [
@@ -215,6 +218,7 @@
       "NOZ26"
     ],
     "ArkLib/Data/Lattices/CyclotomicRing/Subfield/Basis.lean": [
+      "LNP22",
       "NOZ26"
     ],
     "ArkLib/Data/Lattices/CyclotomicRing/Subfield/Bijectivity.lean": [
@@ -403,6 +407,12 @@
     ],
     "LFKN92": [
       "ArkLib/ProofSystem/Sumcheck/Spec/General.lean"
+    ],
+    "LNP22": [
+      "ArkLib/Data/Lattices/CyclotomicRing/Core.lean",
+      "ArkLib/Data/Lattices/CyclotomicRing/Galois/Automorphism.lean",
+      "ArkLib/Data/Lattices/CyclotomicRing/Galois/FixedSubring.lean",
+      "ArkLib/Data/Lattices/CyclotomicRing/Subfield/Basis.lean"
     ],
     "LPS24": [
       "ArkLib/AGM/Basic.lean"

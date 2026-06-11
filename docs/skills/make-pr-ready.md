@@ -46,6 +46,16 @@ Work through these in order. Do not stop until every item is complete.
     verify those directly (every decl has a `/-- … -/`; citation keys resolve in
     `references.bib`; the `kb` regeneration below is consistent) and note the `--docs` limitation
     rather than churning on it.
+  - `--lint` (`lint-style.sh`) reports **repo-wide pre-existing** style debt — hundreds of
+    `ERR_*` lines in files you did not touch. Do **not** try to clear all of it; scope style
+    fixes to your changed files (lint them individually with
+    `python3 scripts/lint-style.py <your-files>`), and treat the **default** `validate.sh`
+    (build + Data warning budget + `check-imports` + `check-docs-integrity` + `kb/lint`) as the
+    real gate. Capture its true exit with `rc=$?` on its own line — a trailing
+    `… ; echo "EXIT $?"` reports the `echo`'s exit (always 0) and masks a failing validate.
+  - The **Data warning budget** fails on any non-`sorry` warning under `ArkLib/Data/`. A
+    toolchain/Mathlib bump commonly introduces **deprecation** warnings (e.g.
+    `X has been deprecated: Use Y instead`) — fix these by switching to the suggested name.
 - Confirm the eventual PR title/description will follow the
   `<type>(<scope>): <subject>` convention (imperative, lowercase, no trailing dot) and includes
   motivation, contrast with previous behavior, and issue references.
@@ -72,6 +82,16 @@ Work through these in order. Do not stop until every item is complete.
 
 - Confirm the regenerated files are consistent (no dangling keys, no missing entries) and stage
   them alongside your source changes.
+- `kb/lint.py` does **not** verify that every cited key has a BibTeX entry. Check for dangling
+  keys yourself: grep each `[KEY]` used in docstrings against `blueprint/src/references.bib` and
+  add any missing entry (then regenerate). A key can be "present-looking" but actually a different
+  paper — confirm the entry's title/authors match the citation, not just that the key exists.
+- If you **moved or renamed** any `.lean` file, regeneration does **not** fix hand-maintained
+  `docs/kb/papers/*.md` pages (they are scaffolded once, then curated). Grep `docs/**/*.md` for the
+  old path and update curated links + `related_modules` frontmatter — the default `validate.sh`
+  `check-docs-integrity.py` step fails on broken links. Running `kb/regenerate.py` after adding a
+  new cited key also **scaffolds** a new `docs/kb/papers/<KEY>.md` + `docs/kb/sources/<KEY>/`;
+  stage those too.
 
 ### 4. Suggest skill improvements
 

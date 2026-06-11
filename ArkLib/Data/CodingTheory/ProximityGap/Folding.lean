@@ -271,7 +271,7 @@ private lemma eval_comm {f : Polynomial (Polynomial F)} {a x : F} :
   have h_eval : Polynomial.eval (Polynomial.C a) f =
     ∑ i ∈ f.support, f.coeff i * (Polynomial.C a) ^ i := by
     aesop (add simp [Polynomial.eval_eq_sum])
-  simp [h_eval, Polynomial.eval_finset_sum,
+  simp [h_eval, Polynomial.eval_finsetSum,
         Polynomial.eval₂_eq_sum, Polynomial.sum_def]
 
 private lemma roots_in_domain_card_eq_if_x_in_domain
@@ -352,12 +352,13 @@ theorem foldWord_codeword {d : ℕ}
   :
   foldWord domain p k α
     = evalOnPoints (domain.subdomain k)
-        (FoldingPolynomial.polyFold (ReedSolomon.codewordToPoly p) (2 ^ k) α) := by
+        (FoldingPolynomial.polyFold (ReedSolomon.toPolynomial p) (2 ^ k) α) := by
   ext x
   simp only [foldWord, foldValue, foldWordAux, evalOnPoints,
-    Embedding.coeFn_mk, codewordToPoly, LinearMap.coe_mk, AddHom.coe_mk,
+    Embedding.coeFn_mk, toPolynomial, LinearMap.coe_mk, AddHom.coe_mk,
     FoldingPolynomial.polyFold]
   rw [eval_comm, interpolate_eq_folding_poly_eval hk (by simp)]
+  aesop
 
 private noncomputable def foldWordAuxCoeff (domain : SmoothCosetFftDomain n F)
   (f : Word F (Fin (2 ^ n))) (k : ℕ) (i : Fin k) (x : F) : F :=
@@ -385,7 +386,7 @@ private lemma foldWordAux_eq_sum_of_foldWordAuxCoeff
   foldWordAux domain f k x =
     ∑ j, Polynomial.C (foldWordAuxCoeff domain f k j x) * Y ^ j.val := by
   ext n
-  simp only [finset_sum_coeff, coeff_C_mul, coeff_X_pow, mul_ite, mul_one, mul_zero]
+  simp only [finsetSum_coeff, coeff_C_mul, coeff_X_pow, mul_ite, mul_one, mul_zero]
   by_cases hlt : n < k
   · aesop
       (add simp [foldWordAuxCoeff])
@@ -401,7 +402,7 @@ private lemma foldValue_eq_sum_of_foldAuxCoeff_mul_pow_alpha
   aesop
     (add simp
       [foldValue,
-        Polynomial.eval_finset_sum,
+        Polynomial.eval_finsetSum,
         foldWordAux_eq_sum_of_foldWordAuxCoeff])
 
 private noncomputable def indicatedPolynomial
@@ -419,7 +420,7 @@ private instance card_ne_zero (hs' : s'.Nonempty) : NeZero (Finset.card s') wher
 
 private lemma indicated_polynomial_degree_x_lt (hs' : s'.Nonempty) :
   Bivariate.degreeX (indicatedPolynomial domain f k s') < s'.card := by
-  simp only [Bivariate.degreeX, indicatedPolynomial, finset_sum_coeff, coeff_C_mul, coeff_map]
+  simp only [Bivariate.degreeX, indicatedPolynomial, finsetSum_coeff, coeff_C_mul, coeff_map]
   rw [Finset.sup_lt_iff (by simp [hs'])]
   intro b hb
   exact natDegree_sum_lt_of_forall_lt (inst := card_ne_zero hs') _ _ <|
@@ -443,7 +444,7 @@ private lemma indicated_polynomial_eq_foldAux
   ((indicatedPolynomial domain f k s').eval (Polynomial.C α)).eval x =
     (foldWordAux domain f k x).eval α := by
   aesop
-    (add simp [indicatedPolynomial, eval_finset_sum])
+    (add simp [indicatedPolynomial, eval_finsetSum])
     (add safe
       [(by rw [singleton_indicator_eval_eq_zero_of_mem_sdiff]),
         (by rw [Finset.sum_eq_ite x])])
@@ -472,7 +473,7 @@ private lemma indicated_polynomial_eq_combination_of_correlated
   apply Polynomial.eq_of_eval_eq_natDegree (s := s') (n := #s')
     <;> try rfl
   · simp only [indicatedPolynomial,
-      eval_finset_sum, eval_mul, eval_C, eval_map_apply]
+      eval_finsetSum, eval_mul, eval_C, eval_map_apply]
     exact natDegree_sum_lt_of_forall_lt (inst := card_ne_zero hs') _ _ <|
       fun i _ ↦ lt_of_le_of_lt natDegree_mul_le <| by
         aesop
@@ -482,7 +483,7 @@ private lemma indicated_polynomial_eq_combination_of_correlated
   · aesop
       (add safe forward
         [indicated_polynomial_eval_eq_combination_of_correlated])
-      (add simp [eval_finset_sum])
+      (add simp [eval_finsetSum])
 
 private lemma indicated_polynomial_eq_foldAux'
   [Fintype F]
@@ -505,7 +506,7 @@ private lemma indicated_polynomial_eq_foldAux'
         [indicated_polynomial_eq_combination_of_correlated,
           ←foldValue_def,
           foldValue_eq_sum_of_foldAuxCoeff_mul_pow_alpha])])
-     (add simp [eval_finset_sum])
+     (add simp [eval_finsetSum])
   · simp only
       [indicatedPolynomial, Polynomial.map_sum,
         Polynomial.map_mul, map_C, coe_evalRingHom]
@@ -529,7 +530,7 @@ private lemma indicated_polynomial_comp_x_k_natDegree
     indicatedPolynomial domain f (2 ^ k) s').eval Polynomial.X).natDegree < (2 ^ k) * s'.card := by
   by_cases h_card : 1 < s'.card
   · simp only [indicatedPolynomial,
-      Polynomial.eval_map, eval₂_finset_sum,
+      Polynomial.eval_map, eval₂_finsetSum,
       eval₂_mul, eval₂_C, coe_compRingHom]
     exact natDegree_sum_lt_of_forall_lt
       (inst := instNeZeroNatHMul (hm := card_ne_zero hs')) _ _ <|

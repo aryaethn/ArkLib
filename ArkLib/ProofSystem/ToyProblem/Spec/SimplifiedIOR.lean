@@ -219,7 +219,9 @@ bundled `reduction` directly and are unaffected. -/
 omit [DecidableEq ι] in
 /-- **Lemma 6.10 of [ABF26]** (knowledge soundness of Construction 6.9).
 
-For any `δ ∈ (0, δ_min(C))` and fixed linear encoder with range `C`,
+For any `δ ∈ (0, δ_min(C))` and fixed injective linear encoder with
+range `C` (injectivity is implicit in the paper's encoding map and
+load-bearing for the extractor's per-list-pair counting),
 the simplified IOR has knowledge soundness (paper Def A.5) from
 `R̃²_{C,δ}` to `R̃¹_{C,δ}` with error
 
@@ -240,6 +242,7 @@ theorem simplifiedIOR_knowledgeSound
     (impl : QueryImpl []ₒ (StateT σ ProbComp))
     (C : Set (ι → F)) (δ : ℝ≥0)
     (encode : (Fin k → F) →ₗ[F] (ι → F))
+    (_hinj : Function.Injective encode)
     (_hC : Set.range encode = C)
     (_hδ_pos : 0 < δ)
     (_hδ_lt_min : δ < (minRelHammingDistCode C : ℝ≥0)) :

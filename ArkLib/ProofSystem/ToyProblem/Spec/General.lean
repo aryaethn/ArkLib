@@ -871,7 +871,9 @@ theorem oracleReduction_perfectCompleteness
 omit [DecidableEq ι] in
 /-- **Lemma 6.6 of [ABF26]** (knowledge soundness of Construction 6.2).
 
-For any `δ ∈ (0, δ_min(C))` and fixed linear encoder with range `C`,
+For any `δ ∈ (0, δ_min(C))` and fixed injective linear encoder with
+range `C` (injectivity is implicit in the paper's encoding map and
+load-bearing for the extractor's per-list-pair counting),
 the toy-problem IOR has knowledge soundness against the relaxed relation
 `R̃_{C,δ}^2` with error
 
@@ -908,6 +910,7 @@ theorem protocol62_knowledgeSound
     (impl : QueryImpl []ₒ (StateT σ ProbComp))
     (C : Set (ι → F)) (δ : ℝ≥0)
     (encode : (Fin k → F) →ₗ[F] (ι → F))
+    (_hinj : Function.Injective encode)
     (_hC : Set.range encode = C)
     (_hδ_pos : 0 < δ)
     (_hδ_lt_min : δ < (minRelHammingDistCode C : ℝ≥0)) :
@@ -947,7 +950,9 @@ omit [DecidableEq ι] in
 /-- **Lemma 6.8 of [ABF26]** (round-by-round knowledge soundness of
 Construction 6.2).
 
-For any `δ ∈ (0, δ_min(C))` and fixed linear encoder with range `C`,
+For any `δ ∈ (0, δ_min(C))` and fixed injective linear encoder with
+range `C` (injectivity is implicit in the paper's encoding map and
+load-bearing for the extractor's per-list-pair counting),
 the IOR has round-by-round knowledge soundness (paper Definition A.5 ≡
 ArkLib's `OracleVerifier.rbrKnowledgeSoundness`, definitionally
 `toVerifier.rbrKnowledgeSoundness`) against `R̃_{C,δ}^2`, with
@@ -967,6 +972,7 @@ theorem protocol62_rbrKnowledgeSound
     (impl : QueryImpl []ₒ (StateT σ ProbComp))
     (C : Set (ι → F)) (δ : ℝ≥0)
     (encode : (Fin k → F) →ₗ[F] (ι → F))
+    (_hinj : Function.Injective encode)
     (_hC : Set.range encode = C)
     (_hδ_pos : 0 < δ)
     (_hδ_lt_min : δ < (minRelHammingDistCode C : ℝ≥0)) :

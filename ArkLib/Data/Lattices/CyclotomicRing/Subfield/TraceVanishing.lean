@@ -17,8 +17,7 @@ and `d = 2^α`, `k = 2^κ`:
 * `traceH_Xpow_half` (**Claim 3**) — `Tr_H(X^{d/2}) = 0`.
 
 The algebraic core of Claim 2 is the geometric-sum vanishing `Σ_{j<d/2k}(X^{4ki})^j = 0`
-(`four_pow_i_geom_zero`), obtained by exhibiting `X^{4ki} − 1` as a *unit* (`Xpow_sub_one_isUnit`)
-rather than dividing by a zero-divisor — see the note in `TraceInnerProduct.lean`.
+(`four_pow_i_geom_zero`), via `X^{4ki} − 1` being a *unit* (`Xpow_sub_one_isUnit`).
 
 ## References
 

@@ -27,14 +27,6 @@ survive (giving `Tr_H(X^0) = d/k`), all others vanish, yielding `(d/k)·Σ_i a_i
 * `traceH_psi_mul_conj` — **the Theorem 2 trace formula** `Tr_H(ψ(a)·σ_{-1}(ψ(b))) = (d/k)·⟨a,b⟩`.
 * `psi_injective` — `ψ` is injective (from the non-degenerate trace pairing).
 
-## Note on Claim 2
-
-Over `R_q ≅ (𝔽_{q²})^{d/2}` the geometric sum `Σ_{t<d/2k}(X^{4ki})^t` cannot be collapsed by
-"dividing by `X^{4ki}−1`" — that factor is a zero-divisor — and the cyclotomic-coprimality route
-to its unit-ness is not available over `ZMod q` in Mathlib. Instead `X^{4ki}−1` is shown to be a
-*unit* directly (`Xpow_sub_one_isUnit`); the geometric sum then vanishes
-(`geom_sum_eq_zero_of_isUnit`) with no domain lift. The details live in `TraceVanishing.lean`.
-
 ## References
 
 * [Nguyen, N. K., O'Rourke, G., and Zhang, J., *Hachi …*][NOZ26]

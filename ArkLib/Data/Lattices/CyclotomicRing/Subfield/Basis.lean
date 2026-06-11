@@ -27,7 +27,6 @@ injection `(ZMod q)^k ↪ R_q^H` and the cardinality `|R_q^H| = q^k` follow (see
 
 ## References
 
-* [Lyubashevsky, V., Nguyen, N. K., and Plançon, M., *Lattice-Based Zero-Knowledge Proofs*][LNP22]
 * [Nguyen, N. K., O'Rourke, G., and Zhang, J., *Hachi …*][NOZ26]
 -/
 

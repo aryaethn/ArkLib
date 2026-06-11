@@ -255,10 +255,11 @@ theorem simplifiedIOR_knowledgeSound
   -- (the "1-round version" of L6.8), not an external import. Knowledge error
   -- `ε_mca(C,δ) + |Λ(C^{≡2},δ)|/|F|` (no `(1-δ)^t` term: C6.9 has no spot-check
   -- round). `δ < δ_min(C)` load-bearing as in L6.8.
-  -- WARNING: do NOT close this sorry until `fix/knowledge-soundness-failing-extractor`
-  -- lands — the current `Verifier.knowledgeSoundness` admits a vacuous
-  -- always-failing `OptionT` extractor (see Spec/General.lean's oracle-flavour
-  -- section comment).
+  -- The former vacuity gate has CLEARED (2026-06-11): PR #569
+  -- (`fix/knowledge-soundness-failing-extractor`) is merged and synced into this
+  -- branch — `Verifier.knowledgeSoundness` now scores extraction failure against
+  -- the prover. This sorry may now be closed on its mathematical merits
+  -- (paper §6.4; the single-round core of the L6.8/L6.6 argument).
   sorry
 
 end Protocol

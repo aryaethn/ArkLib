@@ -351,17 +351,17 @@ definitionally `toVerifier.knowledgeSoundness` /
 `toVerifier.rbrKnowledgeSoundness`, so the oracle-flavour statements
 carry no extra proof burden over the bundled-input forms.
 
-**Known framework vacuity (KS only).** `Verifier.knowledgeSoundness`
-(which `OracleVerifier.knowledgeSoundness` unfolds to) currently admits
-a degenerate witness: an extractor that always fails in `OptionT` makes
-the bad-event probability `0`, so the KS *sorries* below
+**Framework vacuity (KS) — RESOLVED 2026-06-11.** The historical trap —
+`Verifier.knowledgeSoundness` admitted an always-failing `OptionT`
+extractor that drove the bad-event probability to `0` — was fixed by
+PR #569 (`fix/knowledge-soundness-failing-extractor`), now merged and
+synced into this branch: extraction failure (`extractedWitIn? = none`)
+is scored against the prover. The KS sorries below
 (`protocol62_knowledgeSound`, and `simplifiedIOR_knowledgeSound` in
-`Spec/SimplifiedIOR.lean`) must **not** be closed until the fix PR
-`fix/knowledge-soundness-failing-extractor` lands — a proof against the
-current definition would be vacuous. `Verifier.rbrKnowledgeSoundness`
-is unaffected (its `KnowledgeStateFunction` obligations do not factor
-through the failing extractor), so `protocol62_rbrKnowledgeSound` can
-be proved as-is.
+`Spec/SimplifiedIOR.lean`) may be closed on their mathematical merits.
+`Verifier.rbrKnowledgeSoundness` was never affected, so
+`protocol62_rbrKnowledgeSound` is provable as-is (and is the natural
+first target; KS then follows via the rbrKS → KS implication).
 -/
 
 /-- Same as `prover` but exposed at the `OracleProver` signature. The
@@ -923,9 +923,13 @@ theorem protocol62_knowledgeSound
   -- `max (ε_mca(C,δ) + |Λ(C^{≡2},δ)|/|F|) ((1-δ)^t)`. The `δ < δ_min(C)`
   -- hypothesis is load-bearing: the proof uses it to force `g = f₁ + γ·f₂`
   -- from agreement on `> (1 - δ_min)·n` points (see paper eq. (3)).
-  -- WARNING: do NOT close this sorry until `fix/knowledge-soundness-failing-extractor`
-  -- lands — the current `Verifier.knowledgeSoundness` admits a vacuous
-  -- always-failing `OptionT` extractor (see the section comment above).
+  -- The former vacuity gate has CLEARED (2026-06-11): PR #569
+  -- (`fix/knowledge-soundness-failing-extractor`) is merged and synced into this
+  -- branch — `Verifier.knowledgeSoundness` now scores an extraction failure
+  -- (`extractedWitIn? = none`) against the prover, so the always-failing
+  -- `OptionT` extractor no longer discharges the game. This sorry may now be
+  -- closed on its mathematical merits (paper §6.2; or via the rbrKS → KS
+  -- implication once L6.8 below is proven).
   sorry
 
 /-! ### Remark 6.7 of [ABF26] — MCA, not just CA

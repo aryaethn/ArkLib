@@ -110,8 +110,6 @@ import ArkLib.Data.Hash.Poseidon2
 import ArkLib.Data.Lattices.CyclotomicRing.Core
 import ArkLib.Data.Lattices.CyclotomicRing.Core.Basic
 import ArkLib.Data.Lattices.CyclotomicRing.Core.Modulus
-import ArkLib.Data.Lattices.CyclotomicRing.Core.PowTwo
-import ArkLib.Data.Lattices.CyclotomicRing.Core.Rq
 import ArkLib.Data.Lattices.CyclotomicRing.Galois
 import ArkLib.Data.Lattices.CyclotomicRing.Galois.Automorphism
 import ArkLib.Data.Lattices.CyclotomicRing.Galois.FixedSubring
@@ -123,6 +121,7 @@ import ArkLib.Data.Lattices.CyclotomicRing.NormBounds.Basic
 import ArkLib.Data.Lattices.CyclotomicRing.NormBounds.LyubashevskySeiler
 import ArkLib.Data.Lattices.CyclotomicRing.NormBounds.MicciancioYoung
 import ArkLib.Data.Lattices.CyclotomicRing.Norms
+import ArkLib.Data.Lattices.CyclotomicRing.PowTwo
 import ArkLib.Data.Lattices.CyclotomicRing.Rq
 import ArkLib.Data.Lattices.CyclotomicRing.Subfield
 import ArkLib.Data.Lattices.CyclotomicRing.Subfield.Basis

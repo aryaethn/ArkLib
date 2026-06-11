@@ -3,7 +3,7 @@ Copyright (c) 2024-2026 ArkLib Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Tobias Rothmann
 -/
-import ArkLib.Data.Lattices.CyclotomicRing.Core.Rq
+import ArkLib.Data.Lattices.CyclotomicRing.Rq
 import ArkLib.Data.Lattices.Vectors
 import Mathlib.Algebra.Field.ZMod
 import Mathlib.Data.ZMod.ValMinAbs

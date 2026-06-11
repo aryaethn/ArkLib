@@ -1,8 +1,8 @@
 {
   "counts": {
-    "files_with_citations": 89,
-    "keys_cited": 26,
-    "total_citation_edges": 127
+    "files_with_citations": 74,
+    "keys_cited": 25,
+    "total_citation_edges": 104
   },
   "files": {
     "ArkLib/AGM/Basic.lean": [
@@ -160,38 +160,7 @@
     "ArkLib/Data/Hash/Poseidon2.lean": [
       "Poseidon2"
     ],
-    "ArkLib/Data/Lattices/CyclotomicRing/Core.lean": [
-      "LNP22",
-      "NOZ26"
-    ],
-    "ArkLib/Data/Lattices/CyclotomicRing/Core/Modulus.lean": [
-      "NOZ26"
-    ],
-    "ArkLib/Data/Lattices/CyclotomicRing/Core/PowTwo.lean": [
-      "LS18",
-      "NOZ26",
-      "NS24"
-    ],
-    "ArkLib/Data/Lattices/CyclotomicRing/Galois.lean": [
-      "NOZ26"
-    ],
-    "ArkLib/Data/Lattices/CyclotomicRing/Galois/Automorphism.lean": [
-      "LNP22",
-      "NOZ26"
-    ],
-    "ArkLib/Data/Lattices/CyclotomicRing/Galois/FixedSubring.lean": [
-      "LNP22",
-      "NOZ26"
-    ],
-    "ArkLib/Data/Lattices/CyclotomicRing/Galois/Group.lean": [
-      "LS18",
-      "NOZ26"
-    ],
-    "ArkLib/Data/Lattices/CyclotomicRing/Galois/Order.lean": [
-      "LS18",
-      "NOZ26"
-    ],
-    "ArkLib/Data/Lattices/CyclotomicRing/Galois/Trace.lean": [
+    "ArkLib/Data/Lattices/CyclotomicRing/Modulus.lean": [
       "NOZ26"
     ],
     "ArkLib/Data/Lattices/CyclotomicRing/NormBounds.lean": [
@@ -213,28 +182,6 @@
       "Mic07",
       "NOZ26",
       "NS24"
-    ],
-    "ArkLib/Data/Lattices/CyclotomicRing/Subfield.lean": [
-      "NOZ26"
-    ],
-    "ArkLib/Data/Lattices/CyclotomicRing/Subfield/Basis.lean": [
-      "LNP22",
-      "NOZ26"
-    ],
-    "ArkLib/Data/Lattices/CyclotomicRing/Subfield/Bijectivity.lean": [
-      "NOZ26"
-    ],
-    "ArkLib/Data/Lattices/CyclotomicRing/Subfield/Cardinality.lean": [
-      "NOZ26"
-    ],
-    "ArkLib/Data/Lattices/CyclotomicRing/Subfield/Packing.lean": [
-      "NOZ26"
-    ],
-    "ArkLib/Data/Lattices/CyclotomicRing/Subfield/TraceInnerProduct.lean": [
-      "NOZ26"
-    ],
-    "ArkLib/Data/Lattices/CyclotomicRing/Subfield/TraceVanishing.lean": [
-      "NOZ26"
     ],
     "ArkLib/Data/Lattices/ModuleSIS.lean": [
       "Ajt96",
@@ -408,12 +355,6 @@
     "LFKN92": [
       "ArkLib/ProofSystem/Sumcheck/Spec/General.lean"
     ],
-    "LNP22": [
-      "ArkLib/Data/Lattices/CyclotomicRing/Core.lean",
-      "ArkLib/Data/Lattices/CyclotomicRing/Galois/Automorphism.lean",
-      "ArkLib/Data/Lattices/CyclotomicRing/Galois/FixedSubring.lean",
-      "ArkLib/Data/Lattices/CyclotomicRing/Subfield/Basis.lean"
-    ],
     "LPS24": [
       "ArkLib/AGM/Basic.lean"
     ],
@@ -421,9 +362,6 @@
       "ArkLib/CommitmentScheme/Ajtai/InnerOuter/Arithmetic.lean",
       "ArkLib/CommitmentScheme/Ajtai/InnerOuter/Scheme.lean",
       "ArkLib/CommitmentScheme/Ajtai/InnerOuter/Security.lean",
-      "ArkLib/Data/Lattices/CyclotomicRing/Core/PowTwo.lean",
-      "ArkLib/Data/Lattices/CyclotomicRing/Galois/Group.lean",
-      "ArkLib/Data/Lattices/CyclotomicRing/Galois/Order.lean",
       "ArkLib/Data/Lattices/CyclotomicRing/NormBounds/LyubashevskySeiler.lean",
       "ArkLib/Data/Lattices/CyclotomicRing/NormBounds.lean"
     ],
@@ -439,26 +377,11 @@
       "ArkLib/CommitmentScheme/Ajtai/InnerOuter/Scheme.lean",
       "ArkLib/CommitmentScheme/Ajtai/InnerOuter/Security.lean",
       "ArkLib/CommitmentScheme/Ajtai/InnerOuter.lean",
-      "ArkLib/Data/Lattices/CyclotomicRing/Core/Modulus.lean",
-      "ArkLib/Data/Lattices/CyclotomicRing/Core/PowTwo.lean",
-      "ArkLib/Data/Lattices/CyclotomicRing/Core.lean",
-      "ArkLib/Data/Lattices/CyclotomicRing/Galois/Automorphism.lean",
-      "ArkLib/Data/Lattices/CyclotomicRing/Galois/FixedSubring.lean",
-      "ArkLib/Data/Lattices/CyclotomicRing/Galois/Group.lean",
-      "ArkLib/Data/Lattices/CyclotomicRing/Galois/Order.lean",
-      "ArkLib/Data/Lattices/CyclotomicRing/Galois/Trace.lean",
-      "ArkLib/Data/Lattices/CyclotomicRing/Galois.lean",
+      "ArkLib/Data/Lattices/CyclotomicRing/Modulus.lean",
       "ArkLib/Data/Lattices/CyclotomicRing/NormBounds/Basic.lean",
       "ArkLib/Data/Lattices/CyclotomicRing/NormBounds/LyubashevskySeiler.lean",
       "ArkLib/Data/Lattices/CyclotomicRing/NormBounds/MicciancioYoung.lean",
       "ArkLib/Data/Lattices/CyclotomicRing/NormBounds.lean",
-      "ArkLib/Data/Lattices/CyclotomicRing/Subfield/Basis.lean",
-      "ArkLib/Data/Lattices/CyclotomicRing/Subfield/Bijectivity.lean",
-      "ArkLib/Data/Lattices/CyclotomicRing/Subfield/Cardinality.lean",
-      "ArkLib/Data/Lattices/CyclotomicRing/Subfield/Packing.lean",
-      "ArkLib/Data/Lattices/CyclotomicRing/Subfield/TraceInnerProduct.lean",
-      "ArkLib/Data/Lattices/CyclotomicRing/Subfield/TraceVanishing.lean",
-      "ArkLib/Data/Lattices/CyclotomicRing/Subfield.lean",
       "ArkLib/Data/Lattices/ModuleSIS.lean"
     ],
     "NS24": [
@@ -469,7 +392,6 @@
       "ArkLib/CommitmentScheme/Ajtai/InnerOuter/Scheme.lean",
       "ArkLib/CommitmentScheme/Ajtai/InnerOuter/Security.lean",
       "ArkLib/CommitmentScheme/Ajtai/InnerOuter.lean",
-      "ArkLib/Data/Lattices/CyclotomicRing/Core/PowTwo.lean",
       "ArkLib/Data/Lattices/CyclotomicRing/NormBounds/Basic.lean",
       "ArkLib/Data/Lattices/CyclotomicRing/NormBounds/LyubashevskySeiler.lean",
       "ArkLib/Data/Lattices/CyclotomicRing/NormBounds/MicciancioYoung.lean",

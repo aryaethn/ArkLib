@@ -123,6 +123,7 @@ import ArkLib.Data.Lattices.CyclotomicRing.NormBounds.Basic
 import ArkLib.Data.Lattices.CyclotomicRing.NormBounds.LyubashevskySeiler
 import ArkLib.Data.Lattices.CyclotomicRing.NormBounds.MicciancioYoung
 import ArkLib.Data.Lattices.CyclotomicRing.Norms
+import ArkLib.Data.Lattices.CyclotomicRing.Rq
 import ArkLib.Data.Lattices.CyclotomicRing.Subfield
 import ArkLib.Data.Lattices.CyclotomicRing.Subfield.Basis
 import ArkLib.Data.Lattices.CyclotomicRing.Subfield.Bijectivity

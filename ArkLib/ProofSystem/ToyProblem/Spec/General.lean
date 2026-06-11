@@ -591,7 +591,7 @@ lemma verifierBody_simulateQ_eq_pure
       = (pure (some PUnit.unit) : OracleComp (emptySpec.{0, 0}) (Option PUnit)) := by
     apply simulateQ_optionT_forIn_yield_pure_some
     intro j
-    simp only [map_eq_bind_pure_comp, simulateQ_optionT_bind, simulateQ_optionT_lift,
+    simp only [simulateQ_optionT_bind, simulateQ_optionT_lift,
       queryF, OracleInterface.simOracle2, QueryImpl.addLift_def]
     -- Resolve the two `queryF` reads (`f₀ = oStmt 0 (xs j)`, `f₁ = oStmt 1 (xs j)`) by defeq.
     conv_lhs =>
@@ -636,7 +636,7 @@ lemma verifierBody_simulateQ_eq_pure
       show (OptionT.lift (pure PUnit.unit) : OptionT (OracleComp []ₒ) PUnit)
         = pure PUnit.unit from rfl, pure_bind]
     -- Trailing `(pure ∘ yield) unit = pure (yield unit)`, simulated to `pure (some (yield unit))`.
-    show simulateQ _ ((pure (ForInStep.yield PUnit.unit) : OptionT (OracleComp ([]ₒ +
+    change simulateQ _ ((pure (ForInStep.yield PUnit.unit) : OptionT (OracleComp ([]ₒ +
         ([OracleStatement ι F]ₒ + [(pSpec (ι := ι) (F := F) k t).Message]ₒ)))
           (ForInStep PUnit)) : OracleComp _ (Option (ForInStep PUnit))) = _
     conv_lhs => rw [show (pure (ForInStep.yield PUnit.unit) :
@@ -663,7 +663,7 @@ lemma verifierBody_simulateQ_eq_pure
   -- After collapsing the loop the goal is `(pure (some ()) : OracleComp []ₒ _) >>= …`; the bind
   -- runs the constant `(pure ∘ id)` continuation, leaving
   -- `simulateQ impl (pure ()) = pure (some ())`.
-  show ((pure (some PUnit.unit) : OracleComp []ₒ (Option PUnit)) >>= fun _ ↦
+  change ((pure (some PUnit.unit) : OracleComp []ₒ (Option PUnit)) >>= fun _ ↦
       simulateQ (OracleInterface.simOracle2 []ₒ oStmt msgs)
         ((pure PUnit.unit : OptionT (OracleComp ([]ₒ + ([OracleStatement ι F]ₒ +
           [(pSpec (ι := ι) (F := F) k t).Message]ₒ))) PUnit) :
@@ -830,11 +830,11 @@ theorem oracleReduction_perfectCompleteness
   subst hf1 hf2 hf3 hr1 hr2 hr3 hPReq
   -- Reduce the transcript accessors (`Fin.snoc` at indices 0/1/2) inside the verifier subterm.
   simp only [id_eq, FullTranscript.challenges, Transcript.concat,
-    Fin.snoc, Fin.castSucc, Fin.castAdd, Fin.castLE, Fin.lt_iff_val_lt_val, Fin.val_zero,
-    Fin.val_one, Fin.val_two, Nat.lt_irrefl, lt_self_iff_false, Fin.coe_castLT,
+    Fin.snoc, Fin.val_zero,
+    Fin.val_one, Fin.val_two, lt_self_iff_false, Fin.val_castLT,
     Fin.castSucc_castLT, show (0 : ℕ) < 2 from by norm_num, show (0 : ℕ) < 1 from by norm_num,
-    show ¬ ((2 : ℕ) < 0) from by norm_num, dif_pos, dif_neg, cast_eq,
-    dite_false, dite_eq_ite, if_false, ite_false] at hx
+    show ¬ ((2 : ℕ) < 0) from by norm_num, dif_pos, cast_eq,
+    dite_false] at hx
   -- Extract the witness facts from the input relation.
   obtain ⟨hf, hM⟩ := hRel
   -- Rewrite the verifier subterm in `hx` to `pure (some ())` via `verifierBody_simulateQ_eq_pure`.
@@ -858,14 +858,14 @@ theorem oracleReduction_perfectCompleteness
     have hacc := accepts_of_inputRelation (encode := encode) stmtIn.1 witIn
       (fun i ↦ by have := hM i; fin_cases i <;> simpa using this) stmtIn.2
       (fun i ↦ by have := hf i; simpa using this) (cast (by rfl) γ₀) xs₂
-    simp only [FullTranscript.messages, Fin.snoc, Nat.reduceLT, ↓reduceDIte, cast_eq] at *
+    simp only [FullTranscript.messages, Fin.snoc] at *
     exact hacc.1
   case hAcc2 =>
     have hacc := accepts_of_inputRelation (encode := encode) stmtIn.1 witIn
       (fun i ↦ by have := hM i; fin_cases i <;> simpa using this) stmtIn.2
       (fun i ↦ by have := hf i; simpa using this) (cast (by rfl) γ₀) xs₂
     intro j
-    simp only [FullTranscript.messages, Fin.snoc, Nat.reduceLT, ↓reduceDIte, cast_eq] at *
+    simp only [FullTranscript.messages, Fin.snoc] at *
     exact hacc.2 j
 
 omit [DecidableEq ι] in

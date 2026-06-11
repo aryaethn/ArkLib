@@ -246,12 +246,14 @@ lemma StateT.run'_simulateQ_bind_map_eq_of_body
   exact congrArg (fun mx : StateT σ ProbComp β => mx.run' s)
     (simulateQ_bind_map_eq_of_body impl oa body₁ body₂ f hBody)
 
-/-! ### Staged from upstream VCV-io (post-pin)
+/-! ### Staged for upstream VCV-io (post-pin)
 
-The following declarations are verbatim copies of additions made upstream in VCV-io
-(`OracleComp/SimSemantics/QueryImpl/Basic.lean`, `OracleComp/SimSemantics/SimulateQ.lean`,
-`OracleComp/SimSemantics/Append.lean`, `OracleComp/Coercions/SubSpec.lean`) after the
-current pin `5f7707fb`. On the next VCVio bump, delete them here. -/
+The following declarations are verbatim copies of additions staged for VCV-io on its
+branch `feat/simulateq-routing-lemmas` (touching `OracleComp/SimSemantics/QueryImpl/Basic.lean`,
+`OracleComp/SimSemantics/SimulateQ.lean`, `OracleComp/SimSemantics/Append.lean`,
+`OracleComp/Coercions/SubSpec.lean`), not yet merged there. Once that PR merges and a
+VCVio bump past it lands, delete them here — but only after confirming the bump actually
+carries them. -/
 
 namespace QueryImpl
 
@@ -324,7 +326,7 @@ lemma simulateQ_optionT_list_forIn
       refine bind_congr fun step => ?_
       cases step with
       | done b =>
-          show simulateQ impl ((pure b : OptionT (OracleComp spec) β) :
+          change simulateQ impl ((pure b : OptionT (OracleComp spec) β) :
             OracleComp spec (Option β)) = _
           exact simulateQ_pure impl (some b)
       | yield b => exact ih b

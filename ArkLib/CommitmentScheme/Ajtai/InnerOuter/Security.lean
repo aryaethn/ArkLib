@@ -162,6 +162,7 @@ def outerShort (γ : ℕ) : ModuleSIS.Solution Φ (blocks * (innerRows * innerDi
 
 /-! ## Security: pinned to the power-of-two modulus `𝓜(q, α)` -/
 
+omit [NeZero q] in
 /-- Extract reusable weak-opening facts from a successful verification (over `𝓜(q, α)`,
 where Lyubashevsky–Seiler invertibility applies). -/
 theorem verifiedOpening_of_verify_eq_true {base : ZMod q}

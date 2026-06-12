@@ -14,6 +14,15 @@ churn.
 
 Work through these in order. Do not stop until every item is complete.
 
+### 0. Establish the real PR base
+
+- Run `git fetch origin main` first, then compute scope and `_generated/` drift against
+  **`origin/main`**, not local `main`. The local `main` ref can be many commits stale (e.g. you
+  branched, then `origin/main` advanced via merges you never pulled). Diffing `main...HEAD` against
+  a stale local `main` inflates the file list and can report phantom `_generated/` drift that
+  actually matches the remote. Use `git diff --stat origin/main...HEAD` for scope and
+  `git diff --quiet origin/main...HEAD -- docs/kb/_generated/` for the CI guard's real view.
+
 ### 1. Follow the contribution guidelines
 
 - Read [`../../CONTRIBUTING.md`](../../CONTRIBUTING.md) in full and make sure every changed file

@@ -73,15 +73,31 @@ Work through these in order. Do not stop until every item is complete.
   `blueprint/src/references.bib` (see the citation policy in
   [`../../CONTRIBUTING.md`](../../CONTRIBUTING.md) and the workflow in
   [`../wiki/blueprint-and-citations.md`](../wiki/blueprint-and-citations.md)).
-- Regenerate the derived citation metadata — do not hand-edit it:
+- **Do not commit `docs/kb/_generated/` changes in a feature PR.** The CI job's first step,
+  "Reject generated KB updates in PRs" ([`ci.yml`](../../.github/workflows/ci.yml)), fails the
+  build if your branch's `docs/kb/_generated/` differs from `main` in **any** way — and a
+  **deletion counts as a diff** just like a modification or addition. These files are refreshed
+  only on `main`, by [`kb-generated.yml`](../../.github/workflows/kb-generated.yml), which opens an
+  `automation/kb-generated-*` PR after merge. The guard runs before the Lean build, so a stray
+  `_generated/` diff blocks CI before the build even starts (and removing the files does **not**
+  help — the directory must match `main` exactly).
+- You may regenerate the derived metadata **locally to check consistency** — do not hand-edit it —
+  but **revert the `_generated/` outputs before committing** so the directory matches `main`:
 
   ```bash
-  python3 ./scripts/kb/sync_from_bib.py          # refresh docs/kb/_generated/references.json
-  python3 ./scripts/kb/extract_lean_citations.py # refresh docs/kb/_generated/lean-citations.json
+  python3 ./scripts/kb/sync_from_bib.py          # writes docs/kb/_generated/references.json
+  python3 ./scripts/kb/extract_lean_citations.py # writes docs/kb/_generated/lean-citations.json
+  # ... inspect for consistency, then:
+  git checkout origin/main -- docs/kb/_generated/ # restore to main's state; do NOT stage these
   ```
 
-- Confirm the regenerated files are consistent (no dangling keys, no missing entries) and stage
-  them alongside your source changes.
+  If your branch has already diverged in `docs/kb/_generated/` (drift, an accidental delete, or a
+  regenerate that got committed), restore it the same way: `git fetch origin main` then
+  `git checkout origin/main -- docs/kb/_generated/`, and commit so the guard passes.
+- Confirm the regenerated files are consistent (no dangling keys, no missing entries), but stage
+  **only** your source changes plus any scaffolded `docs/kb/papers/` / `docs/kb/sources/` pages
+  (those are *not* under `_generated/` and are allowed in feature PRs) — never the `_generated/`
+  outputs.
 - `kb/lint.py` does **not** verify that every cited key has a BibTeX entry. Check for dangling
   keys yourself: grep each `[KEY]` used in docstrings against `blueprint/src/references.bib` and
   add any missing entry (then regenerate). A key can be "present-looking" but actually a different

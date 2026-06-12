@@ -241,16 +241,18 @@ def srKSExperimentProb
     (relIn : Set (StmtIn × WitIn)) (relOut : Set (StmtOut × WitOut))
     (verifier : Verifier oSpec StmtIn StmtOut pSpec)
     (srProver : Prover.StateRestoration.KnowledgeSoundness oSpec StmtIn WitOut pSpec) : ENNReal :=
-  Pr[ fun | ⟨stmtIn, witIn, some stmtOut, witOut⟩ =>
+  Pr[ fun | (stmtIn, some witIn, some stmtOut, witOut) =>
             (stmtOut, witOut) ∈ relOut ∧ (stmtIn, witIn) ∉ relIn
+          | (_, none, some stmtOut, witOut) =>
+            (stmtOut, witOut) ∈ relOut
           | _ => False
     | do
       (simulateQ (impl.addLift srChallengeQueryImpl' : QueryImpl _ (StateT _ ProbComp))
           <| (do
             let ⟨transcript, stmtIn, witOut⟩ ← srKnowledgeSoundnessGame srProver
             let stmtOut ← liftComp (verifier.run stmtIn transcript) _
-            let witIn ← srExtractor stmtIn witOut transcript default default
-            return (stmtIn, witIn, stmtOut, witOut))).run' (← init)
+            let witInOpt ← liftComp (srExtractor stmtIn witOut transcript default default).run _
+            return (stmtIn, witInOpt, stmtOut, witOut))).run' (← init)
     ]
 
 /-- State-restoration knowledge soundness (w/ straightline extractor).
@@ -283,8 +285,10 @@ def coinKSExperimentProb {κ : Type} {auxSpec : OracleSpec κ}
     (verifier : Verifier oSpec StmtIn StmtOut pSpec)
     (srProver : Prover.StateRestoration.KnowledgeSoundnessWithCoins oSpec StmtIn WitOut pSpec
       auxSpec) : ENNReal :=
-  Pr[ fun | ⟨stmtIn, witIn, some stmtOut, witOut⟩ =>
+  Pr[ fun | (stmtIn, some witIn, some stmtOut, witOut) =>
             (stmtOut, witOut) ∈ relOut ∧ (stmtIn, witIn) ∉ relIn
+          | (_, none, some stmtOut, witOut) =>
+            (stmtOut, witOut) ∈ relOut
           | _ => False
     | do (simulateQ (((impl.addLift srChallengeQueryImpl' :
               QueryImpl (oSpec + srChallengeOracle StmtIn pSpec)
@@ -292,8 +296,8 @@ def coinKSExperimentProb {κ : Type} {auxSpec : OracleSpec κ}
             : QueryImpl _ (StateT (QueryImpl (srChallengeOracle StmtIn pSpec) Id) ProbComp)) <| (do
           let ⟨transcript, stmtIn, witOut⟩ ← srKnowledgeSoundnessGameWithCoins srProver
           let stmtOut ← liftComp (verifier.run stmtIn transcript) _
-          let witIn ← liftComp (srExtractor stmtIn witOut transcript default default) _
-          return (stmtIn, witIn, stmtOut, witOut))).run' (← init)
+          let witInOpt ← liftComp (srExtractor stmtIn witOut transcript default default).run _
+          return (stmtIn, witInOpt, stmtOut, witOut))).run' (← init)
     ]
 
 /-- **Coin-bearing** SR knowledge soundness (KS analog of `soundnessWithCoins`): there is a

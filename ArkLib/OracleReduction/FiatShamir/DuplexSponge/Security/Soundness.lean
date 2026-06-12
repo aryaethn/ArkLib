@@ -178,7 +178,7 @@ noncomputable def dsfsStraightlineExtractor
       (oSpec + duplexSpongeChallengeOracle StmtIn U))
     -- 4-5. Call the IP SR extractor on `(𝕩, encode τ)` + the reconstructed transcript, lifted from
     --      base `oSpec` to the DSFS spec.  (Logs are `default`, matching `coinKSExperimentProb`.)
-    OptionT.lift (liftComp
+    OptionT.mk (liftComp
       (E_IP (stmtIn, SaltCodec.encode saltedProof.1) witOut ipTranscript default default)
       (oSpec + duplexSpongeChallengeOracle StmtIn U))
 
@@ -316,18 +316,21 @@ theorem hybChallengeImpl_eq_srAddLift (oSpecImpl : QueryImpl oSpec ProbComp) :
   · -- `oSpec` slot: `StateT.lift (oSpecImpl qS)` (the eager `get` is discarded).
     funext s
     simp [hybChallengeImpl, srHyb4Impl, StateT.lift, bind_pure]
+    rfl
   · -- challenge slot: `𝒟_IP_salted.toImpl k qC = pure (k qC)`, matching `srChallengeQueryImpl'`.
     funext s
     simp only [hybChallengeImpl, srHyb4Impl, srChallengeQueryImpl', D_IP_salted,
       OracleReduction.OracleDistribution.uniform, OracleReduction.OracleDistribution.functionTable,
-      OracleReduction.tableQueryImpl, bind_pure]
+      OracleReduction.tableQueryImpl]
     rfl
   · -- `(Unit →ₒ U)` coin slot: `StateT.lift (d2sUnitSampleImpl qU)`.
     funext s
     simp [hybChallengeImpl, srHyb4Impl, StateT.lift, bind_pure]
+    rfl
   · -- `unifSpec` coin slot: `StateT.lift (query unifSpec qN)`.
     funext s
     simp [hybChallengeImpl, srHyb4Impl, StateT.lift, bind_pure]
+    rfl
 
 /-- Spec re-association rerouting `D2SAlgo`'s ambient `oSpec + (srChallengeOracle … + auxSpec)` to
 the **Option A** state-restoration grouping `(oSpec + srChallengeOracle …) + auxSpec` (coins appended
@@ -338,12 +341,12 @@ def srReassocImpl :
     QueryImpl (oSpec + (srChallengeOracle (StmtIn × Salt) pSpec + ((Unit →ₒ U) + unifSpec)))
       (OracleComp ((oSpec + srChallengeOracle (StmtIn × Salt) pSpec) + ((Unit →ₒ U) + unifSpec))) :=
   fun
-  | .inl qO => liftM (query (spec := (oSpec + srChallengeOracle (StmtIn × Salt) pSpec)
-      + ((Unit →ₒ U) + unifSpec)) (Sum.inl (Sum.inl qO)))
-  | .inr (.inl qC) => liftM (query (spec := (oSpec + srChallengeOracle (StmtIn × Salt) pSpec)
-      + ((Unit →ₒ U) + unifSpec)) (Sum.inl (Sum.inr qC)))
-  | .inr (.inr qA) => liftM (query (spec := (oSpec + srChallengeOracle (StmtIn × Salt) pSpec)
-      + ((Unit →ₒ U) + unifSpec)) (Sum.inr qA))
+  | .inl qO => query (spec := (oSpec + srChallengeOracle (StmtIn × Salt) pSpec)
+      + ((Unit →ₒ U) + unifSpec)) (Sum.inl (Sum.inl qO))
+  | .inr (.inl qC) => query (spec := (oSpec + srChallengeOracle (StmtIn × Salt) pSpec)
+      + ((Unit →ₒ U) + unifSpec)) (Sum.inl (Sum.inr qC))
+  | .inr (.inr qA) => query (spec := (oSpec + srChallengeOracle (StmtIn × Salt) pSpec)
+      + ((Unit →ₒ U) + unifSpec)) (Sum.inr qA)
 
 /-- **CO25 §6.1 — `Hyb₄ ≡ IP coin-SR experiment`** (the structural game-match).
 

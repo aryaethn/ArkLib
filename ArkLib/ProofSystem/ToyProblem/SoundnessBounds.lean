@@ -30,6 +30,14 @@ Items in this file:
    — Lemma 6.13 [ABF26]: correlated-agreement-based lower bound on the
    soundness error of `T'[C, t]`.
 
+* `ToyProblem.gamma_transition_prob_le`
+   — the γ-round transition bound of Lemma 6.8 [ABF26]: for an instance with
+   no relaxed-relation witness, the probability over a uniform `γ` that some
+   message satisfies the post-`γ` knowledge state is at most
+   `ε_mca(C, δ) + |Λ(C^{≡2}, δ)| / |F|`. Proved sorry-free (split along
+   `mcaEvent`, unique decoding below `δ_min`, and a per-list-entry affine
+   solution count).
+
 (Lemma 6.5 — every additive code supports erasure correction — is a generic
 coding-theory statement and is **proven** as
 `CodingTheory.additive_code_supports_erasure_correction_grs25` in
@@ -810,5 +818,316 @@ theorem simplified_iop_soundness_ca_lb {k : ℕ} [Nonempty ι]
     rw [key]
     have hmono := Set.ncard_le_ncard hsub (Set.toFinite _)
     exact_mod_cast hmono
+
+/-! ## ABF26 Lemma 6.8: the γ-round transition bound
+
+The remaining material proves the mathematical heart of the round-by-round
+analysis of the toy protocol `T[C, t]` (ABF26 §6.2, Lemma 6.8): for a fixed
+instance `(v, μ₁, μ₂, f₁, f₂)` admitting **no** valid relaxed-relation witness,
+the probability over a uniform challenge `γ` that *some* message `m` satisfies
+the post-`γ` knowledge state is at most `ε_mca(C, δ) + |Λ(C^{≡2}, δ)| / |F|`
+(`gamma_transition_prob_le` below). -/
+
+omit [Fintype ι] [Fintype F] [DecidableEq F] in
+/-- The post-`γ` knowledge state of the ABF26 §6.2 γ-round: some message `m`
+satisfies the folded linear constraint `⟨m, v⟩ = μ₁ + γ·μ₂` and the folded word
+`f₁ + γ·f₂` agrees with the codeword `enc m` on a `(1-δ)`-fraction column set. -/
+private def gammaEvent {k : ℕ} (enc : (Fin k → F) →ₗ[F] (ι → F)) (δ : ℝ≥0)
+    (v : Fin k → F) (μ₁ μ₂ : F) (f₁ f₂ : ι → F) (γ : F) : Prop :=
+  ∃ m : Fin k → F, (∑ j, m j * v j = μ₁ + γ * μ₂) ∧
+    ∃ S : Finset ι, (1 - (δ : ℝ)) * Fintype.card ι ≤ S.card ∧
+      ∀ j ∈ S, f₁ j + γ * f₂ j = enc m j
+
+omit [Field F] [Fintype F] in
+/-- The minimum relative Hamming distance of any code is at most `1` (it is
+either a relative Hamming distance between two words, or `0` by convention). -/
+private lemma minRelHammingDistCode_le_one [Nonempty ι] (C : Set (ι → F)) :
+    minRelHammingDistCode C ≤ 1 := by
+  by_cases h : (possibleRelHammingDists C).Nonempty
+  · obtain ⟨p, _, heq⟩ := minRelHammingDistCode_mem h
+    rw [← heq]
+    exact relHammingDist_le_one
+  · rw [minRelHammingDistCode_of_empty h]
+    exact zero_le_one
+
+omit [Field F] [Fintype F] in
+/-- **Unique decoding from a large agreement set.** Two codewords of `C` that
+agree on a column set covering a `(1-δ)`-fraction of `ι` with `δ < δ_min(C)`
+are equal: their relative Hamming distance is at most `δ`, but distinct
+codewords are at relative distance at least `δ_min(C) > δ`. -/
+private lemma codeword_eq_of_agree_on_large_set [Nonempty ι] {C : Set (ι → F)}
+    {δ : ℝ≥0} (hδ_lt : δ < (minRelHammingDistCode C : ℝ≥0)) {w₁ w₂ : ι → F}
+    (hw₁ : w₁ ∈ C) (hw₂ : w₂ ∈ C) {S : Finset ι}
+    (hScard : (1 - (δ : ℝ)) * Fintype.card ι ≤ S.card)
+    (hagree : ∀ j ∈ S, w₁ j = w₂ j) : w₁ = w₂ := by
+  by_contra hne
+  have hδ1 : δ < 1 :=
+    lt_of_lt_of_le hδ_lt (by exact_mod_cast minRelHammingDistCode_le_one C)
+  have hclose : (δᵣ(w₁, w₂) : ℝ≥0) ≤ δ := by
+    rw [relCloseToWord_iff_exists_agreementCols]
+    refine ⟨S, ?_, fun colIdx ↦
+      ⟨fun hin ↦ hagree colIdx hin, fun hne' hin ↦ hne' (hagree colIdx hin)⟩⟩
+    rw [relDist_floor_bound_iff_complement_bound]
+    have e : ((1 - δ : ℝ≥0) : ℝ) = 1 - (δ : ℝ) := by rw [NNReal.coe_sub hδ1.le]; simp
+    rw [← NNReal.coe_le_coe, NNReal.coe_mul, e]
+    push_cast
+    linarith [hScard]
+  have hmem : δᵣ(w₁, w₂) ∈ possibleRelHammingDists C :=
+    ⟨(w₁, w₂), Set.mem_offDiag.mpr ⟨hw₁, hw₂, hne⟩, rfl⟩
+  have hmin : ((minRelHammingDistCode C : ℚ≥0) : ℝ≥0) ≤ (δᵣ(w₁, w₂) : ℝ≥0) := by
+    exact_mod_cast minRelHammingDistCode_le hmem
+  exact absurd hδ_lt (not_lt.mpr (hmin.trans hclose))
+
+omit [Fintype ι] [Fintype F] [DecidableEq F] in
+/-- `encStack enc` is injective when `enc` is: the two columns of the stack
+recover `enc m.1` and `enc m.2`, hence (by injectivity of `enc`) the pair. -/
+private lemma encStack_injective {k : ℕ} {enc : (Fin k → F) →ₗ[F] (ι → F)}
+    (hinj : Function.Injective enc) : Function.Injective (encStack enc) := by
+  intro p q hpq
+  have h1 : enc p.1 = enc q.1 := by
+    rw [← encStack_transpose_zero enc p, ← encStack_transpose_zero enc q, hpq]
+  have h2 : enc p.2 = enc q.2 := by
+    rw [← encStack_transpose_one enc p, ← encStack_transpose_one enc q, hpq]
+  exact Prod.ext (hinj h1) (hinj h2)
+
+omit [Fintype ι] in
+/-- **The folded affine constraint has at most one solution in `γ`.** If
+`(a, b) ≠ (μ₁, μ₂)` then `a + γ·b = μ₁ + γ·μ₂` holds for at most one `γ`:
+when `b ≠ μ₂` the equation is affine in `γ` with nonzero slope; when `b = μ₂`
+it forces `a = μ₁`, contradicting the violation. -/
+private lemma affine_solution_card_le_one {a b μ₁ μ₂ : F}
+    (h : ¬ (a = μ₁ ∧ b = μ₂)) :
+    (Finset.univ.filter (fun γ : F ↦ a + γ * b = μ₁ + γ * μ₂)).card ≤ 1 := by
+  classical
+  rw [Finset.card_le_one]
+  intro x hx y hy
+  rw [Finset.mem_filter] at hx hy
+  by_cases hb : b = μ₂
+  · exfalso
+    subst hb
+    exact h ⟨add_right_cancel hx.2, rfl⟩
+  · have key : (x - y) * (b - μ₂) = 0 := by linear_combination hx.2 - hy.2
+    rcases mul_eq_zero.mp key with h1 | h2
+    · exact sub_eq_zero.mp h1
+    · exact absurd (sub_eq_zero.mp h2) hb
+
+omit [Fintype ι] [Fintype F] [DecidableEq F] in
+/-- **Union bound over a uniform sample.** `Pr[P ∨ Q] ≤ Pr[P] + Pr[Q]` for a
+uniformly sampled `x`, by the card-filter route (`Finset.card_union_le`). -/
+private lemma Pr_or_le {α : Type} [Fintype α] [Nonempty α] (P Q : α → Prop) :
+    Pr_{let x ← $ᵖ α}[P x ∨ Q x]
+      ≤ Pr_{let x ← $ᵖ α}[P x] + Pr_{let x ← $ᵖ α}[Q x] := by
+  classical
+  rw [prob_uniform_eq_card_filter_div_card, prob_uniform_eq_card_filter_div_card,
+    prob_uniform_eq_card_filter_div_card, ← ENNReal.add_div]
+  refine ENNReal.div_le_div_right ?_ _
+  have hsub : Finset.univ.filter (fun x ↦ P x ∨ Q x)
+      ⊆ Finset.univ.filter P ∪ Finset.univ.filter Q := by
+    intro x hx
+    rw [Finset.mem_filter] at hx
+    rw [Finset.mem_union, Finset.mem_filter, Finset.mem_filter]
+    rcases hx.2 with h | h
+    · exact Or.inl ⟨Finset.mem_univ _, h⟩
+    · exact Or.inr ⟨Finset.mem_univ _, h⟩
+  exact_mod_cast le_trans (Finset.card_le_card hsub) (Finset.card_union_le _ _)
+
+omit [Fintype F] in
+-- `[DecidableEq F]` is used in the proof (via `encStack_mem_closeCodewordsRel_iff`) but does
+-- not surface in the statement; same false-positive pattern as that lemma.
+set_option linter.unusedDecidableInType false in
+/-- **Every `δ`-close codeword pair violates the linear constraints.** Under
+`hNoWit` (no relaxed-relation witness for `(v, μ₁, μ₂, f₁, f₂)`), a message
+pair `p` whose codeword stack lies in `Λ(C^{≡2}, δ, (f₁, f₂))` cannot satisfy
+both `⟨p.1, v⟩ = μ₁` and `⟨p.2, v⟩ = μ₂` — its own agreement set would
+otherwise complete a witness. -/
+private lemma pair_violates {k : ℕ} [Nonempty ι] {C : Set (ι → F)} {δ : ℝ≥0}
+    (hδ1 : δ < 1)
+    (enc : (Fin k → F) →ₗ[F] (ι → F)) (hC : Set.range enc = C)
+    {v : Fin k → F} {μ₁ μ₂ : F} {f₁ f₂ : ι → F}
+    (hNoWit : ¬ ∃ M : Fin 2 → (Fin k → F),
+      (∀ i : Fin 2, ∑ j, M i j * v j = ![μ₁, μ₂] i) ∧
+      ∃ S : Finset ι, (1 - (δ : ℝ)) * Fintype.card ι ≤ S.card ∧
+        ∀ i : Fin 2, ∀ j ∈ S, ![f₁, f₂] i j = enc (M i) j)
+    {p : (Fin k → F) × (Fin k → F)}
+    (hp : encStack enc p ∈ closeCodewordsRel (interleavedCodeSet (κ := Fin 2) C)
+      (fun i ↦ ![f₁ i, f₂ i]) (δ : ℝ)) :
+    ¬ ((∑ j, p.1 j * v j) = μ₁ ∧ (∑ j, p.2 j * v j) = μ₂) := by
+  rintro ⟨h1, h2⟩
+  obtain ⟨S, hScard, hSag⟩ := (encStack_mem_closeCodewordsRel_iff enc hC hδ1 p).mp hp
+  refine hNoWit ⟨![p.1, p.2], fun i ↦ ?_, S, hScard, fun i j hj ↦ ?_⟩
+  · fin_cases i
+    · exact h1
+    · exact h2
+  · fin_cases i
+    · exact (hSag j hj).1
+    · exact (hSag j hj).2
+
+omit [Fintype F] in
+/-- **The γ-round bad-pair extraction (ABF26 §6.2, proof of Lemma 6.8).** At a
+challenge `γ` where the post-`γ` knowledge state holds but the MCA bad event
+does not, the witness set `S` carries a joint codeword pair `(u₁, u₂)` agreeing
+with `(f₁, f₂)` on `S`; pulling it back along the injective `enc` and applying
+unique decoding (`δ < δ_min`) to the two codewords `enc m` and `enc (m₁ + γ·m₂)`
+— both agreeing with `f₁ + γ·f₂` on `S` — yields a message pair `(m₁, m₂)` in
+`Λ(C^{≡2}, δ, (f₁, f₂))` whose folded constraint pins down `γ`. -/
+private lemma gamma_bad_pair {k : ℕ} [Nonempty ι] {C : Set (ι → F)} {δ : ℝ≥0}
+    (enc : (Fin k → F) →ₗ[F] (ι → F)) (hinj : Function.Injective enc)
+    (hC : Set.range enc = C)
+    (hδ_lt : δ < (minRelHammingDistCode C : ℝ≥0))
+    {v : Fin k → F} {μ₁ μ₂ : F} {f₁ f₂ : ι → F} {γ : F}
+    (hEvent : gammaEvent enc δ v μ₁ μ₂ f₁ f₂ γ)
+    (hmca : ¬ mcaEvent C δ f₁ f₂ γ) :
+    ∃ p : (Fin k → F) × (Fin k → F),
+      encStack enc p ∈ closeCodewordsRel (interleavedCodeSet (κ := Fin 2) C)
+        (fun i ↦ ![f₁ i, f₂ i]) (δ : ℝ) ∧
+      (∑ j, p.1 j * v j) + γ * (∑ j, p.2 j * v j) = μ₁ + γ * μ₂ := by
+  classical
+  have hδ1 : δ < 1 :=
+    lt_of_lt_of_le hδ_lt (by exact_mod_cast minRelHammingDistCode_le_one C)
+  obtain ⟨m, hconstr, S, hScard, hagree⟩ := hEvent
+  -- The same `S` works for `mcaEvent`'s size clause, in `ℝ≥0`.
+  have hSnn : (S.card : ℝ≥0) ≥ (1 - δ) * Fintype.card ι := by
+    have e : ((1 - δ : ℝ≥0) : ℝ) = 1 - (δ : ℝ) := by rw [NNReal.coe_sub hδ1.le]; simp
+    rw [ge_iff_le, ← NNReal.coe_le_coe, NNReal.coe_mul, e]
+    push_cast
+    linarith [hScard]
+  have hencm : enc m ∈ C := hC ▸ Set.mem_range_self m
+  -- `¬mcaEvent` at `S` forces a joint codeword pair agreeing with `(f₁, f₂)` on `S`
+  -- (the line clause holds at `S` via the codeword `enc m`).
+  have hpair : pairJointAgreesOn C S f₁ f₂ := by
+    by_contra hno
+    exact hmca ⟨S, hSnn, ⟨enc m, hencm, fun i hi ↦ by
+      rw [smul_eq_mul]; exact (hagree i hi).symm⟩, hno⟩
+  obtain ⟨u₁, hu₁, u₂, hu₂, hagS⟩ := hpair
+  obtain ⟨m₁, hm₁⟩ : ∃ m₁, enc m₁ = u₁ := by rw [← hC] at hu₁; exact hu₁
+  obtain ⟨m₂, hm₂⟩ : ∃ m₂, enc m₂ = u₂ := by rw [← hC] at hu₂; exact hu₂
+  refine ⟨(m₁, m₂), ?_, ?_⟩
+  · -- `(m₁, m₂)`'s codeword stack is `δ`-close to `(f₁, f₂)` on `S`.
+    rw [encStack_mem_closeCodewordsRel_iff enc hC hδ1]
+    refine ⟨S, hScard, fun i hi ↦ ⟨?_, ?_⟩⟩
+    · change f₁ i = enc m₁ i
+      rw [hm₁]; exact ((hagS i hi).1).symm
+    · change f₂ i = enc m₂ i
+      rw [hm₂]; exact ((hagS i hi).2).symm
+  · -- Unique decoding: `enc m = enc (m₁ + γ • m₂)`, then push the constraint through.
+    have hagree2 : ∀ j ∈ S, enc m j = enc (m₁ + γ • m₂) j := by
+      intro j hj
+      have hcalc : enc (m₁ + γ • m₂) j = f₁ j + γ * f₂ j := by
+        rw [map_add, map_smul]
+        simp only [Pi.add_apply, Pi.smul_apply, smul_eq_mul]
+        rw [hm₁, hm₂, (hagS j hj).1, (hagS j hj).2]
+      rw [hcalc, hagree j hj]
+    have heq : enc m = enc (m₁ + γ • m₂) :=
+      codeword_eq_of_agree_on_large_set hδ_lt hencm
+        (hC ▸ Set.mem_range_self (m₁ + γ • m₂)) hScard hagree2
+    have hm : m = m₁ + γ • m₂ := hinj heq
+    have hsum : (∑ j, (m₁ + γ • m₂) j * v j)
+        = (∑ j, m₁ j * v j) + γ * (∑ j, m₂ j * v j) := by
+      simp only [Pi.add_apply, Pi.smul_apply, smul_eq_mul, add_mul, mul_assoc]
+      rw [Finset.sum_add_distrib, ← Finset.mul_sum]
+    rw [hm] at hconstr
+    rw [← hsum]
+    exact hconstr
+
+/-- **γ-round transition bound (ABF26 Lemma 6.8, the γ-round step).** For a
+fixed instance `(v, μ₁, μ₂, f₁, f₂)` of the toy protocol `T[C, t]` admitting
+**no** valid relaxed-relation witness (`hNoWit`), the probability over a
+uniform challenge `γ` that *some* message `m` satisfies the post-`γ` knowledge
+state (`gammaEvent`) is at most
+
+  `ε_mca(C, δ) + |Λ(C^{≡2}, δ)| / |F|`.
+
+Proof (ABF26 §6.2): split the event along the MCA bad event `mcaEvent`. The
+MCA branch is bounded by `ε_mca` (the supremum defining `epsMCA`, at the stack
+`(f₁, f₂)`). On the complement, `gamma_bad_pair` extracts from each winning `γ`
+a message pair in `Λ(C^{≡2}, δ, (f₁, f₂))` whose folded linear constraint
+`⟨m₁, v⟩ + γ·⟨m₂, v⟩ = μ₁ + γ·μ₂` holds at `γ`; by `hNoWit` every listed pair
+violates `(⟨m₁, v⟩, ⟨m₂, v⟩) = (μ₁, μ₂)` (`pair_violates`), so each pins down
+at most one `γ` (`affine_solution_card_le_one`). The bad challenges therefore
+number at most `|Λ(C^{≡2}, δ)|`, giving the `|Λ|/|F|` term. -/
+theorem gamma_transition_prob_le {k : ℕ} [Nonempty ι]
+    (C : Set (ι → F)) (δ : ℝ≥0)
+    (enc : (Fin k → F) →ₗ[F] (ι → F)) (hinj : Function.Injective enc)
+    (hC : Set.range enc = C)
+    (_hδ_pos : 0 < δ) (hδ_lt : δ < (minRelHammingDistCode C : ℝ≥0))
+    (v : Fin k → F) (μ₁ μ₂ : F) (f₁ f₂ : ι → F)
+    (hNoWit : ¬ ∃ M : Fin 2 → (Fin k → F),
+      (∀ i : Fin 2, ∑ j, M i j * v j = ![μ₁, μ₂] i) ∧
+      ∃ S : Finset ι, (1 - (δ : ℝ)) * Fintype.card ι ≤ S.card ∧
+        ∀ i : Fin 2, ∀ j ∈ S, ![f₁, f₂] i j = enc (M i) j) :
+    Pr_{let γ ← $ᵖ F}[∃ m : Fin k → F,
+        (∑ j, m j * v j = μ₁ + γ * μ₂) ∧
+        ∃ S : Finset ι, (1 - (δ : ℝ)) * Fintype.card ι ≤ S.card ∧
+          ∀ j ∈ S, f₁ j + γ * f₂ j = enc m j]
+      ≤ epsMCA (F := F) (A := F) C δ +
+        ((Lambda (interleavedCodeSet (κ := Fin 2) C) (δ : ℝ)).toNat : ℝ≥0∞)
+          / (Fintype.card F : ℝ≥0∞) := by
+  classical
+  have hδ1 : δ < 1 :=
+    lt_of_lt_of_le hδ_lt (by exact_mod_cast minRelHammingDistCode_le_one C)
+  set Cint : Set (Matrix ι (Fin 2) F) := interleavedCodeSet (κ := Fin 2) C with hCint
+  -- Message-pair enumeration of `Λ(C^{≡2}, δ, (f₁, f₂))`.
+  set Smsg : Finset ((Fin k → F) × (Fin k → F)) := Finset.univ.filter
+    (fun p ↦ encStack enc p ∈ closeCodewordsRel Cint (fun i ↦ ![f₁ i, f₂ i]) (δ : ℝ))
+    with hSmsg
+  -- `|Smsg| ≤ Λ(C^{≡2}, δ).toNat` via the injective `encStack` and the `Lambda` supremum.
+  have hSmsg_le : Smsg.card ≤ (Lambda Cint (δ : ℝ)).toNat := by
+    have hsub : encStack enc '' (Smsg : Set ((Fin k → F) × (Fin k → F)))
+        ⊆ closeCodewordsRel Cint (fun i ↦ ![f₁ i, f₂ i]) (δ : ℝ) := by
+      rintro V ⟨p, hp, rfl⟩
+      exact (Finset.mem_filter.mp hp).2
+    have h1 : Smsg.card ≤ (closeCodewordsRel Cint (fun i ↦ ![f₁ i, f₂ i]) (δ : ℝ)).ncard :=
+      calc Smsg.card
+          = ((Smsg : Set ((Fin k → F) × (Fin k → F)))).ncard := (Set.ncard_coe_finset _).symm
+        _ = (encStack enc '' (Smsg : Set ((Fin k → F) × (Fin k → F)))).ncard :=
+            (Set.ncard_image_of_injective _ (encStack_injective hinj)).symm
+        _ ≤ _ := Set.ncard_le_ncard hsub (Set.toFinite _)
+    have h2 : ((closeCodewordsRel Cint (fun i ↦ ![f₁ i, f₂ i]) (δ : ℝ)).ncard : ℕ∞)
+        ≤ Lambda Cint (δ : ℝ) := by
+      rw [Lambda]
+      exact le_iSup (fun f : ι → Fin 2 → F ↦ ((closeCodewordsRel Cint f (δ : ℝ)).ncard : ℕ∞))
+        (fun i ↦ ![f₁ i, f₂ i])
+    have h3 : (Smsg.card : ℕ∞) ≤ Lambda Cint (δ : ℝ) := le_trans (by exact_mod_cast h1) h2
+    rwa [← ENat.coe_toNat (Lambda_ne_top (C := Cint) (δ : ℝ)), Nat.cast_le] at h3
+  -- The bad challenges are covered by `≤ 1`-element solution sets, one per listed pair.
+  have hcards : (Finset.univ.filter (fun γ : F ↦
+      gammaEvent enc δ v μ₁ μ₂ f₁ f₂ γ ∧ ¬ mcaEvent C δ f₁ f₂ γ)).card
+      ≤ (Lambda Cint (δ : ℝ)).toNat := by
+    have hbadsub : Finset.univ.filter (fun γ : F ↦
+        gammaEvent enc δ v μ₁ μ₂ f₁ f₂ γ ∧ ¬ mcaEvent C δ f₁ f₂ γ)
+        ⊆ Smsg.biUnion (fun p ↦ Finset.univ.filter (fun γ : F ↦
+            (∑ j, p.1 j * v j) + γ * (∑ j, p.2 j * v j) = μ₁ + γ * μ₂)) := by
+      intro γ hγ
+      rw [Finset.mem_filter] at hγ
+      obtain ⟨p, hpmem, hpeq⟩ := gamma_bad_pair enc hinj hC hδ_lt hγ.2.1 hγ.2.2
+      rw [Finset.mem_biUnion]
+      exact ⟨p, Finset.mem_filter.mpr ⟨Finset.mem_univ _, hpmem⟩,
+        Finset.mem_filter.mpr ⟨Finset.mem_univ _, hpeq⟩⟩
+    refine le_trans (Finset.card_le_card hbadsub) (le_trans Finset.card_biUnion_le ?_)
+    calc ∑ p ∈ Smsg, (Finset.univ.filter (fun γ : F ↦
+            (∑ j, p.1 j * v j) + γ * (∑ j, p.2 j * v j) = μ₁ + γ * μ₂)).card
+        ≤ ∑ _p ∈ Smsg, 1 := Finset.sum_le_sum (fun p hp ↦
+            affine_solution_card_le_one
+              (pair_violates hδ1 enc hC hNoWit (Finset.mem_filter.mp hp).2))
+      _ = Smsg.card := by rw [Finset.sum_const, smul_eq_mul, mul_one]
+      _ ≤ (Lambda Cint (δ : ℝ)).toNat := hSmsg_le
+  -- Assemble: split off the MCA bad event, bound each branch.
+  change Pr_{let γ ← $ᵖ F}[gammaEvent enc δ v μ₁ μ₂ f₁ f₂ γ] ≤ _
+  refine le_trans (Pr_le_Pr_of_implies ($ᵖ F) _
+      (fun γ ↦ mcaEvent C δ f₁ f₂ γ ∨
+        (gammaEvent enc δ v μ₁ μ₂ f₁ f₂ γ ∧ ¬ mcaEvent C δ f₁ f₂ γ))
+      (fun γ h ↦ ?_))
+    (le_trans (Pr_or_le _ _) (add_le_add ?_ ?_))
+  · by_cases hm : mcaEvent C δ f₁ f₂ γ
+    · exact Or.inl hm
+    · exact Or.inr ⟨h, hm⟩
+  · -- `Pr[mcaEvent] ≤ ε_mca` via `le_iSup` at the word stack `(f₁, f₂)`.
+    unfold epsMCA
+    exact le_iSup (fun u : WordStack F (Fin 2) ι ↦
+      Pr_{let γ ← $ᵖ F}[mcaEvent C δ (u 0) (u 1) γ]) ![f₁, f₂]
+  · -- `Pr[bad] = |bad| / |F| ≤ Λ.toNat / |F|` by the card-filter route.
+    rw [prob_uniform_eq_card_filter_div_card]
+    simp only [ENNReal.coe_natCast]
+    exact ENNReal.div_le_div_right (by exact_mod_cast hcards) _
 
 end ToyProblem

@@ -715,3 +715,35 @@ theorem prob_uniform_le_inv_of_card_le_one {F : Type} [Fintype F] [Nonempty F]
   exact_mod_cast h
 
 end ProbabilityTools
+
+section UniformProductBound
+
+/-- **Uniform product bound.** For a uniformly random function `xs : Fin t → ι` into a finite
+nonempty type `ι`, the probability that every coordinate lands in a fixed `A : Finset ι` is
+exactly `(|A| / |ι|) ^ t`: the satisfying functions are exactly
+`Fintype.piFinset (fun _ ↦ A)`, of cardinality `|A| ^ t`, out of `|ι| ^ t` functions total. -/
+theorem prob_uniform_pi_mem_finset_eq {ι : Type} [Fintype ι] [Nonempty ι]
+    (A : Finset ι) (t : ℕ) :
+    Pr_{ let xs ←$ᵖ (Fin t → ι) }[ ∀ i, xs i ∈ A ] =
+      ((A.card : ENNReal) / (Fintype.card ι : ENNReal)) ^ t := by
+  classical
+  rw [prob_uniform_eq_card_filter_div_card]
+  have hfilter : Finset.filter (fun xs : Fin t → ι ↦ ∀ i, xs i ∈ A) Finset.univ =
+      Fintype.piFinset (fun _ : Fin t ↦ A) := by
+    ext xs
+    simp [Fintype.mem_piFinset]
+  rw [hfilter, Fintype.card_piFinset]
+  simp only [Finset.prod_const, Finset.card_univ, Fintype.card_fin, Fintype.card_fun]
+  push_cast
+  rw [div_eq_mul_inv, div_eq_mul_inv, mul_pow, ENNReal.inv_pow]
+
+/-- `≤`-corollary of `prob_uniform_pi_mem_finset_eq`, in the shape usually consumed by
+round-by-round error accounting: the probability that a uniformly random tuple of `t`
+coordinates all land in `A` is at most `(|A| / |ι|) ^ t`. -/
+theorem prob_uniform_pi_mem_finset_le {ι : Type} [Fintype ι] [Nonempty ι]
+    (A : Finset ι) (t : ℕ) :
+    Pr_{ let xs ←$ᵖ (Fin t → ι) }[ ∀ i, xs i ∈ A ] ≤
+      ((A.card : ENNReal) / (Fintype.card ι : ENNReal)) ^ t :=
+  le_of_eq (prob_uniform_pi_mem_finset_eq A t)
+
+end UniformProductBound

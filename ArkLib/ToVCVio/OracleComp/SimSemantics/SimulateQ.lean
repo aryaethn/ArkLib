@@ -541,3 +541,70 @@ lemma simulateQ_addLift_add_liftM_right
     ← OracleComp.liftComp_eq_liftM, ← OracleComp.liftComp_eq_liftM,
     QueryImpl.addLift_def, QueryImpl.simulateQ_add_liftComp_right,
     simulateQ_liftTarget, QueryImpl.simulateQ_add_liftComp_right]
+
+/-- Binding a failed `OptionT` computation fails: `failure >>= f = failure`. The `OptionT`
+sibling of core's `OptionT.bind_throw`; phrased for the `Alternative`-flavoured `failure`
+that `guard`-based protocol verifiers produce. Candidate for upstreaming next to core's
+`OptionT.run_failure`. -/
+lemma OptionT.failure_bind.{u, v} {m : Type u → Type v} [Monad m] [LawfulMonad m]
+    {α β : Type u}
+    (f : α → OptionT m β) :
+    (failure : OptionT m α) >>= f = failure := by
+  apply OptionT.ext
+  simp only [OptionT.run_bind, OptionT.run_failure, Option.elimM, pure_bind, Option.elim_none]
+
+/-- `simulateQ` maps an `OptionT` `failure` (whose run is the underlying `pure none`) to
+`failure`: the `failure` companion of `simulateQ_pure` for `OptionT`-monadic computations.
+Both sides are definitionally `pure none`, but the `failure` spelling is what a failed
+`guard` rewrites to in a simulated verifier body. -/
+lemma simulateQ_optionT_failure
+    {ι' α : Type} {spec : OracleSpec ι'} {n : Type → Type} [Monad n] [LawfulMonad n]
+    (impl : QueryImpl spec n) :
+    simulateQ impl ((failure : OptionT (OracleComp spec) α) : OracleComp spec (Option α))
+      = (failure : OptionT n α) :=
+  simulateQ_pure impl none
+
+/-- Failing companion to `simulateQ_optionT_forIn_yield_pure_some`: if each loop body, under
+`simulateQ`, resolves to `pure (some (ForInStep.yield init))` when its per-element condition
+`cond a` holds and to `pure none` otherwise, and *some* element of the list fails its
+condition, then the whole `OptionT`-monadic `forIn` resolves to `pure none` (the failure
+propagates through the remaining `OptionT` binds). Together the two lemmas characterize a
+guarded spot-check loop: `pure (some init)` iff every condition holds, `pure none`
+otherwise. -/
+lemma simulateQ_optionT_forIn_yield_pure_none
+    {ι' α β : Type} {spec : OracleSpec ι'} {n : Type → Type} [Monad n] [LawfulMonad n]
+    (impl : QueryImpl spec n) (xs : List α) (init : β)
+    (body : α → β → OptionT (OracleComp spec) (ForInStep β))
+    (cond : α → Prop) [DecidablePred cond]
+    (hbody : ∀ a, simulateQ impl ((body a init : OptionT (OracleComp spec) (ForInStep β)) :
+        OracleComp spec (Option (ForInStep β)))
+      = (pure (if cond a then some (ForInStep.yield init) else none) :
+          n (Option (ForInStep β))))
+    (hfail : ¬ ∀ a ∈ xs, cond a) :
+    simulateQ impl ((forIn xs init body : OptionT (OracleComp spec) β) :
+        OracleComp spec (Option β))
+      = (pure none : n (Option β)) := by
+  rw [simulateQ_optionT_list_forIn]
+  induction xs with
+  | nil => exact absurd (List.forall_mem_nil _) hfail
+  | cons x rest ih =>
+      rw [List.forIn_cons]
+      by_cases hx : cond x
+      · change ((simulateQ impl ((body x init : OptionT (OracleComp spec) (ForInStep β)) :
+            OracleComp spec (Option (ForInStep β))) : OptionT n (ForInStep β)) >>= _ :
+            OptionT n β) = _
+        rw [show (simulateQ impl ((body x init : OptionT (OracleComp spec) (ForInStep β)) :
+            OracleComp spec (Option (ForInStep β))) : OptionT n (ForInStep β))
+            = (pure (ForInStep.yield init) : OptionT n (ForInStep β)) from by
+          rw [hbody x, if_pos hx]; rfl]
+        rw [pure_bind]
+        exact ih (fun hall ↦ hfail (List.forall_mem_cons.mpr ⟨hx, hall⟩))
+      · change ((simulateQ impl ((body x init : OptionT (OracleComp spec) (ForInStep β)) :
+            OracleComp spec (Option (ForInStep β))) : OptionT n (ForInStep β)) >>= _ :
+            OptionT n β) = _
+        rw [show (simulateQ impl ((body x init : OptionT (OracleComp spec) (ForInStep β)) :
+            OracleComp spec (Option (ForInStep β))) : OptionT n (ForInStep β))
+            = (failure : OptionT n (ForInStep β)) from by
+          rw [hbody x, if_neg hx]; rfl]
+        rw [OptionT.failure_bind]
+        rfl

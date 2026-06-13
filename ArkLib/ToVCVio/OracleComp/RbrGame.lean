@@ -187,6 +187,72 @@ lemma probEvent_bind_le_probEvent {m : Type → Type} [Monad m]
     · simp [h x hx hp]
     · simp [probOutput_eq_zero_of_not_mem_support hx]
 
+/-- **Additive prefix-split for `probEvent` over a bind.** If, for every support point `x` of
+`mx` *outside* the prefix event `p`, the continuation satisfies the target event `q` with
+probability at most `ε`, then the probability of `q` after the bind is at most
+`Pr[p | mx] + ε`: the prefix-bad mass is paid in full, the tail bound is paid only off it.
+This is the lemma behind *sum-form* knowledge-soundness errors (one summand per challenge
+round). Generalizes both `probEvent_bind_le_probEvent` (the `ε = 0` case) and
+`probEvent_bind_le_of_forall_le` (the `p = fun _ ↦ False` case); upstream VCV-io candidate. -/
+lemma probEvent_bind_le_probEvent_add {m : Type → Type} [Monad m]
+    [MonadLiftT m SPMF] [LawfulMonadLiftT m SPMF] [MonadLiftT m SetM] [EvalDistCompatible m]
+    {α β : Type} {mx : m α} {my : α → m β} {q : β → Prop} {p : α → Prop} {ε : ℝ≥0∞}
+    (h : ∀ x ∈ support mx, ¬ p x → Pr[ q | my x] ≤ ε) :
+    Pr[ q | mx >>= my] ≤ Pr[ p | mx] + ε := by
+  classical
+  rw [probEvent_bind_eq_tsum, probEvent_eq_tsum_indicator]
+  calc ∑' x, Pr[= x | mx] * Pr[ q | my x]
+      ≤ ∑' x, ({x | p x}.indicator (Pr[= · | mx]) x
+          + {x | ¬ p x}.indicator (fun x ↦ Pr[= x | mx] * ε) x) := by
+        refine ENNReal.tsum_le_tsum fun x ↦ ?_
+        by_cases hp : p x
+        · refine le_trans (mul_le_mul' le_rfl probEvent_le_one) ?_
+          simp [hp]
+        · by_cases hx : x ∈ support mx
+          · refine le_trans (mul_le_mul' le_rfl (h x hx hp)) ?_
+            simp [hp]
+          · simp [probOutput_eq_zero_of_not_mem_support hx]
+    _ = (∑' x, {x | p x}.indicator (Pr[= · | mx]) x)
+          + ∑' x, {x | ¬ p x}.indicator (fun x ↦ Pr[= x | mx] * ε) x := ENNReal.tsum_add
+    _ ≤ (∑' x, {x | p x}.indicator (Pr[= · | mx]) x) + ε := by
+        refine add_le_add le_rfl ?_
+        refine le_trans (ENNReal.tsum_le_tsum fun x ↦ Set.indicator_le_self _ _ x) ?_
+        rw [ENNReal.tsum_mul_right]
+        exact le_trans (mul_le_mul' tsum_probOutput_le_one le_rfl) (one_mul ε).le
+
+/-! ### Logging glue
+
+Two generic `loggingOracle` lemmas shared by the knowledge-soundness game reductions (ABF26
+L6.10 in `ToyProblem/Spec/SimplifiedIOR.lean`, L6.6 in `ToyProblem/Spec/KnowledgeSoundness.lean`).
+Both are upstream VCV-io candidates. -/
+
+namespace loggingOracle
+
+/-- Logging a `pure` `OptionT` computation (e.g. an always-accepting or already-collapsed
+verifier `verify`) produces the same value with an empty query log. Stated over the
+`OptionT`-coerced `pure` so it rewrites knowledge-soundness game terms directly. -/
+lemma run_simulateQ_optionT_pure
+    {ιs : Type} {spec : OracleSpec ιs} {α : Type} (a : α) :
+    (simulateQ loggingOracle
+        ((pure a : OptionT (OracleComp spec) α) : OracleComp spec (Option α))).run
+      = (pure (some a, ∅) : OracleComp spec (Option α × QueryLog spec)) := by
+  rw [show ((pure a : OptionT (OracleComp spec) α) : OracleComp spec (Option α))
+      = (pure (some a) : OracleComp spec (Option α)) from rfl, simulateQ_pure]
+  rfl
+
+/-- Discard a query log under a continuation that only uses the run result (e.g. an extractor
+that ignores the logs): mapping a `Prod.fst`-factoring function over a logged run is mapping it
+over the bare run. Map-shaped companion of `loggingOracle.run_simulateQ_bind_fst`; apply by
+`Eq.trans` (definitional unification — the factored spelling is not `rw`-matchable). -/
+lemma map_fst_run_simulateQ {ιs : Type} {spec : OracleSpec.{0, 0} ιs}
+    {α β : Type} (oa : OracleComp spec α) (h : α → β) :
+    (fun x ↦ h x.1) <$> (simulateQ loggingOracle oa).run = h <$> oa := by
+  refine Eq.trans
+    (Eq.symm (Functor.map_map Prod.fst h ((simulateQ loggingOracle oa).run))) ?_
+  rw [loggingOracle.fst_map_run_simulateQ]
+
+end loggingOracle
+
 namespace ProtocolSpec
 
 variable {n : ℕ} {pSpec : ProtocolSpec n} [∀ j, SampleableType (pSpec.Challenge j)]
@@ -241,5 +307,127 @@ theorem probEvent_optionT_simulateQ_addLift_getChallenge_bind_some_le
   rw [OptionT.mem_support_iff, OptionT.run_mk, support_map, Set.mem_image] at hz
   obtain ⟨t, _, ht⟩ := hz
   exact ⟨t, by rw [Option.some_inj] at ht; rw [ht]; exact hE⟩
+
+/-- **Prefix-extended, `Option`-valued master mixture bound for the knowledge-soundness game
+shape.** Generalizes `probEvent_optionT_simulateQ_addLift_getChallenge_bind_some_le` in two
+directions needed by multi-round games: an arbitrary (adversarial) prefix `mid` runs *before*
+the challenge draw, and the post-challenge value `f pre c t` is `Option`-valued (the verifier
+may reject, producing `none`). The challenge-only hypothesis accordingly asks for the
+probability that *some* tail output produces a `some` value satisfying the event.
+
+`oa` is taken as an argument together with the equation `hoa` (rather than inlined in the
+conclusion) so that applying the lemma to a concrete game by `refine` assigns `oa` to the
+game's computation by *definitional* unification; the caller then proves `hoa` by genuine
+rewriting without having to respell the game term. The conclusion fixes the oracle state `s`
+(rather than sampling it from an `init`) because the intended use is *inside* an outer game
+bound (e.g. the tail hypothesis of
+`probEvent_optionT_simulateQ_addLift_getChallenge_first_bind_le_add`), where the state has
+already been fixed; recover the `init`-sampled form with `probEvent_bind_le_of_forall_le`. -/
+theorem probEvent_optionT_simulateQ_addLift_prefix_getChallenge_bind_le
+    {P T β : Type}
+    (s : σ) (impl : QueryImpl oSpec (StateT σ ProbComp))
+    (oa : OracleComp (oSpec + [pSpec.Challenge]ₒ) (Option β)) (i : pSpec.ChallengeIdx)
+    (mid : OracleComp (oSpec + [pSpec.Challenge]ₒ) P)
+    (tail : P → pSpec.Challenge i → OracleComp (oSpec + [pSpec.Challenge]ₒ) T)
+    (f : P → pSpec.Challenge i → T → Option β) (E : β → Prop) {ε : ℝ≥0∞}
+    (hoa : oa = do
+      let pre ← mid
+      let c ← liftComp (pSpec.getChallenge i) (oSpec + [pSpec.Challenge]ₒ)
+      (f pre c) <$> tail pre c)
+    (h : ∀ pre : P,
+      Pr[ fun c ↦ ∃ t b, f pre c t = some b ∧ E b | $ᵗ (pSpec.Challenge i)] ≤ ε) :
+    Pr[ E | OptionT.mk
+      ((simulateQ (impl.addLift challengeQueryImpl : QueryImpl _ (StateT σ ProbComp))
+        oa).run' s)] ≤ ε := by
+  subst hoa
+  -- Split off the simulated prefix, then resolve the challenge query, per initial state.
+  have hbody : ∀ s : σ,
+      (simulateQ (impl.addLift challengeQueryImpl : QueryImpl _ (StateT σ ProbComp))
+        (do
+          let pre ← mid
+          let c ← liftComp (pSpec.getChallenge i) (oSpec + [pSpec.Challenge]ₒ)
+          (f pre c) <$> tail pre c)).run' s
+      = (simulateQ (impl.addLift challengeQueryImpl : QueryImpl _ (StateT σ ProbComp))
+          mid).run s >>= fun x ↦
+          ($ᵗ (pSpec.Challenge i)) >>= fun c ↦
+            (f x.1 c) <$>
+              ((simulateQ (impl.addLift challengeQueryImpl : QueryImpl _ (StateT σ ProbComp))
+                (tail x.1 c)).run' x.2) := by
+    intro s
+    rw [simulateQ_bind, StateT.run'_bind']
+    refine bind_congr fun x ↦ ?_
+    -- The per-prefix equality, with the prefix value and state as plain variables (the
+    -- `StateT.run'_bind'` match-lambda is defeq to its projection spelling but not
+    -- `rw`-matchable; `exact … x.1 x.2` bridges by definitional unification).
+    have hx : ∀ (pre : P) (s' : σ),
+        (simulateQ (impl.addLift challengeQueryImpl : QueryImpl _ (StateT σ ProbComp))
+          (do
+            let c ← liftComp (pSpec.getChallenge i) (oSpec + [pSpec.Challenge]ₒ)
+            (f pre c) <$> tail pre c)).run' s'
+        = ($ᵗ (pSpec.Challenge i)) >>= fun c ↦
+            (f pre c) <$>
+              ((simulateQ (impl.addLift challengeQueryImpl : QueryImpl _ (StateT σ ProbComp))
+                (tail pre c)).run' s') := by
+      intro pre s'
+      rw [simulateQ_bind, simulateQ_addLift_challengeQueryImpl_getChallenge,
+        StateT.run'_bind']
+      simp only [StateT.run_liftM, bind_assoc, pure_bind, simulateQ_map, StateT.run'_map']
+    exact hx x.1 x.2
+  rw [hbody s, OptionT.mk_bind]
+  refine probEvent_bind_le_of_forall_le fun x _ ↦ ?_
+  rw [OptionT.mk_bind]
+  refine le_trans (probEvent_bind_le_probEvent
+    (p := fun c ↦ ∃ t b, f x.1 c t = some b ∧ E b) ?_)
+    (le_trans (le_of_eq (OptionT.probEvent_liftM _ _)) (h x.1))
+  intro c _ hc
+  refine probEvent_eq_zero fun z hz hE ↦ hc ?_
+  rw [OptionT.mem_support_iff, OptionT.run_mk, support_map, Set.mem_image] at hz
+  obtain ⟨t, _, htz⟩ := hz
+  exact ⟨t, z, htz, hE⟩
+
+/-- **Additive master bound for a challenge-first game.** For a game whose `Option`-valued
+computation starts with a fresh challenge draw and continues with an arbitrary (adversarial,
+possibly further-sampling) tail, the game probability is at most `ε₁ + ε₂` where `ε₁` bounds a
+challenge-only prefix event `p` and `ε₂` bounds the tail game on every challenge *off* `p`.
+This is the game-level form of `probEvent_bind_le_probEvent_add` and the engine of sum-form
+knowledge-soundness errors: instantiate `p` with the bad-challenge event of the first round
+and discharge the tail bound (e.g. via
+`probEvent_optionT_simulateQ_addLift_prefix_getChallenge_bind_le` at a later round). -/
+theorem probEvent_optionT_simulateQ_addLift_getChallenge_first_bind_le_add
+    {β : Type}
+    (init : ProbComp σ) (impl : QueryImpl oSpec (StateT σ ProbComp))
+    (oa : OracleComp (oSpec + [pSpec.Challenge]ₒ) (Option β)) (i : pSpec.ChallengeIdx)
+    (tail : pSpec.Challenge i → OracleComp (oSpec + [pSpec.Challenge]ₒ) (Option β))
+    (E : β → Prop) (p : pSpec.Challenge i → Prop) {ε₁ ε₂ : ℝ≥0∞}
+    (hoa : oa = do
+      let c ← liftComp (pSpec.getChallenge i) (oSpec + [pSpec.Challenge]ₒ)
+      tail c)
+    (h₁ : Pr[ p | $ᵗ (pSpec.Challenge i)] ≤ ε₁)
+    (h₂ : ∀ c, ¬ p c → ∀ s : σ,
+      Pr[ E | OptionT.mk
+        ((simulateQ (impl.addLift challengeQueryImpl : QueryImpl _ (StateT σ ProbComp))
+          (tail c)).run' s)] ≤ ε₂) :
+    Pr[ E | OptionT.mk (do
+      (simulateQ (impl.addLift challengeQueryImpl : QueryImpl _ (StateT σ ProbComp))
+        oa).run' (← init))] ≤ ε₁ + ε₂ := by
+  subst hoa
+  -- Resolve the simulated challenge query into a top-level uniform draw, per initial state.
+  have hbody : ∀ s : σ,
+      (simulateQ (impl.addLift challengeQueryImpl : QueryImpl _ (StateT σ ProbComp))
+        (do
+          let c ← liftComp (pSpec.getChallenge i) (oSpec + [pSpec.Challenge]ₒ)
+          tail c)).run' s
+      = ($ᵗ (pSpec.Challenge i)) >>= fun c ↦
+          (simulateQ (impl.addLift challengeQueryImpl : QueryImpl _ (StateT σ ProbComp))
+            (tail c)).run' s := by
+    intro s
+    rw [simulateQ_bind, simulateQ_addLift_challengeQueryImpl_getChallenge,
+      StateT.run'_bind']
+    simp only [StateT.run_liftM, bind_assoc, pure_bind]
+  rw [OptionT.mk_bind]
+  refine probEvent_bind_le_of_forall_le fun s _ ↦ ?_
+  rw [hbody s, OptionT.mk_bind]
+  refine le_trans (probEvent_bind_le_probEvent_add (p := p) fun c _ hc ↦ h₂ c hc s)
+    (add_le_add (le_trans (le_of_eq (OptionT.probEvent_liftM _ _)) h₁) le_rfl)
 
 end ProtocolSpec

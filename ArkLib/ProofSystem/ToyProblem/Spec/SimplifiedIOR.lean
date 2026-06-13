@@ -296,30 +296,6 @@ private lemma gamma_game_bound [SampleableType F] [Nonempty ι]
         ENNReal.coe_div (Nat.cast_ne_zero.mpr Fintype.card_ne_zero),
         ENNReal.coe_natCast, ENNReal.coe_natCast]
 
-/-- Logging a `pure` `OptionT` computation (the C6.9 verifier's always-accepting
-`verify`) produces the `some` output with an empty query log. Stated over the
-`OptionT`-coerced `pure` so it rewrites the L6.10 game term directly. -/
-private lemma run_simulateQ_loggingOracle_optionT_pure
-    {ιs : Type} {spec : OracleSpec ιs} {α : Type} (a : α) :
-    (simulateQ loggingOracle
-        ((pure a : OptionT (OracleComp spec) α) : OracleComp spec (Option α))).run
-      = (pure (some a, ∅) : OracleComp spec (Option α × QueryLog spec)) := by
-  rw [show ((pure a : OptionT (OracleComp spec) α) : OracleComp spec (Option α))
-      = (pure (some a) : OracleComp spec (Option α)) from rfl, simulateQ_pure]
-  rfl
-
-/-- Discard the prover's query log under a continuation that only uses the run
-result (the L6.10 extractor ignores the logs): mapping a `Prod.fst`-factoring
-function over a logged run is mapping it over the bare run. Map-shaped
-companion of `loggingOracle.run_simulateQ_bind_fst`; apply by `Eq.trans`
-(definitional unification — the factored spelling is not `rw`-matchable). -/
-private lemma map_fst_run_simulateQ_loggingOracle {ιs : Type} {spec : OracleSpec.{0, 0} ιs}
-    {α β : Type} (oa : OracleComp spec α) (h : α → β) :
-    (fun x ↦ h x.1) <$> (simulateQ loggingOracle oa).run = h <$> oa := by
-  refine Eq.trans
-    (Eq.symm (Functor.map_map Prod.fst h ((simulateQ loggingOracle oa).run))) ?_
-  rw [loggingOracle.fst_map_run_simulateQ]
-
 omit [DecidableEq ι] in
 /-- **Lemma 6.10 of [ABF26]** (knowledge soundness of Construction 6.9).
 
@@ -345,9 +321,9 @@ against the prover, so an always-`some` extractor is strictly stronger),
 and the γ-round mathematical content is the same
 `ToyProblem.gamma_transition_prob_le` (via `gamma_game_bound` above).
 The game-shape reduction peels the query logs
-(`map_fst_run_simulateQ_loggingOracle` — the extractor ignores them) and
+(`loggingOracle.map_fst_run_simulateQ` — the extractor ignores them) and
 the always-accepting pure verifier
-(`run_simulateQ_loggingOracle_optionT_pure`), exposing the
+(`loggingOracle.run_simulateQ_optionT_pure`), exposing the
 challenge-first shape consumed by the master mixture lemma
 `ProtocolSpec.probEvent_optionT_simulateQ_addLift_getChallenge_bind_some_le`. -/
 theorem simplifiedIOR_knowledgeSound
@@ -389,12 +365,12 @@ theorem simplifiedIOR_knowledgeSound
   · -- Game-shape reduction: peel the logs and the pure verifier.
     simp only [Reduction.runWithLog, Verifier.run, verifier, Prover.runWithLog,
       OptionT.run_pure, liftM_pure, pure_bind, bind_assoc]
-    simp only [run_simulateQ_loggingOracle_optionT_pure, liftM_pure, pure_bind,
+    simp only [loggingOracle.run_simulateQ_optionT_pure, liftM_pure, pure_bind,
       Option.getM_some]
     simp only [OptionT.liftM_def, bind_pure_comp]
     simp only [OptionT.run_map, OptionT.run_lift, bind_pure_comp, Functor.map_map,
       Option.map_some]
-    refine Eq.trans (map_fst_run_simulateQ_loggingOracle
+    refine Eq.trans (loggingOracle.map_fst_run_simulateQ
       (Prover.run (stmt, oStmt) witIn prover)
       (fun y : (pSpec (F := F)).FullTranscript ×
           ((OutputStatement (F := F) k × (∀ i, OutputOracleStatement ι F i)) ×

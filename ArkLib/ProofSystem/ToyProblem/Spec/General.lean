@@ -35,13 +35,16 @@ ArkLib's `OracleReduction` framework, following the conventions used by
 The `prover` / `verifier` / `oracleReduction` triple is complete.
 Completeness (C6.2, `oracleReduction_perfectCompleteness`) and
 round-by-round knowledge soundness (L6.8,
-`protocol62_rbrKnowledgeSound`) are **fully proven**. The remaining
-soundness lemma `protocol62_knowledgeSound` (L6.6) carries the
-**concrete** paper error term
-(`max (ε_mca(C,δ) + |Λ(C^{≡2},δ)|/|F|) ((1-δ)^t)`); only its *proof* is
-admitted as a tagged sorry — it needs the paper's direct
-conditional-split argument (the generic rbrKS → KS implication yields
-the *sum* of the round errors, which overshoots the `max`).
+`protocol62_rbrKnowledgeSound`) are **fully proven** here. Plain
+knowledge soundness (L6.6, `protocol62_knowledgeSound`) is **fully
+proven** in the sibling file `Spec/KnowledgeSoundness.lean`, with the
+**corrected** sum-form error
+`(ε_mca(C,δ) + |Λ(C^{≡2},δ)|/|F|) + (1-δ)^t`: the paper's claimed `max`
+of the two terms is **false as stated** (its proof swaps conditional for
+unconditional probabilities; there is a concrete counterexample) — see
+`PAPER_REVS.md` item 11. The per-round game bounds proven in this file
+(`gamma_round_game_bound`, `spotcheck_round_game_bound`) are shared by
+both the L6.8 and L6.6 proofs.
 
 ## Protocol description
 
@@ -1162,76 +1165,6 @@ theorem oracleReduction_perfectCompleteness
     simp only [FullTranscript.messages, Fin.snoc] at *
     exact hacc.2 j
 
-omit [DecidableEq ι] in
-/-- **Lemma 6.6 of [ABF26]** (knowledge soundness of Construction 6.2).
-
-For any `δ ∈ (0, δ_min(C))` and fixed injective linear encoder with
-range `C` (injectivity is implicit in the paper's encoding map and
-load-bearing for the extractor's per-list-pair counting),
-the toy-problem IOR has knowledge soundness against the relaxed relation
-`R̃_{C,δ}^2` with error
-
-  `max { ε_mca(C, δ) + |Λ(C^{≡2}, δ)| / |F|, (1 − δ)^t }`.
-
-The `(Lambda …).toNat` in the error term is faithful: `Lambda` is never
-`⊤` over a finite alphabet (`ListDecodable.Lambda_ne_top`), so `toNat`
-loses nothing.
-
-Stated against ArkLib's `OracleVerifier.knowledgeSoundness` (cf.
-`OracleReduction/Security/Basic.lean :: OracleVerifier.knowledgeSoundness`,
-definitionally `toVerifier.knowledgeSoundness`) — the faithful object
-for an IOPP whose inputs `f₁, f₂` are oracles.
-
-**Naming convention — paper vs API.** The ArkLib API's
-`OracleVerifier.knowledgeSoundness` takes `(relIn, relOut)` where `relIn`
-is the relation the extracted witness satisfies and `relOut` is the
-relation the verifier's output must satisfy. In this file `relIn` is
-*our* `outputRelationFor` (paper's `R̃²_{C,δ}`, checked against the
-messages returned by the extractor) and `relOut` is `Set.univ` (paper's
-C6.2 has trivial output `Unit`). The name `outputRelationFor` reflects
-the **paper's** "this is the protocol's output relation" perspective; do
-not be misled by the API parameter named `relIn`.
-
-The proof exhibits an extractor that (i) erasure-decodes `(f₁, f₂)`
-against the largest agreement set, (ii) outputs the recovered messages,
-and (iii) bounds the failure event by the union of the MCA failure and
-the list-decoding cardinality bound (cf. Remark 6.7).
-
-Tagged sorry. -/
-theorem protocol62_knowledgeSound
-    [SampleableType F] [SampleableType ι] [Nonempty ι]
-    {σ : Type} (init : ProbComp σ)
-    (impl : QueryImpl []ₒ (StateT σ ProbComp))
-    (C : Set (ι → F)) (δ : ℝ≥0)
-    (encode : (Fin k → F) →ₗ[F] (ι → F))
-    (_hinj : Function.Injective encode)
-    (_hC : Set.range encode = C)
-    (_hδ_pos : 0 < δ)
-    (_hδ_lt_min : δ < (minRelHammingDistCode C : ℝ≥0)) :
-      (oracleVerifier (k := k) (t := t) (encode : (Fin k → F) → (ι → F))).knowledgeSoundness
-        (WitOut := OutputWitness)
-        init impl (outputRelationFor k (encode : (Fin k → F) → (ι → F)) δ)
-        (Set.univ : Set ((OutputStatement × ∀ i, OutputOracleStatement i) ×
-          OutputWitness))
-        (max ((epsMCA (F := F) (A := F) C δ).toNNReal +
-                ((Lambda (interleavedCodeSet (κ := Fin 2) C) (δ : ℝ)).toNat : ℝ≥0)
-                  / (Fintype.card F : ℝ≥0))
-             ((1 - δ) ^ t)) := by
-  -- ABF26-L6.6; paper-proof-owed [ABF26 Lemma 6.6, §6.2]. This is the paper's
-  -- OWN result (it proves it in full in §6.2), not an imported external result;
-  -- we owe a Lean proof. The knowledge error is the concrete paper bound
-  -- `max (ε_mca(C,δ) + |Λ(C^{≡2},δ)|/|F|) ((1-δ)^t)`. The `δ < δ_min(C)`
-  -- hypothesis is load-bearing: the proof uses it to force `g = f₁ + γ·f₂`
-  -- from agreement on `> (1 - δ_min)·n` points (see paper eq. (3)).
-  -- The former vacuity gate has CLEARED (2026-06-11): PR #569
-  -- (`fix/knowledge-soundness-failing-extractor`) is merged and synced into this
-  -- branch — `Verifier.knowledgeSoundness` now scores an extraction failure
-  -- (`extractedWitIn? = none`) against the prover, so the always-failing
-  -- `OptionT` extractor no longer discharges the game. This sorry may now be
-  -- closed on its mathematical merits (paper §6.2; or via the rbrKS → KS
-  -- implication once L6.8 below is proven).
-  sorry
-
 /-! ### Remark 6.7 of [ABF26] — MCA, not just CA
 
 The L6.6 soundness argument depends on **mutual** correlated agreement
@@ -1253,8 +1186,11 @@ omit [DecidableEq ι] [Fintype F] [DecidableEq F] in
 /-- The post-`γ` knowledge state of the L6.8 argument ([ABF26] §6.2): `m`
 satisfies the folded linear constraint at `γ`, and `f₁ + γ·f₂` agrees with
 `encode m` on a `≥ (1-δ)`-fraction column set. Shaped to match the event of
-`ToyProblem.gamma_transition_prob_le` exactly. -/
-private def gammaState (encode : (Fin k → F) → (ι → F)) (δ : ℝ≥0)
+`ToyProblem.gamma_transition_prob_le` exactly.
+
+Public (not `private`) because the L6.6 assembly
+(`Spec/KnowledgeSoundness.lean`) reuses it as its γ-round prefix event. -/
+def gammaState (encode : (Fin k → F) → (ι → F)) (δ : ℝ≥0)
     (v : Fin k → F) (μ₁ μ₂ : F) (f₁ f₂ : ι → F) (γ : F) (m : Fin k → F) : Prop :=
   (∑ j, m j * v j = μ₁ + γ * μ₂) ∧
   ∃ S : Finset ι, (1 - (δ : ℝ)) * Fintype.card ι ≤ S.card ∧
@@ -1349,8 +1285,11 @@ lemma epsMCA_ne_top [Nonempty ι] (C : Set (ι → F)) (δ : ℝ≥0) :
 omit [DecidableEq ι] in
 /-- Per-transcript γ-round bound for the L6.8 game ([ABF26] §6.2, via
 `ToyProblem.gamma_transition_prob_le`), stated in the definitionally reduced
-form of the game event so the master rbr-game lemma can consume it. -/
-private lemma gamma_round_game_bound [SampleableType F] [Nonempty ι]
+form of the game event so the master rbr-game lemma can consume it.
+
+Public (not `private`) because the L6.6 assembly
+(`Spec/KnowledgeSoundness.lean`) consumes it as its γ-round prefix bound. -/
+lemma gamma_round_game_bound [SampleableType F] [Nonempty ι]
     (C : Set (ι → F)) (δ : ℝ≥0)
     (encode : (Fin k → F) →ₗ[F] (ι → F))
     (hinj : Function.Injective encode)
@@ -1401,8 +1340,11 @@ set_option linter.unusedDecidableInType false in
 /-- Per-transcript spot-check-round bound for the L6.8 game ([ABF26] §6.2):
 for any fixed `(γ, g)` with the post-`γ` state false, the probability over
 uniform spot checks that the verifier accepts is at most `(1-δ)^t`. Stated in
-the definitionally reduced form of the game event. -/
-private lemma spotcheck_round_game_bound [Nonempty ι]
+the definitionally reduced form of the game event.
+
+Public (not `private`) because the L6.6 assembly
+(`Spec/KnowledgeSoundness.lean`) consumes it as its spot-check tail bound. -/
+lemma spotcheck_round_game_bound [Nonempty ι]
     (encode : (Fin k → F) → (ι → F)) (δ : ℝ≥0)
     (stmtIn : Statement (F := F) k × (∀ i, OracleStatement ι F i))
     (γ : F) (g : Fin k → F) [SampleableType (Fin t → ι)] :
@@ -1536,4 +1478,3 @@ end Spec
 
 end ToyProblem
 
-set_option linter.style.longFile 1700

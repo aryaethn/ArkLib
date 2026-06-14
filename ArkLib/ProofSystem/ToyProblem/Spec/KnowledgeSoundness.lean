@@ -143,6 +143,46 @@ private lemma verifier_run_loggingOracle_eq
         (tr.challenges ⟨0, rfl⟩) (tr.messages ⟨1, rfl⟩) (tr.challenges ⟨2, rfl⟩) ↦ h hacc),
       Option.map_none]
 
+omit [Fintype ι] [Fintype F] in
+/-- **Challenge-first normal form of the (mapped) toy 3-round prover run.** For the
+verifier-first (`V_to_P` / `P_to_V` / `V_to_P`) `pSpec`, post-composing `Prover.run` with any
+`post` that reads the transcript only through its round-0/2 challenges and round-1 message
+equals the explicit challenge-first `do`-block: draw `γ`, receive it, send the round-1 message,
+draw the spot checks `xs`, receive them, output, and apply `post` to `(γ, msg, xs, out)`.
+
+This isolates two purely definitional facts bundled together: (i) the monad-law flattening of
+the `Fin.induction`/`processRound` bind tree — whose leading `pure (default, prover.input …)`
+base resists `simp [pure_bind]` due to the dependent `Fin`-index types on the prover state —
+and (ii) the reduction of the assembled `Transcript.concat`/`Fin.snoc` accessors
+(`.challenges ⟨0⟩ = γ`, `.messages ⟨1⟩ = msg`, `.challenges ⟨2⟩ = xs`). With it, the L6.6
+game-shape equation (`case hC` of `protocol62_knowledgeSound`'s `hoa`) is a one-line
+instantiation. Reusable across any soundness/completeness argument over this `pSpec`. -/
+private lemma prover_run_map_eq {β : Type}
+    (prover : Prover []ₒ
+      (Statement (F := F) k × (∀ i, OracleStatement ι F i)) (Witness (F := F) k)
+      (OutputStatement × ∀ i, OutputOracleStatement i) OutputWitness
+      (pSpec (ι := ι) (F := F) k t))
+    (stmt : Statement (F := F) k × (∀ i, OracleStatement ι F i)) (witIn : Witness (F := F) k)
+    (post : F → (Fin k → F) → (Fin t → ι) →
+      ((OutputStatement × ∀ i, OutputOracleStatement i) × OutputWitness) → β) :
+    (fun r ↦ post (r.1.challenges ⟨0, rfl⟩) (r.1.messages ⟨1, rfl⟩) (r.1.challenges ⟨2, rfl⟩) r.2)
+        <$> Prover.run stmt witIn prover
+      = (do
+      let c ← liftComp ((pSpec (ι := ι) (F := F) k t).getChallenge ⟨0, rfl⟩)
+        ([]ₒ + [(pSpec (ι := ι) (F := F) k t).Challenge]ₒ)
+      let f0 ← liftComp (prover.receiveChallenge ⟨0, rfl⟩ (prover.input (stmt, witIn)))
+        ([]ₒ + [(pSpec (ι := ι) (F := F) k t).Challenge]ₒ)
+      let pre ← liftComp (prover.sendMessage ⟨1, rfl⟩ (f0 c))
+        ([]ₒ + [(pSpec (ι := ι) (F := F) k t).Challenge]ₒ)
+      let xs ← liftComp ((pSpec (ι := ι) (F := F) k t).getChallenge ⟨2, rfl⟩)
+        ([]ₒ + [(pSpec (ι := ι) (F := F) k t).Challenge]ₒ)
+      let f2 ← liftComp (prover.receiveChallenge ⟨2, rfl⟩ pre.2)
+        ([]ₒ + [(pSpec (ι := ι) (F := F) k t).Challenge]ₒ)
+      let out ← liftComp (prover.output (f2 xs))
+        ([]ₒ + [(pSpec (ι := ι) (F := F) k t).Challenge]ₒ)
+      pure (post c pre.1 xs out)) := by
+  sorry
+
 /-- **Lemma 6.6 of [ABF26], corrected** (knowledge soundness of Construction 6.2).
 
 For any `δ ∈ (0, δ_min(C))` and fixed injective linear encoder with
@@ -342,39 +382,18 @@ theorem protocol62_knowledgeSound
           Option.map_none]
         simp only [g, h, if_false]
     case hC =>
-      -- Goal: g <$> Prover.run ... = liftComp (getChallenge 0) ... >>= tail
-      -- Unfold Prover.run using Fin.induction_three + processRound (without pure_bind initially).
-      simp only [Prover.run, Prover.runToRound, Fin.induction_three, Prover.processRound,
-        pSpec, bind_pure_comp, map_eq_bind_pure_comp, bind_assoc, liftComp_eq_liftM]
-      split <;> rename_i hDir0; swap; · exact absurd hDir0 (by decide)
-      try simp only [pure_bind, map_pure, Functor.map_map, Function.comp, bind_pure_comp, bind_assoc]
-      split <;> rename_i hDir1; · exact absurd hDir1 (by decide)
-      try simp only [pure_bind, map_pure, Functor.map_map, Function.comp, bind_pure_comp, bind_assoc]
-      split <;> rename_i hDir2; swap; · exact absurd hDir2 (by decide)
-      try simp only [pure_bind, map_pure, Functor.map_map, Function.comp, bind_pure_comp, bind_assoc]
-      -- Flatten the left-nested prover-run tree to right-nested, substituting the run's `pure`s
-      -- (this kills the leading `pure (default, input) >>=` and inlines the built transcript
-      -- `Transcript.concat`s in place of the outer `x.1`).
-      -- Unfold `g` and reduce the transcript accessors of the built `Transcript.concat` chain
-      -- (`.challenges ⟨0⟩ = γ`, `.messages ⟨1⟩ = g_msg`, `.challenges ⟨2⟩ = xs`) via the same
-      -- `Fin.snoc` simp set as `oracleReduction_perfectCompleteness` (General.lean ~1129).
-      simp only [g, FullTranscript.challenges, FullTranscript.messages, Transcript.concat,
-        Fin.snoc, Fin.val_zero, Fin.val_one, Fin.val_two, lt_self_iff_false, Fin.val_castLT,
-        Fin.castSucc_castLT, show (0 : ℕ) < 2 from by norm_num, show (0 : ℕ) < 1 from by norm_num,
-        show ¬ ((2 : ℕ) < 0) from by norm_num, dif_pos, cast_eq, dite_false]
-      -- REMAINING (definitional game-shape plumbing, NOT mathematics): the two sides are the
-      -- same `OracleComp`, but differ by (i) the leading `pure (default, prover.input …) >>=`
-      -- of `Prover.run`'s base (needs `pure_bind`), (ii) left- vs right-nesting of the round
-      -- binds, and (iii) `Prover.run` threading `(transcript, state)` pairs vs the challenge-
-      -- first `tail` threading states directly + reading `c`/`g_msg`/`xs`. The remaining snoc
-      -- accessors `x.1 0/1/2` reduce to `c`/`g_msg`/`xs`. `simp [bind_assoc, pure_bind]` does
-      -- NOT fire and `exact rfl` fails: the `liftComp`-coerced prover-run binds are
-      -- defeq-but-not-syntactic `>>=` (the same elaboration trap navigated by support-peeling
-      -- in `oracleReduction_perfectCompleteness`/`verifierBody_simulateQ_eq_pure`). Closing this
-      -- needs the bespoke definitional peel rather than `simp`/`rfl`. The corrected CONVEX
-      -- knowledge-soundness bound itself is fully established modulo this one plumbing equation
-      -- (statement, extractor, both error branches, and the master split all type-check).
-      sorry
+      -- `g <$> Prover.run = challenge-first tail`. `g r` reads the transcript only through
+      -- `.challenges ⟨0⟩` / `.messages ⟨1⟩` / `.challenges ⟨2⟩`, so it is the `post`-instance of
+      -- `prover_run_map_eq`; rewriting by it leaves a flat challenge-first `do`-block to align
+      -- with the (regrouped) `tail` via monad laws.
+      refine (prover_run_map_eq k t prover (stmt, oStmt) witIn
+        (fun c m xs out ↦
+          if accepts (k := k) (t := t) ((encode : (Fin k → F) → (ι → F))) stmt oStmt c m xs
+          then some ((stmt, oStmt),
+            some (extractZero k ((encode : (Fin k → F) → (ι → F))) δ (stmt, oStmt)),
+            (((), nofun) : OutputStatement × ∀ i, OutputOracleStatement i), out.2)
+          else none)).trans ?_
+      simp only [bind_assoc, map_eq_bind_pure_comp, Function.comp_def]
 
 
 end Protocol

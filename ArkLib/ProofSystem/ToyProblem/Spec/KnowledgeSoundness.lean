@@ -189,10 +189,14 @@ private lemma prover_run_map_eq {β : Type}
   try simp only [pure_bind, map_pure, Functor.map_map, Function.comp, bind_pure_comp, bind_assoc]
   split <;> rename_i hDir2; swap; · exact absurd hDir2 (by decide)
   try simp only [pure_bind, map_pure, Functor.map_map, Function.comp, bind_pure_comp, bind_assoc]
-  -- Normalize the dependent `Fin`-index arithmetic on the prover state so the run's
-  -- `pure (default, input)` base and the round-0 continuation share a syntactic type
-  -- (`(0 : Fin 3).castSucc` ↦ `0`, etc.) — this is what unblocks `pure_bind`.
-  simp only [Fin.castSucc_zero', Fin.succ_zero_eq_one', Fin.succ_one_eq_two', Fin.isValue]
+  -- Normalize ALL dependent `Fin`-index arithmetic on the prover state so each round's output
+  -- index (`(j : Fin 3).succ`) and the next round's input index (`(j+1 : Fin 3).castSucc`)
+  -- share a syntactic `Fin 4` literal — this is what unblocks `pure_bind` between rounds.
+  -- `succ` of 0/1 have named lemmas; `castSucc` of 1/2 and `succ` of 2 are `rfl` (no lemma).
+  simp only [Fin.castSucc_zero', Fin.succ_zero_eq_one', Fin.succ_one_eq_two', Fin.isValue,
+    show ((1 : Fin 3).castSucc) = (1 : Fin 4) from rfl,
+    show ((2 : Fin 3).castSucc) = (2 : Fin 4) from rfl,
+    show ((2 : Fin 3).succ) = (3 : Fin 4) from rfl]
   -- Expose canonical binds (unfold the `monadLift`/`liftM` internals), flatten, then reduce the
   -- assembled `Transcript.concat`/`Fin.snoc` accessors.
   -- Normalize to a single "everything is `>>=`" form (`map_eq_bind_pure_comp`, NOT
@@ -217,6 +221,23 @@ private lemma prover_run_map_eq {β : Type}
   -- substituted under the outer bind (map↔bind normalization tension). Resolve by forcing the
   -- outer flatten (e.g. `conv`-rewrite the round-tree to its `pure`-tailed form, or a tailored
   -- `bind`/`map` push lemma) — purely definitional, no mathematics.
+  simp only [bind_assoc, pure_bind, Function.comp_apply, Function.comp_def,
+    Fin.snoc, Fin.val_zero, Fin.val_one, Fin.val_two, lt_self_iff_false, Fin.val_castLT,
+    Fin.castSucc_castLT, show (0 : ℕ) < 2 from by norm_num, show (0 : ℕ) < 1 from by norm_num,
+    show ¬ ((2 : ℕ) < 0) from by norm_num, dif_pos, cast_eq, dite_false]
+  -- REMAINING (one definitional step, NO mathematics). State of the goal here: the run is fully
+  -- unfolded, the leading `pure (default, input)` base is substituted, and the OUTER round binds
+  -- are flattened (`conv_lhs => rw [bind_assoc]` finds no top-level redex). What is left is the
+  -- per-round substitution `pure (Fin.snoc … , state) >>= fun __discr ↦ round_{i+1}` sitting
+  -- UNDER the round binders: `pure_bind` must fire there to substitute `__discr`, after which the
+  -- `Fin.snoc` transcript accessors `x.1 0/1/2` reduce to `c / pre.1 / xs` and the two sides
+  -- coincide. `simp only [bind_assoc, pure_bind, …]` does not complete this under the binders —
+  -- the recurring `OracleComp`-bind / dependent-`Fin`-index simp technicality (cf. the
+  -- support-peeling workaround in `oracleReduction_perfectCompleteness`). Likely fixes: further
+  -- `PrvState`/`Transcript` index normalization so `pure_bind`'s `α`-unification succeeds, a
+  -- `conv`-targeted `pure_bind` per round, or `Prover.runToRound` step lemmas. The L6.6
+  -- soundness math (author-confirmed: `max` → union bound) is independent of this lemma, which is
+  -- purely the toy prover/verifier-abstraction unfolding.
   sorry
 
 /-- **Lemma 6.6 of [ABF26], corrected** (knowledge soundness of Construction 6.2).

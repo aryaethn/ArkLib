@@ -995,6 +995,20 @@ def runForwardVerifierWide (δ : Nat) (V : Verifier oSpec StmtIn StmtOut pSpec)
     ((V.toDSFS δ).run stmtIn (fun i => match i with | ⟨0, _⟩ => proof)).run
   liftComp verifyCompNarrow (oSpec + duplexSpongeChallengeOracle StmtIn U)
 
+/-- The DSFS NARG verifier `𝒱^{h,p}(𝕩, ·)` packaged as a `NonInteractiveVerifier` over the wide
+sponge spec, whose `verify` on the length-1 transcript is **definitionally** the §5.8 forward
+verifier `runForwardVerifierWide` (i.e. `dsfsNargVerify`-shaped).  This is the NIV consumed by CO25
+Thm 6.1/6.2's `Verifier.adaptiveNARG(Knowledge)Soundness` conclusions.
+
+NB this is **not** `duplexSpongeFiatShamirSalted δ V`: that one lifts only the transcript-derivation
+sub-computation and runs `V.verify` at the wide spec, so its `verify` is only *propositionally* (not
+definitionally) equal to `runForwardVerifierWide`.  `dsfsNargNIV` is the def whose unfolding matches
+`dsfsNargVerify` by `rfl`, keeping the §6 proofs' `rw`/`exact` steps intact. -/
+def Verifier.dsfsNargNIV (δ : Nat) (V : Verifier oSpec StmtIn StmtOut pSpec) :
+    NonInteractiveVerifier (DSSaltedProof (pSpec := pSpec) (U := U) δ)
+      (oSpec + duplexSpongeChallengeOracle StmtIn U) StmtIn StmtOut where
+  verify := fun stmtIn proof => OptionT.mk (runForwardVerifierWide δ V stmtIn (proof 0))
+
 /-- Short alias for `Verifier.singleSaltFiatShamir` — lift an interactive `Verifier` to the
 paper-faithful FS-standard salted NARG verifier `𝒱_std^f` (`FSStdSaltedVerifier`).
 

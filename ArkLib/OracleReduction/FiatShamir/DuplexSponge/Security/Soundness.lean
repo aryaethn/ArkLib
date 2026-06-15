@@ -23,8 +23,8 @@ This file formalizes Theorems 6.1 and 6.2 from CO25 and Construction 6.3.
   extractor `E_IP` (with `default` logs, matching the SR-KS experiment).
 
 - **Theorem 6.2** (`theorem_6_2_straightline`): if IP has SR-KS, then the DSFS scheme has
-  straightline KS (via Construction 6.3) with error `κ + η★`, stated in the bespoke,
-  query-bounded `dsfsKnowledgeSoundnessBounded`.
+  straightline KS (via Construction 6.3) with error `κ + η★`, concluding CO25 Def 3.6
+  (`adaptiveNARGKnowledgeSoundness`) at the DSFS NARG, query-bounded.
 
 ## Proof strategy
 
@@ -144,43 +144,70 @@ set_option linter.unusedDecidableInType false
 `ArkLib.OracleReduction.FiatShamir.SingleSalt` (available here via `KeyLemma`'s import).
 -/
 
-/-- CO25 Construction 6.3 — DSFS straightline extractor.
+/-- **§6.2 trace-map seam.**  The §5.8 `D2STrace` of the DSFS prover query log down to the basic-FS
+log `tr_std`, packaged as a pure log rewrite for use inside `dsfsStraightlineExtractor`.
 
-Given an IP SR extractor `E_IP` for the salt-augmented IP, extract the IP input
-witness from a DSFS adversary view by:
-1. Reading the DSFS proof `(τ, messages)` from the transcript (single P→V message).
-2. Applying `D2STrace` to the DSFS prover query log to get the basic-FS log.
-3. Reconstructing the IP transcript from `messages` and the FS oracle entries.
-4. Calling `E_IP` on the reconstructed view.
+`D2STrace` genuinely *samples* `𝒰(Σ)` (its monad is `UnitSampleM U`); that sampling is discharged at
+the **`Hyb₀` game layer** (`mappedDSFSGameDist`/`runSection58TraceMap`), NOT inside the extractor —
+this keeps Construction 6.3 coin-free over the *public* DSFS spec
+`oSpec + duplexSpongeChallengeOracle StmtIn U` (no `(Unit →ₒ U)` summand), as required.  The extractor
+only needs the *resulting* basic-FS log, exposed here as a seam; its correctness is subsumed by the
+`Hyb₀` equality `hL1` of `dsfsKSGame_hybFactorization`.  Open seam (R2/R3 — no canonical
+`SubSpec`/sampling at this layer). -/
+noncomputable def d2sTraceLog
+    (proveQueryLog : QueryLog (oSpec + duplexSpongeChallengeOracle StmtIn U)) :
+    QueryLog (oSpec + srChallengeOracle (StmtIn × Salt) pSpec) :=
+  TraceTransform.projectSharedQueryLogSalted proveQueryLog
 
-The extractor operates over the `NonInteractiveVerifier` pSpec
-`⟨!v[.P_to_V], !v[DSSaltedProof pSpec U δ]⟩`. -/
+/-- **§6.2 spec-lift seam.**  Lift a NARG-KS extractor computation over the basic-FS spec
+`oSpec + srChallengeOracle (StmtIn × Salt) pSpec` up to the DSFS spec
+`oSpec + duplexSpongeChallengeOracle StmtIn U`.  There is no canonical `SubSpec` between the two
+challenge oracles (different index types), so this lift is an explicit seam; operationally `E_std`
+issues only `oSpec`/challenge queries already resolved by the game-layer trace map.  Open seam. -/
+noncomputable def liftFSExtractToDSFS
+    (e : OptionT (OracleComp (oSpec + srChallengeOracle (StmtIn × Salt) pSpec)) WitIn) :
+    OptionT (OracleComp (oSpec + duplexSpongeChallengeOracle StmtIn U)) WitIn :=
+  let specImpl : QueryImpl (oSpec + srChallengeOracle (StmtIn × Salt) pSpec)
+      (OracleComp (oSpec + duplexSpongeChallengeOracle StmtIn U)) := fun q =>
+    match q with
+    | .inl qShared => query (spec := oSpec + duplexSpongeChallengeOracle StmtIn U) (Sum.inl qShared)
+    | .inr ⟨i, _⟩ => pure (Classical.choice (inferInstanceAs (Nonempty (pSpec.Challenge i))))
+  OptionT.mk (simulateQ specImpl e.run)
+
+/-- CO25 **Construction 6.3** — DSFS straightline extractor, built from the **basic-FS NARG-KS
+extractor `E_std`** (the extractor delivered by Theorem 3.19, `theorem_3_19_straightline_ks`).
+
+Mirrors the paper (Eq. 1978–1981): given the DSFS adversary view `(𝕩, π, tr, tr_V, 𝒫̃)`,
+1. `tr_std := D2STrace(tr ‖ tr_V)` — the §5.8 trace map (`d2sTraceLog`; its `𝒰(Σ)` sampling is
+   discharged at the `Hyb₀` game layer, keeping this extractor coin-free over the public spec);
+2. pad `tr_std` to `E_std`'s coin-extended log spec with the pure `QueryLog.inl` (the `D2SAlgo`
+   coins `(Unit →ₒ U) + unifSpec` are not visible to the extractor — straightline, coin-blind);
+3. `𝒫̃_std := D2SAlgo(𝒫̃)` — the prover `E_std` is the extractor *for*; omitted in the straightline
+   case (paper line 2049: `E_std` needs no prover access);
+4. `w := E_std(𝕩, (encode τ, messages), tr_std)`, lifted from the basic-FS spec to the DSFS spec
+   (`liftFSExtractToDSFS`).
+
+Operates over the `NonInteractiveVerifier` pSpec `⟨!v[.P_to_V], !v[DSSaltedProof pSpec U δ]⟩`. -/
 noncomputable def dsfsStraightlineExtractor
     [Fintype U]
     [∀ i, Fintype (pSpec.Challenge i)] [∀ i, DecidableEq (pSpec.Challenge i)]
     [∀ i, Fintype (pSpec.Message i)] [∀ i, DecidableEq (pSpec.Message i)]
-    (E_IP : Extractor.StateRestoration oSpec (StmtIn × Salt) WitIn WitOut pSpec) :
+    (E_std : StmtIn → FSSaltedProof pSpec Salt →
+      QueryLog ((oSpec + srChallengeOracle (StmtIn × Salt) pSpec) + ((Unit →ₒ U) + unifSpec)) →
+        OptionT (OracleComp (oSpec + srChallengeOracle (StmtIn × Salt) pSpec)) WitIn) :
     Extractor.Straightline
       (oSpec + duplexSpongeChallengeOracle StmtIn U)
       StmtIn WitIn WitOut
       ⟨!v[.P_to_V], !v[DSSaltedProof (pSpec := pSpec) (U := U) δ]⟩ :=
-  fun stmtIn witOut transcript _proveQueryLog _verifyQueryLog => do
-    -- Construction 6.3 (straightline). The SR-KS experiment (`coinKSExperimentProb`) feeds the IP
-    -- extractor `default` query logs, so only the *transcript* is needed here — no `D2STrace` on
-    -- the prover log is required for the extractor itself.
-    -- 1. The single P→V message *is* the DSFS proof `(τ, messages)`.
+  fun stmtIn _witOut transcript proveQueryLog _verifyQueryLog =>
+    -- 1. The single P→V message *is* the DSFS proof `(τ, messages)`; regroup as a basic-FS proof.
     let saltedProof : DSSaltedProof (pSpec := pSpec) (U := U) δ := transcript 0
-    -- 2-3. Reconstruct the IP `FullTranscript` from `messages` + salt `τ` via the duplex sponge —
-    --      the *same* forward derivation the DSFS verifier uses (`deriveTranscriptDSFSSalted`).
-    let ⟨_, ipTranscript⟩ ← OptionT.lift (liftComp
-      (saltedProof.2.deriveTranscriptDSFSSalted (pSpec := pSpec) (oSpec := oSpec) (U := U)
-        stmtIn saltedProof.1)
-      (oSpec + duplexSpongeChallengeOracle StmtIn U))
-    -- 4-5. Call the IP SR extractor on `(𝕩, encode τ)` + the reconstructed transcript, lifted from
-    --      base `oSpec` to the DSFS spec.  (Logs are `default`, matching `coinKSExperimentProb`.)
-    OptionT.mk (liftComp
-      (E_IP (stmtIn, SaltCodec.encode saltedProof.1) witOut ipTranscript default default)
-      (oSpec + duplexSpongeChallengeOracle StmtIn U))
+    let fsProof : FSSaltedProof pSpec Salt := (SaltCodec.encode saltedProof.1, saltedProof.2)
+    -- 2. `tr_std := D2STrace(prover log)`, padded to `E_std`'s coin-extended spec (no aux entries).
+    let trStd : QueryLog ((oSpec + srChallengeOracle (StmtIn × Salt) pSpec)
+        + ((Unit →ₒ U) + unifSpec)) := QueryLog.inl (d2sTraceLog (pSpec := pSpec) proveQueryLog)
+    -- 3-4. Run `E_std` on `tr_std`, lifting the basic-FS spec up to the public DSFS spec.
+    liftFSExtractToDSFS (pSpec := pSpec) (E_std stmtIn fsProof trStd)
 
 /-! ## Theorem 6.1: IP SR-soundness → DSFS soundness -/
 
@@ -202,6 +229,19 @@ def dsfsRawEvent (langIn : Set StmtIn) (langOut : Set StmtOut) :
       (StmtOut := StmtOut) (pSpec := pSpec) (U := U) (δ := δ)) → Prop
   | some out => out.1 ∉ langIn ∧ out.2.1 ∈ langOut
   | none => False
+
+/-- **The DSFS scheme as a NARG verifier** — the verify map `𝒱^{h,p}(𝕩, ·)` of the duplex-sponge FS
+NARG, packaged in CO25 Def 3.5/3.6 shape (`StmtIn → Proof → OptionT (OracleComp …) StmtOut`).  This
+is exactly the verify portion of `dsfsGame` (the §5.8 forward verifier `runForwardVerifierWide`, as an
+`OptionT`); using it as the `verify` argument of `adaptiveNARGSoundness` /
+`adaptiveNARGKnowledgeSoundness` makes those Def-3.5/3.6 notions *be about the DSFS NARG* (prover =
+`MaliciousProver`, oracle spec `oSpec + duplexSpongeChallengeOracle StmtIn U`).  The DSFS scheme's
+NARG experiment then equals `dsfsGameDist`/`dsfsKSGameDist` up to the marginalized prover/verify
+query logs — see `dsfsNargSoundnessExp_eq_dsfsGame` / `dsfsNargKSExp_eq_dsfsKSGame`. -/
+def dsfsNargVerify (V : Verifier oSpec StmtIn StmtOut pSpec) :
+    StmtIn → DSSaltedProof (pSpec := pSpec) (U := U) δ →
+      OptionT (OracleComp (oSpec + duplexSpongeChallengeOracle StmtIn U)) StmtOut :=
+  fun stmtIn proof => OptionT.mk (runForwardVerifierWide δ V stmtIn proof)
 
 /-- **CO25 §6.1 step L1** — `ε_NARG = Pr[Hyb₀]`.
 
@@ -348,23 +388,56 @@ def srReassocImpl :
   | .inr (.inr qA) => query (spec := (oSpec + srChallengeOracle (StmtIn × Salt) pSpec)
       + ((Unit →ₒ U) + unifSpec)) (Sum.inr qA)
 
-/-- **CO25 §6.1 — `Hyb₄ ≡ IP coin-SR experiment`** (the structural game-match).
 
-`Hyb₄`'s compiled prover `D2SAlgo^f(𝒫̃)` lives over `oSpec + (fsChallengeOracle … + ((Unit →ₒ U) +
-unifSpec))`. Since `fsChallengeOracle = srChallengeOracle`, it *is* a coin-bearing SR-soundness
-prover (`SoundnessWithCoins …`, `auxSpec := (Unit →ₒ U) + unifSpec`), and `Hyb₄` *is* that prover's
-coin-SR experiment under the canonical model: FS oracle eagerly sampled (`srInitDIP`), `oSpec`
-answered by `srImplLift oSpecImpl`, coins by `d2sAuxImpl`.
+/-- The compiled prover `D2SAlgo^f(𝒫̃)` as a coin-bearing NARG prover for the single-salt FS:
+de-abort with `default` (matching `basicFiatShamirGame`'s `·.getD default`), then `srReassocImpl`
+regroups `oSpec + (chal + aux) → (oSpec + chal) + aux`.  No output reassoc (the NARG prover output
+`StmtIn × FSSaltedProof` is the compiled prover's output verbatim). -/
+def nargInducedProver
+    (maliciousProver : MaliciousProver oSpec pSpec StmtIn U δ)
+    (d2sAlgoTransform : D2SAlgoTransform (δ := δ) (Salt := Salt)
+      (oSpec := oSpec) (StmtIn := StmtIn) (pSpec := pSpec) (U := U)) :
+    OracleComp ((oSpec + srChallengeOracle (StmtIn × Salt) pSpec) + ((Unit →ₒ U) + unifSpec))
+      (StmtIn × FSSaltedProof pSpec Salt) :=
+  simulateQ srReassocImpl ((fun o => o.getD default) <$> (d2sAlgoTransform maliciousProver).run)
 
-The remaining content is purely **structural** — eager↔function model for the FS oracle, oracle-spec
-reassociation, and prover-output / `deriveTranscript` matching — with **no coin derandomization**
-(the coins are answered inside the experiment by `auxImpl`). Stated as a `probEvent` (`= evalDist`)
-equality. Left as `sorry`.
+/-- **KS induced prover** — the coin-bearing NARG straightline-**KS** analog of `nargInducedProver`,
+additionally outputting a claimed output witness `witOut`.  The DSFS attacker `𝒫̃` is proof-only
+(no output witness), so its claim is the trivial `default : WitOut` (for the DSFS-of-IP case
+`WitOut = Unit` this is `()`).  Matches the SR-KS prover shape
+`Prover.StateRestoration.KnowledgeSoundnessWithCoins` (output `… × WitOut`). -/
+def nargInducedProverKS [Inhabited WitOut]
+    (maliciousProver : MaliciousProver oSpec pSpec StmtIn U δ)
+    (d2sAlgoTransform : D2SAlgoTransform (δ := δ) (Salt := Salt)
+      (oSpec := oSpec) (StmtIn := StmtIn) (pSpec := pSpec) (U := U)) :
+    OracleComp ((oSpec + srChallengeOracle (StmtIn × Salt) pSpec) + ((Unit →ₒ U) + unifSpec))
+      (StmtIn × FSSaltedProof pSpec Salt × WitOut) :=
+  simulateQ srReassocImpl
+    ((fun o => let p := o.getD default; (p.1, p.2, (default : WitOut))) <$>
+      (d2sAlgoTransform maliciousProver).run)
 
-Non-circular, unlike the earlier free-existential form: the right-hand side is the *specific*
-`coinSRExperimentProb` game (its shape `srSoundnessGameWithCoins … >>= verifier.run` is fixed), so
-no trivial witness `perAuxGame := Hyb₄` can satisfy it. -/
-theorem hyb4_eq_coinSRExperiment
+/-- The DSFS proof-only attacker as a CO25 **Def-3.6 NARG adversary**: the malicious prover `𝒫̃`
+outputs `(𝕩, π)` and claims the trivial `default` output witness (a NARG / public-coin IP has no
+output witness; for the DSFS-of-IP case `WitOut = Unit` this is `()`).  This is the prover the DSFS
+Def-3.6 experiment runs in `theorem_6_2_straightline`'s conclusion.
+
+We keep `WitOut` *generic* (so `relOut` matches `h_IP_SR_KS`) but fix the *attacker's* claim to
+`default`, because the §5 sponge/Hyb chain runs an `(𝕩, π)`-only prover (`MaliciousProver`) and
+cannot thread a general output witness; the generic `adaptiveNARGKnowledgeSoundness` (Basic) stays
+fully general for composition with reductions that *do* produce output witnesses. -/
+def dsfsKSAdversary [Inhabited WitOut]
+    (maliciousProver : MaliciousProver oSpec pSpec StmtIn U δ) :
+    OracleComp (oSpec + duplexSpongeChallengeOracle StmtIn U)
+      (StmtIn × DSSaltedProof (pSpec := pSpec) (U := U) δ × WitOut) :=
+  (fun p => (p.1, p.2, (default : WitOut))) <$> maliciousProver
+
+/-- **CO25 §6.1 step L3a — `Hyb₄ = basic-FS NARG game`.** `Hyb₄` (the eager basic-FS game on the
+compiled prover) equals the coin-bearing NARG soundness experiment (CO25 Def 3.5) for the induced
+prover, under the canonical model.  Structural marginal match (handler slot-decomposition
+`hybChallengeImpl_eq_srAddLift`, `srReassocImpl` regroup, `loggingOracle` value-marginal, `default`
+de-abort) — **no FS↔SR crosswalk** (the verifier portion `deriveTranscriptFS + V.verify` is identical
+on both sides).  Comparable to the proven `dsfsGame_falseAccept_eq_hyb0`. -/
+theorem hyb4_eq_coinNARGgame
     [∀ i, DecidableEq (pSpec.Challenge i)]
     [∀ i, DecidableEq (pSpec.Message i)]
     [DecidableEq ι]
@@ -374,74 +447,25 @@ theorem hyb4_eq_coinSRExperiment
     (maliciousProver : MaliciousProver oSpec pSpec StmtIn U δ)
     (d2sAlgoTransform : D2SAlgoTransform (δ := δ) (Salt := Salt)
       (oSpec := oSpec) (StmtIn := StmtIn) (pSpec := pSpec) (U := U)) :
-    ∃ inducedProver :
-        Prover.StateRestoration.SoundnessWithCoins oSpec (StmtIn × Salt) pSpec
-          ((Unit →ₒ U) + unifSpec),
-      Pr[ dsfsSoundnessEvent langIn langOut |
-          hyb_4 (δ := δ) (Salt := Salt) (oSpec := oSpec) (StmtIn := StmtIn)
-            (StmtOut := StmtOut) (pSpec := pSpec) (U := U)
-            oSpecImpl V maliciousProver d2sAlgoTransform]
-        = Verifier.StateRestoration.coinSRExperimentProb
-            (init := srInitDIP) (impl := srImplLift oSpecImpl)
-            d2sAuxImpl (langInSalted langIn) langOut (saltedIPVerifier (Salt := Salt) V)
-            inducedProver := by
-  classical
-  -- The induced SR prover is `D2SAlgo^f(𝒫̃)`, made a *bare* OG state-restoration prover over the
-  -- extended ambient `oSpec + ((Unit →ₒ U) + unifSpec)`:  de-abort with the same `default` as
-  -- `basicFiatShamirGame` (`·.getD default`), reassociate the output `(𝕩,(τ̂,msgs)) ↦ ((𝕩,τ̂),msgs)`,
-  -- then `srReassocImpl` regroups the oracle spec `oSpec+(chal+aux) → (oSpec+aux)+chal` so it is
-  -- `Prover.StateRestoration.Soundness (oSpec + aux)` — i.e. `SoundnessWithCoins`, no separate notion.
-  refine ⟨(simulateQ srReassocImpl
-      ((fun o : Option (StmtIn × FSSaltedProof pSpec Salt) =>
-          let p := o.getD default; ((p.1, p.2.1), p.2.2))
-        <$> (d2sAlgoTransform maliciousProver).run) :
-      Prover.StateRestoration.SoundnessWithCoins oSpec (StmtIn × Salt) pSpec
-        ((Unit →ₒ U) + unifSpec)), ?_⟩
-  -- Remaining: the value-marginal game-match `Pr[evt | Hyb₄] = coinSRExperimentProb …`.
-  -- The pieces, in decreasing order of "done-ness":
-  --  • handler:  PROVEN above — `hybChallengeImpl_eq_srAddLift` gives `hybChallengeImpl oSpecImpl
-  --    𝒟_IP_salted = srHyb4Impl oSpecImpl`; the `srReassocImpl` regroup makes `srHyb4Impl` answer
-  --    the OG handler `(impl.addLift auxImpl).addLift srChallengeQueryImpl'` slot-for-slot (the
-  --    reroute collapses under `simulateQ_simulateQ`).
-  --  • init:     `hybChallengeInit 𝒟_IP_salted = srInitDIP` — both `= 𝒟_IP_salted.sample`.
-  --  • logging:  GENERIC, already in VCVio — `loggingOracle.fst_map_run_simulateQ` /
-  --    `run_simulateQ_bind_fst` peel `basicFiatShamirGame`'s prover/verifier logs (the event
-  --    ignores the `QueryLog` component, so the `(stmtIn, stmtOut)` marginal is unchanged).
-  --  • verifier: `saltedIPVerifier V (𝕩,τ̂) = V 𝕩` (def); `basicFiatShamirGame`'s `V.verify …
-  --    |>.getM` rejects iff the lifted `(saltedIPVerifier V).run` rejects ⇒ same event both sides.
-  --  • prover:   both sides run `D2SAlgo^f(𝒫̃)` and, on failure, the *same* `default` (de-abort) —
-  --    so the abort branches agree pointwise (this is why the de-abort keeps the match exact).
-  --  • transcript (the deep DSFS step): under the (regrouped) handler, the on-sponge routing
-  --    `simulateQ liftFSSaltedQueriesToD2SChallengePlusUnit (deriveTranscriptFS (𝕩,τ̂))` agrees
-  --    with `liftComp (deriveTranscriptSR (𝕩,τ̂))` (both answer FS challenge queries via the
-  --    pre-sampled `srChallengeQueryImpl'`; `deriveTranscriptFS = deriveTranscriptSR` by alias).
-  --  • output:   reassoc `(𝕩,(τ̂,m)) ↦ ((𝕩,τ̂),m)` (`srReassocImpl` + the output map).
+    Pr[ dsfsSoundnessEvent langIn langOut |
+        hyb_4 (δ := δ) (Salt := Salt) (oSpec := oSpec) (StmtIn := StmtIn)
+          (StmtOut := StmtOut) (pSpec := pSpec) (U := U)
+          oSpecImpl V maliciousProver d2sAlgoTransform]
+      = Pr[ (fun out => match out with
+              | some (x, s) => x ∉ langIn ∧ s ∈ langOut
+              | none => False) |
+          adaptiveNARGSoundnessExpWithCoins
+            (srInitDIP (StmtIn := StmtIn) (Salt := Salt) (pSpec := pSpec))
+            ((srImplLift (StmtIn := StmtIn) (Salt := Salt) (pSpec := pSpec) oSpecImpl).addLift
+              (srChallengeQueryImpl' (Statement := StmtIn × Salt) (pSpec := pSpec))) d2sAuxImpl
+            (fsSaltedVerify (Salt := Salt) V)
+            (nargInducedProver maliciousProver d2sAlgoTransform) ] := by
   sorry
 
-/-- **CO25 §6.1 step L3 — `Hyb₄` is the IP's state-restoration soundness game.** False acceptance in
-`Hyb₄` is bounded by the IP's SR-soundness error `ε_sr`.
-
-`Hyb₄` runs `𝒱_std^f` with `f ← 𝒟_IP_salted` (uniform FS oracle) against the compiled prover
-`D2SAlgo^f(𝒫̃)`. Because `fsChallengeOracle = srChallengeOracle`, this *is* the state-restoration
-soundness experiment for `saltedIPVerifier V` under the canonical model `(srInitDIP, srImplLift
-oSpecImpl)`: both sample a uniform challenge function, both have the prover **output `stmtIn`**, and
-both derive the transcript from the (identical) FS/SR oracle. So `h_IP_SR_sound` bounds it
-**directly** — no adaptive↔selective gap (SR soundness is adaptive by construction), hence Theorem
-3.18 (the general FS→SR bridge) is *not* on this path.
-
-Left as `sorry`; it rests on the two structural correspondences `Hyb₄ ≡ SR experiment`:
-
-1. **Eager ↔ pre-sampled-function model**: `hybChallengeInit/Impl 𝒟_IP_salted` (eager) and
-   `srInitDIP` + `srChallengeQueryImpl'` (pre-sampled function) induce the *same* distribution —
-   `𝒟_IP_salted = OracleDistribution.uniform …`, whose `toImpl g = fun q => pure (g q)` coincides
-   with `srChallengeQueryImpl'` applying the immutable sampled function `g`.
-
-2. **Compiled-prover / verifier-run correspondence**: `d2sAlgoTransform maliciousProver` (over
-   `oSpec + D2SChallengePlusUnitOracle …`, with auxiliary `Unit`/`unifSpec` sampling) maps to an
-   SR-soundness prover over `oSpec + srChallengeOracle (StmtIn × Salt) pSpec` (marginalizing the
-   auxiliary randomness), and `basicFiatShamirGame`'s `deriveTranscriptFS` + `V.verify` matches
-   `srSoundnessGame` + `(saltedIPVerifier V).run`. -/
-theorem hyb4_falseAccept_le_srSoundnessError
+/-- **CO25 §6.1 step L3 (two-hop):** false acceptance in `Hyb₄` is bounded by the basic-FS NARG
+soundness error.  Combines `hyb4_eq_coinNARGgame` (L3a) with the coin-bearing NARG soundness
+hypothesis (delivered by Thm 3.18 from IP SR soundness, L3b) applied to the induced prover. -/
+theorem hyb4_falseAccept_le_nargSoundness
     [∀ i, DecidableEq (pSpec.Challenge i)]
     [∀ i, DecidableEq (pSpec.Message i)]
     [DecidableEq ι]
@@ -452,50 +476,44 @@ theorem hyb4_falseAccept_le_srSoundnessError
     (d2sAlgoTransform : D2SAlgoTransform (δ := δ) (Salt := Salt)
       (oSpec := oSpec) (StmtIn := StmtIn) (pSpec := pSpec) (U := U))
     (ε_sr : ENNReal)
-    -- IP SR-soundness *against coin-bearing provers* (`auxSpec := (Unit →ₒ U) + unifSpec`,
-    -- coins sampled by `d2sAuxImpl`) — the honest hypothesis: `D2SAlgo^f(𝒫̃)` is such a prover.
+    -- Coin-bearing IP SR soundness (the same hypothesis as `theorem_6_1_soundness`).
     (h_IP_SR_sound : Verifier.StateRestoration.soundnessWithCoins
-        (init := srInitDIP) (impl := srImplLift oSpecImpl)
+        (srInitDIP (StmtIn := StmtIn) (Salt := Salt) (pSpec := pSpec))
+        (srImplLift (StmtIn := StmtIn) (Salt := Salt) (pSpec := pSpec) oSpecImpl)
         ((Unit →ₒ U) + unifSpec) d2sAuxImpl
         (langInSalted langIn) langOut (saltedIPVerifier (Salt := Salt) V) ε_sr) :
     Pr[ dsfsSoundnessEvent langIn langOut |
         hyb_4 (δ := δ) (Salt := Salt) (oSpec := oSpec) (StmtIn := StmtIn)
           (StmtOut := StmtOut) (pSpec := pSpec) (U := U)
           oSpecImpl V maliciousProver d2sAlgoTransform] ≤ ε_sr := by
-  -- `Hyb₄` *is* the coin-SR experiment for the prover induced by `D2SAlgo^f(𝒫̃)` (game-match), and
-  -- the coin-bearing SR-soundness hypothesis bounds that experiment directly — no derandomization.
-  obtain ⟨inducedProver, hEq⟩ :=
-    hyb4_eq_coinSRExperiment V oSpecImpl langIn langOut maliciousProver d2sAlgoTransform
-  rw [hEq]
-  exact h_IP_SR_sound inducedProver
+  -- L3b: FS NARG soundness from IP SR soundness (Thm 3.18), coin-bearing.
+  have h_NARG := theorem_3_18_soundness (Salt := Salt) ((Unit →ₒ U) + unifSpec) d2sAuxImpl V
+    langIn langOut (srInitDIP (StmtIn := StmtIn) (Salt := Salt) (pSpec := pSpec))
+    (srImplLift (StmtIn := StmtIn) (Salt := Salt) (pSpec := pSpec) oSpecImpl) ε_sr h_IP_SR_sound
+  -- L3a: Hyb₄ = the coin-bearing NARG game; apply NARG soundness to the induced prover.
+  rw [hyb4_eq_coinNARGgame V oSpecImpl langIn langOut maliciousProver d2sAlgoTransform]
+  exact h_NARG (nargInducedProver maliciousProver d2sAlgoTransform) trivial
 
-/-- **Adaptive, query-bounded soundness of the DSFS scheme** (CO25 `ε_NARG`) — the named, faithful
-DSFS-level soundness notion that `theorem_6_1_soundness` concludes.
-
-DSFS analog of `Verifier.StateRestoration.soundnessWithCoins` (and why we do *not* reuse the library
-`Verifier.soundness`):
-- **Adaptive**: the malicious prover `𝒫̃` (a `MaliciousProver`, i.e. an `OracleComp`) *outputs* its
-  statement `𝕩`, and the break event reads `𝕩 ∉ langIn ∧ stmtOut ∈ langOut` off that output — exactly
-  CO25's `ε_NARG`.  The library `Verifier.soundness` is instead *selective* (`∀ stmtIn ∉ langIn`)
-  over the interactive `Prover` *structure*, so it does not match this game.
-- **Query-bounded**: we quantify only over provers within the Key-Lemma permutation/hash budget
-  `(tₕ,tₚ,tₚᵢ)` — the bound is intrinsic (`η★` controls only bounded provers), the one extra
-  hypothesis `Verifier.soundness` lacks.  (No separate *coin* axis is needed: a randomized `𝒫̃`'s
-  coins already live inside the `∀ OracleComp` quantifier — coins were specific to the SR-level
-  *compiled* prover `D2SAlgo^f`.)
-
-The oracle model is the canonical DSFS one (`hyb0Init`, `hyb0Impl oSpecImpl`). -/
-def dsfsSoundnessBounded
-    (oSpecImpl : QueryImpl oSpec ProbComp)
+/-- **DSFS NARG soundness experiment = sponge soundness game** (CO25 §6 game-equivalence).  The
+Def-3.5 experiment for the DSFS NARG (`adaptiveNARGSoundnessExp` with `verify := dsfsNargVerify V`)
+and the duplex-sponge game `dsfsGameDist` assign the same false-acceptance probability: both run the
+malicious prover then the §5.8 forward verifier and read off `(𝕩, stmtOut)`, differing only in the
+(event-irrelevant) prover/verify query logs that `dsfsGame` records via `loggingOracle`.  Provable by
+`loggingOracle` value-marginalization. -/
+theorem dsfsNargSoundnessExp_eq_dsfsGame
     (V : Verifier oSpec StmtIn StmtOut pSpec)
-    [DecidableEq ι]
+    (oSpecImpl : QueryImpl oSpec ProbComp)
     (langIn : Set StmtIn) (langOut : Set StmtOut)
-    (tShared : oSpec.Domain → ℕ) (tₕ tₚ tₚᵢ : ℕ)
-    (error : ENNReal) : Prop :=
-  ∀ maliciousProver : MaliciousProver oSpec pSpec StmtIn U δ,
-    IsLemma5_1QueryBound maliciousProver tShared tₕ tₚ tₚᵢ →
-    Pr[ dsfsRawEvent langIn langOut |
-        dsfsGameDist hyb0Init (hyb0Impl oSpecImpl) V maliciousProver] ≤ error
+    (maliciousProver : MaliciousProver oSpec pSpec StmtIn U δ) :
+    Pr[ nargSoundFailEvent langIn langOut |
+        adaptiveNARGSoundnessExp hyb0Init (hyb0Impl oSpecImpl) (dsfsNargVerify V) maliciousProver ]
+      = Pr[ dsfsRawEvent langIn langOut |
+          dsfsGameDist hyb0Init (hyb0Impl oSpecImpl) V maliciousProver ] := by
+  unfold adaptiveNARGSoundnessExp dsfsGameDist
+  rw [probEvent_bind_eq_tsum, probEvent_bind_eq_tsum]
+  refine tsum_congr fun s => ?_
+  congr 1
+  sorry
 
 /-- CO25 **Theorem 6.1** — soundness of the duplex-sponge Fiat–Shamir scheme.
 
@@ -520,8 +538,8 @@ no Theorem 3.18 (FS→SR) detour, no adaptive↔selective gap.**
 ```
 The connective steps — L1 (`dsfsGame_falseAccept_eq_hyb0`, **fully proven**), the L2
 `tvDist`→probability transfer (`probEvent_le_probEvent_add_ofReal_tvDist`, **proven**), and the
-additive arithmetic — are `sorry`-free; the open seams are `lemma_5_1` (Thm 5.1) and
-`hyb4_falseAccept_le_srSoundnessError` (L3, `Hyb₄ ≡ SR experiment`). -/
+additive arithmetic — are proven; the open seams are `lemma_5_1` (Thm 5.1) and
+`hyb4_falseAccept_le_nargSoundness` (L3, `Hyb₄ ≡ NARG soundness`). -/
 theorem theorem_6_1_soundness
     [∀ i, DecidableEq (pSpec.Challenge i)]
     [∀ i, DecidableEq (pSpec.Message i)]
@@ -539,22 +557,39 @@ theorem theorem_6_1_soundness
         (init := srInitDIP) (impl := srImplLift oSpecImpl)
         ((Unit →ₒ U) + unifSpec) d2sAuxImpl
         (langInSalted langIn) langOut (saltedIPVerifier (Salt := Salt) V) ε_sr) :
-      -- ε_NARG(λ, (tₕ,tₚ,tₚ⁻¹), n) — now packaged as the named DSFS soundness notion:
-      dsfsSoundnessBounded (U := U) (δ := δ) oSpecImpl V langIn langOut tShared tₕ tₚ tₚᵢ
+      -- ε_NARG(λ, (tₕ,tₚ,tₚ⁻¹), n) — CO25 **Def 3.5** as a property of the DSFS NARG *verifier*
+      -- `Verifier.dsfsNargNIV δ V` (= `𝒱^{h,p}`), query-bounded attacker.
+      (Verifier.dsfsNargNIV δ V).adaptiveNARGSoundness
+        (init := hyb0Init) (impl := hyb0Impl oSpecImpl)
+        langIn langOut
+        (bound := fun maliciousProver : MaliciousProver oSpec pSpec StmtIn U δ =>
+          IsLemma5_1QueryBound maliciousProver tShared tₕ tₚ tₚᵢ)
         (ε_sr + ENNReal.ofReal
           (ηStar U tₕ tₚ tₚᵢ pSpec.totalNumPermQueries codec.decodingBias)) := by
+  -- `Verifier.dsfsNargNIV δ V`'s verify is defeq to `dsfsNargVerify V` (`Fin.cons … 0 = π`), so
+  -- cast to the bare-function Def-3.5 form, then run the §6.1 hybrid proof verbatim.
+  show adaptiveNARGSoundness (init := hyb0Init) (impl := hyb0Impl oSpecImpl)
+    (verify := dsfsNargVerify V) langIn langOut
+    (bound := fun maliciousProver : MaliciousProver oSpec pSpec StmtIn U δ =>
+      IsLemma5_1QueryBound maliciousProver tShared tₕ tₚ tₚᵢ)
+    (ε_sr + ENNReal.ofReal
+      (ηStar U tₕ tₚ tₚᵢ pSpec.totalNumPermQueries codec.decodingBias))
   intro maliciousProver hBound
+  -- Step 0: the DSFS NARG soundness experiment (Def 3.5) IS the sponge game `dsfsGameDist` on the
+  -- false-acceptance marginal (`dsfsNargSoundnessExp_eq_dsfsGame`); rewrite to the sponge game so the
+  -- §6.1 hybrid calc applies verbatim.
+  rw [dsfsNargSoundnessExp_eq_dsfsGame V oSpecImpl langIn langOut maliciousProver]
   -- Seam #1 (Theorem 5.1 / Key Lemma): the D2SAlgo prover transform, the D2STrace map, and the
   -- bound `tvDist (Hyb₀, Hyb₄) ≤ η★` for this query-bounded prover.
   obtain ⟨d2sAlgoTransform, d2sTraceTransform, hKey⟩ :=
     lemma_5_1 (δ := δ) (Salt := Salt) (T_H := T_H) (T_P := T_P)
       oSpecImpl V tShared tₕ tₚ tₚᵢ hTp
   have hTv := (hKey maliciousProver hBound).1
-  -- L3 (Hyb₄ ≡ IP SR game): false acceptance in Hyb₄ ≤ the IP SR-soundness error ε_sr, directly.
-  -- No Theorem 3.18 needed — Hyb₄ IS the SR game (fsChallengeOracle = srChallengeOracle, adaptive).
-  have hL3 := hyb4_falseAccept_le_srSoundnessError V oSpecImpl langIn langOut
+  -- L3 (paper two-hop): false acceptance in Hyb₄ ≤ basic-FS NARG soundness (L3a) ≤ IP SR
+  -- soundness ε_sr (L3b, Thm 3.18). Matches CO25 §6.1 Eq. lines 1950–1957.
+  have hL3 := hyb4_falseAccept_le_nargSoundness V oSpecImpl langIn langOut
     maliciousProver d2sAlgoTransform ε_sr h_IP_SR_sound
-  -- §6.1 derivation (open seams: `lemma_5_1` at L2, `hyb4_falseAccept_le_srSoundnessError` at L3):
+  -- §6.1 derivation (open seams: `lemma_5_1` at L2, `hyb4_falseAccept_le_nargSoundness` at L3):
   --   ε_NARG = Pr[ |𝕩|≤n ∧ 𝕩∉ℒ(ℛ) ∧ 𝒱^{h,p}(𝕩,π)=1 | (h,p,p⁻¹)←𝒟_𝔖; (𝕩,π)←𝒫̃^{h,p,p⁻¹} ]
   --     = Pr[ ... | Hyb₀ ]                                   -- (L1) trace map preserves acceptance
   --     ≤ Pr[ 𝒱_std^f(𝕩,π)=1 ∧ 𝕩∉ℒ | f←𝒟_IP; (𝕩,π)←D2SAlgo^f(𝒫̃) ] + η★   -- (L2, Thm 5.1)
@@ -601,88 +636,74 @@ theorem theorem_6_1_soundness
 /-! ## Theorem 6.2: IP SR-KS → DSFS straightline KS
 
 Bespoke, query-bounded form mirroring `theorem_6_1_soundness`.  (An earlier attempt phrased the
-conclusion in the *generic* `Verifier.knowledgeSoundness` and routed through the FS-lifting
-`theorem_3_19_straightline_ks`; that notion is selective + **unbounded**, so it cannot carry the
-query-bounded `η★` term — see `dsfsKnowledgeSoundnessBounded` for the faithful adaptive notion.) -/
+conclusion in the *generic* library `Verifier.knowledgeSoundness`; that notion is selective +
+**unbounded**, so it cannot carry the query-bounded `η★` term — `theorem_6_2_straightline` instead
+concludes CO25 Def 3.6 `adaptiveNARGKnowledgeSoundness` with a query-bounded adversary class.) -/
 
 /-- The **extraction-failure event** for the DSFS straightline-KS game, on the game's
-`(stmtIn, extracted-witness?)` output: the verifier accepted but the extracted witness misses
-`relIn` — or extraction produced no witness at all (still a failure). `none` (verifier rejected) is
-not a knowledge break.  CO25 §6.2: `(𝕩, 𝕨) ∉ ℛ ∧ b = 1`. -/
-def ksFailEvent (relIn : Set (StmtIn × WitIn)) :
-    Option (StmtIn × Option WitIn) → Prop
-  | some (stmtIn, some witIn) => (stmtIn, witIn) ∉ relIn
-  | some (_, none) => True
+`(stmtIn, extracted-witness?, stmtOut, witOut)` output: the verifier accepted into the output
+relation (`(stmtOut, witOut) ∈ relOut`) yet the extracted witness misses `relIn` — or extraction
+produced no witness at all (still a failure). `none` (verifier rejected) is not a knowledge break.
+Framework-aligned (uses `relOut` for acceptance), matching `nargKSFailEvent` /
+`coinKSExperimentProb`.  The DSFS attacker is proof-only, so its `witOut` is `default`. -/
+def ksFailEvent (relIn : Set (StmtIn × WitIn)) (relOut : Set (StmtOut × WitOut)) :
+    Option (StmtIn × Option WitIn × StmtOut × WitOut) → Prop
+  | some (x, some witIn, stmtOut, witOut) => (stmtOut, witOut) ∈ relOut ∧ (x, witIn) ∉ relIn
+  | some (_, none, stmtOut, witOut) => (stmtOut, witOut) ∈ relOut
   | none => False
 
 /-- The DSFS **straightline knowledge-soundness game** (bespoke, query-bounded): run the malicious
 prover `𝒫̃` and the DSFS verifier (the §5.8 `dsfsGame`), then run the straightline extractor
 `dsfsExtractor` (Construction 6.3) on the proof + combined query log — all under the *same* eager
-oracle handler `hyb0Impl oSpecImpl` so the extractor sees the prover's actual trace — and return the
-`(stmtIn, extracted-witness?)` pair. `none` = verifier rejected (`b = 0`). -/
+oracle handler `hyb0Impl oSpecImpl` so the extractor sees the prover's actual trace — and return
+`(stmtIn, extracted-witness?, stmtOut, witOut)`. `none` = verifier rejected (`b = 0`).  The
+proof-only DSFS attacker has no output witness, so `witOut := default`. -/
 def dsfsKSGameDist [Inhabited WitOut]
     (dsfsExtractor : Extractor.Straightline (oSpec + duplexSpongeChallengeOracle StmtIn U)
       StmtIn WitIn WitOut ⟨!v[.P_to_V], !v[DSSaltedProof (pSpec := pSpec) (U := U) δ]⟩)
     (oSpecImpl : QueryImpl oSpec ProbComp)
     (V : Verifier oSpec StmtIn StmtOut pSpec)
     (maliciousProver : MaliciousProver oSpec pSpec StmtIn U δ) :
-    ProbComp (Option (StmtIn × Option WitIn)) := do
+    ProbComp (Option (StmtIn × Option WitIn × StmtOut × WitOut)) := do
   (simulateQ (hyb0Impl oSpecImpl) (do
     let out? ← (dsfsGame V maliciousProver).run
     match out? with
     | none => pure none
-    | some ⟨stmtIn, _stmtOut, proof, log⟩ =>
+    | some ⟨stmtIn, stmtOut, proof, log⟩ =>
         -- The non-interactive transcript is the single P→V message (the DSFS proof).
         let witIn? ← (dsfsExtractor stmtIn default
           (Fin.cons proof (fun i => i.elim0) :
             FullTranscript ⟨!v[.P_to_V], !v[DSSaltedProof (pSpec := pSpec) (U := U) δ]⟩)
           log []).run
-        pure (some (stmtIn, witIn?)))).run' (← hyb0Init)
-
-/-- **Adaptive, query-bounded straightline knowledge soundness of the DSFS scheme** — the named,
-faithful DSFS-level KS notion that `theorem_6_2_straightline` concludes; the KS analog of
-`dsfsSoundnessBounded`.
-
-There exists a straightline extractor (Construction 6.3) such that, for every malicious prover within
-the Key-Lemma query budget `(tₕ,tₚ,tₚᵢ)`, the DSFS straightline-KS extraction-failure probability is
-bounded by `error`.  As with `dsfsSoundnessBounded`, this is *adaptive* (`𝒫̃` outputs `𝕩`) and
-*query-bounded* — so it is **not** a coin-variant of the library `Verifier.knowledgeSoundness` (which
-is unbounded and runs the interactive `Prover` structure on a fixed `stmtIn`). -/
-def dsfsKnowledgeSoundnessBounded [Inhabited WitOut]
-    (oSpecImpl : QueryImpl oSpec ProbComp)
-    (V : Verifier oSpec StmtIn StmtOut pSpec)
-    [DecidableEq ι]
-    (relIn : Set (StmtIn × WitIn))
-    (tShared : oSpec.Domain → ℕ) (tₕ tₚ tₚᵢ : ℕ)
-    (error : ENNReal) : Prop :=
-  ∃ dsfsExtractor : Extractor.Straightline (oSpec + duplexSpongeChallengeOracle StmtIn U)
-      StmtIn WitIn WitOut ⟨!v[.P_to_V], !v[DSSaltedProof (pSpec := pSpec) (U := U) δ]⟩,
-  ∀ maliciousProver : MaliciousProver oSpec pSpec StmtIn U δ,
-    IsLemma5_1QueryBound maliciousProver tShared tₕ tₚ tₚᵢ →
-    Pr[ ksFailEvent relIn |
-        dsfsKSGameDist dsfsExtractor oSpecImpl V maliciousProver ] ≤ error
+        pure (some (stmtIn, witIn?, stmtOut, (default : WitOut))))).run' (← hyb0Init)
 
 /-- **CO25 §6.2 game-match (the open structural seam).**  The DSFS straightline-KS game factors
-through a common extractor kernel `k` (run `E_IP` on the basic-FS game output), as two probability
-equalities:
+through a common extractor kernel `k` (run the **basic-FS NARG-KS extractor `E_std`** on the
+basic-FS game output), as two probability equalities:
 
-* **`hL1` — the `Hyb₀` step.**  The DSFS KS game equals `Hyb₀ >>= k`.  KS analog of the *proven*
-  soundness lemma `dsfsGame_falseAccept_eq_hyb0` (the §5.8 `D2STrace` line-4 map preserves the
-  read-out), now with the extractor kernel threaded through.
+* **`hL1` — the `Hyb₀` step.**  The DSFS KS game (with Construction 6.3 over `E_std`) equals
+  `Hyb₀ >>= k`.  KS analog of the *proven* soundness lemma `dsfsGame_falseAccept_eq_hyb0` (the §5.8
+  `D2STrace` line-4 map preserves the read-out), now with the `E_std`-extractor kernel threaded
+  through (and absorbing the `d2sTraceLog`/`liftFSExtractToDSFS` seams of Construction 6.3).
 
-* **`hL3` — the `Hyb₄` problem.**  `Hyb₄ >>= k` *is* the IP coin-SR-KS experiment for an induced
-  prover.  This is the **KS twin of `hyb4_eq_coinSRExperiment`** — the deep eager↔presampled-function
-  / `deriveTranscript` / prover-de-abort game-equivalence "Hyb₄ is the SR experiment", **shared in
-  substance with §6.1** (whose soundness version `hyb4_eq_coinSRExperiment` is the analogous seam).
+* **`hL3` — the `Hyb₄` problem.**  `Hyb₄ >>= k` *is* the **coin-bearing basic-FS NARG
+  straightline-KS experiment** (Def 3.6, `adaptiveNARGKnowledgeSoundnessExpWithCoins`) for the
+  prover `𝒫̃_std := D2SAlgo(𝒫̃)` (`nargInducedProver`), verifier `V_std^f = fsSaltedVerify V`, and
+  extractor `E_std`.  This is the **KS twin of the soundness `hyb4_eq_coinNARGgame`** — the deep
+  eager↔presampled-function / `deriveTranscript` / prover-de-abort game-equivalence, **shared in
+  substance with §6.1**.  (It is this RHS — *not* `coinKSExperimentProb` — that makes Step 4 route
+  through `theorem_3_19_straightline_ks`, faithful to the paper's two-hop.)
 
 `theorem_6_2_straightline` closes around this purely by *proven* bridges — `B3`, data-processing
 (`tvDist_bind_right_le`, valid for the shared kernel `k`), and `lemma_5_1`'s `tvDist ≤ η★`.  So this
-lemma (together with the cited `lemma_5_1`) is the *only* §6.2 open seam.  Left `sorry`. -/
+lemma (together with the cited `lemma_5_1`) is the *only* §6.2 open seam. -/
 theorem dsfsKSGame_hybFactorization
     [∀ i, DecidableEq (pSpec.Challenge i)]
     [∀ i, DecidableEq (pSpec.Message i)]
     [DecidableEq ι] [Inhabited WitOut]
-    (E_IP : Extractor.StateRestoration oSpec (StmtIn × Salt) WitIn WitOut pSpec)
+    (E_std : StmtIn → FSSaltedProof pSpec Salt →
+      QueryLog ((oSpec + srChallengeOracle (StmtIn × Salt) pSpec) + ((Unit →ₒ U) + unifSpec)) →
+        OptionT (OracleComp (oSpec + srChallengeOracle (StmtIn × Salt) pSpec)) WitIn)
     (V : Verifier oSpec StmtIn StmtOut pSpec)
     (oSpecImpl : QueryImpl oSpec ProbComp)
     (relIn : Set (StmtIn × WitIn)) (relOut : Set (StmtOut × WitOut))
@@ -693,24 +714,72 @@ theorem dsfsKSGame_hybFactorization
       (oSpec := oSpec) (StmtIn := StmtIn) (pSpec := pSpec) (U := U)) :
     ∃ (k : Option (BasicFiatShamirGameOutput (oSpec := oSpec) (StmtIn := StmtIn)
             (StmtOut := StmtOut) (pSpec := pSpec) (Salt := Salt)) →
-          ProbComp (Option (StmtIn × Option WitIn)))
-      (inducedProver : Prover.StateRestoration.KnowledgeSoundnessWithCoins
-          oSpec (StmtIn × Salt) WitOut pSpec ((Unit →ₒ U) + unifSpec)),
+          ProbComp (Option (StmtIn × Option WitIn × StmtOut × WitOut))),
       -- `hL1` — Hyb₀ step (KS analog of `dsfsGame_falseAccept_eq_hyb0`):
-      Pr[ ksFailEvent relIn |
-          dsfsKSGameDist (dsfsStraightlineExtractor E_IP) oSpecImpl V maliciousProver ]
-        = Pr[ ksFailEvent relIn |
+      Pr[ ksFailEvent relIn relOut |
+          dsfsKSGameDist (WitOut := WitOut)
+            (dsfsStraightlineExtractor (WitOut := WitOut) E_std) oSpecImpl V maliciousProver ]
+        = Pr[ ksFailEvent relIn relOut |
             hyb_0 (δ := δ) (Salt := Salt) (oSpec := oSpec) (StmtIn := StmtIn)
               (StmtOut := StmtOut) (pSpec := pSpec) (U := U)
               oSpecImpl V maliciousProver d2sTraceTransform >>= k ] ∧
-      -- `hL3` — the Hyb₄ problem (KS twin of `hyb4_eq_coinSRExperiment`):
-      Pr[ ksFailEvent relIn |
+      -- `hL3` — the Hyb₄ problem (KS twin of `hyb4_eq_coinNARGgame`); RHS = NARG straightline-KS
+      -- experiment for `𝒫̃_std = nargInducedProverKS`, `V_std^f`, extractor `E_std`:
+      Pr[ ksFailEvent relIn relOut |
           hyb_4 (δ := δ) (Salt := Salt) (oSpec := oSpec) (StmtIn := StmtIn)
             (StmtOut := StmtOut) (pSpec := pSpec) (U := U)
             oSpecImpl V maliciousProver d2sAlgoTransform >>= k ]
-        = Verifier.StateRestoration.coinKSExperimentProb
-            (init := srInitDIP) (impl := srImplLift oSpecImpl) d2sAuxImpl E_IP
-            (relInSalted relIn) relOut (saltedIPVerifier (Salt := Salt) V) inducedProver := by
+        = Pr[ nargKSFailEvent relIn relOut |
+            adaptiveNARGKnowledgeSoundnessExpWithCoins
+              (srInitDIP (StmtIn := StmtIn) (Salt := Salt) (pSpec := pSpec))
+              ((srImplLift (StmtIn := StmtIn) (Salt := Salt) (pSpec := pSpec) oSpecImpl).addLift
+                (srChallengeQueryImpl' (Statement := StmtIn × Salt) (pSpec := pSpec)))
+              d2sAuxImpl
+              (fsSaltedVerify (Salt := Salt) V)
+              E_std
+              (nargInducedProverKS maliciousProver d2sAlgoTransform) ] := by
+  sorry
+
+/-- **Construction 6.3 in CO25 Def-3.6 (NARG) shape** — the straightline extractor witnessing the
+DSFS NARG's `adaptiveNARGKnowledgeSoundness`.  Wraps `dsfsStraightlineExtractor E_std` (the
+`Extractor.Straightline` form) into the single-log Def-3.6 extractor type: build the
+non-interactive transcript from the proof `π`, pass a dummy `default` output witness (ignored),
+the prover log `tr` as the prover-log slot, and `[]` as the (absent) verifier-log slot. -/
+noncomputable def dsfsNargExtractor [Inhabited WitOut]
+    (E_std : StmtIn → FSSaltedProof pSpec Salt →
+      QueryLog ((oSpec + srChallengeOracle (StmtIn × Salt) pSpec) + ((Unit →ₒ U) + unifSpec)) →
+        OptionT (OracleComp (oSpec + srChallengeOracle (StmtIn × Salt) pSpec)) WitIn) :
+    StmtIn → DSSaltedProof (pSpec := pSpec) (U := U) δ →
+      QueryLog (oSpec + duplexSpongeChallengeOracle StmtIn U) →
+        OptionT (OracleComp (oSpec + duplexSpongeChallengeOracle StmtIn U)) WitIn :=
+  fun stmtIn proof tr =>
+    dsfsStraightlineExtractor (WitOut := WitOut) E_std stmtIn default
+      (Fin.cons proof (fun i => i.elim0) :
+        FullTranscript ⟨!v[.P_to_V], !v[DSSaltedProof (pSpec := pSpec) (U := U) δ]⟩)
+      tr []
+
+/-- **DSFS NARG-KS experiment = sponge KS game** (CO25 §6.2 game-equivalence).  The Def-3.6
+experiment for the DSFS NARG (`adaptiveNARGKnowledgeSoundnessExp`, `verify := dsfsNargVerify V`,
+extractor `dsfsNargExtractor E_std`) equals the sponge KS game `dsfsKSGameDist` (Construction 6.3
+`dsfsStraightlineExtractor E_std`) on the extraction-failure marginal.  Both run the prover, the §5.8
+forward verifier, and the extractor on the proof + prover log; they differ only in the
+(extractor-internal, seam-absorbed) query logs.  Provable by `loggingOracle` value-marginalization;
+open seam. -/
+theorem dsfsNargKSExp_eq_dsfsKSGame [Inhabited WitOut]
+    (E_std : StmtIn → FSSaltedProof pSpec Salt →
+      QueryLog ((oSpec + srChallengeOracle (StmtIn × Salt) pSpec) + ((Unit →ₒ U) + unifSpec)) →
+        OptionT (OracleComp (oSpec + srChallengeOracle (StmtIn × Salt) pSpec)) WitIn)
+    (V : Verifier oSpec StmtIn StmtOut pSpec)
+    (oSpecImpl : QueryImpl oSpec ProbComp)
+    (relIn : Set (StmtIn × WitIn)) (relOut : Set (StmtOut × WitOut))
+    (maliciousProver : MaliciousProver oSpec pSpec StmtIn U δ) :
+    Pr[ nargKSFailEvent relIn relOut |
+        adaptiveNARGKnowledgeSoundnessExp hyb0Init (hyb0Impl oSpecImpl) (dsfsNargVerify V)
+          (dsfsNargExtractor (WitOut := WitOut) E_std)
+          (dsfsKSAdversary (WitOut := WitOut) maliciousProver) ]
+      = Pr[ ksFailEvent relIn relOut |
+          dsfsKSGameDist (WitOut := WitOut)
+            (dsfsStraightlineExtractor (WitOut := WitOut) E_std) oSpecImpl V maliciousProver ] := by
   sorry
 
 /-- CO25 **Theorem 6.2 (straightline knowledge soundness)** — bespoke, query-bounded form.
@@ -718,32 +787,35 @@ theorem dsfsKSGame_hybFactorization
 For every malicious prover making at most `(tₕ, tₚ, tₚᵢ)` permutation/hash queries, the DSFS
 straightline-KS extraction-failure probability is at most `ε_sr + η★`, where `ε_sr` is the IP's
 straightline state-restoration KS error and `η★` is the Key-Lemma additive error.  The extractor
-witness is **Construction 6.3** (`dsfsStraightlineExtractor E_IP`): apply `D2STrace` to the DSFS
-query log, then the IP SR extractor `E_IP`.
+witness is **Construction 6.3** (`dsfsStraightlineExtractor E_std`): apply `D2STrace` to the DSFS
+query log to get `tr_std`, then run the **basic-FS NARG-KS extractor `E_std`** on it — where `E_std`
+is delivered by **Theorem 3.19** (`theorem_3_19_straightline_ks`) from the IP's SR-KS.
 
 **Shape (per design, as for `theorem_6_1_soundness`)**: phrased over `MaliciousProver` with an
-explicit query bound — the unbounded `Verifier.knowledgeSoundness` form is unprovable here (`η★` only
-controls query-bounded provers).  Hypothesis is the *coin-bearing* SR-KS notion
+explicit query bound — the unbounded `Verifier.knowledgeSoundness` form is unprovable here (`η★`
+only controls query-bounded provers).  Hypothesis is the *coin-bearing* SR-KS notion
 `knowledgeSoundnessWithCoins` (the KS analog of `theorem_6_1`'s `soundnessWithCoins`): the compiled
-prover `D2SAlgo^f(𝒫̃)` has private coins, answered by `d2sAuxImpl`; `E_IP` itself is straightline over
-base `oSpec`.
+prover `𝒫̃_std = D2SAlgo^f(𝒫̃)` has private coins, answered by `d2sAuxImpl`; `E_std` is coin-blind.
 
-**Proof flow (mirrors §6.1; every `≤` bridge is proven).**  Factoring both `Hyb₀` and `Hyb₄`
-through a *common* extractor kernel `k` (run `E_IP` on the FS game output):
+**Proof flow (the paper's two-hop, §6.2 Eq. 1986–2011; every `≤` bridge is proven).**  Factoring both
+`Hyb₀` and `Hyb₄` through a *common* extractor kernel `k` (run `E_std` on the FS game output):
 ```
-ε_NARG^ks = Pr[ksFail | DSFS KS game w/ Construction 6.3]
-  = Pr[ksFail | Hyb₀ >>= k]                        -- (L1) game-match equality   [seam]
+ε_NARG^ks = Pr[ksFail | DSFS KS game w/ Construction 6.3 over E_std]
+  = Pr[ksFail | Hyb₀ >>= k]                        -- (Step 1) unfold Constr 6.3  [seam hL1]
   ≤ Pr[ksFail | Hyb₄ >>= k] + tvDist(Hyb₀>>=k, …)  -- B3                          ✓
   ≤ Pr[ksFail | Hyb₄ >>= k] + tvDist(Hyb₀, Hyb₄)   -- data-processing      ✓ tvDist_bind_right_le
-  ≤ Pr[ksFail | Hyb₄ >>= k] + η★                   -- Key Lemma                  ✓ lemma_5_1 (hTv)
-  = coinKSExperimentProb(inducedProver) + η★        -- (L3) game-match equality   [seam]
-  ≤ ε_sr + η★                                      -- SR-KS hypothesis           ✓ hE_IP
+  ≤ Pr[ksFail | Hyb₄ >>= k] + η★                   -- (Step 2) Lemma 5.1         ✓ lemma_5_1 (hTv)
+  = κ_NARG^ks[V_std^f](𝒫̃_std) + η★                  -- (Step 3) Hyb₄ = NARG-KS game [seam hL3]
+  ≤ ε_IP^sr + η★                                   -- (Step 4) Theorem 3.19      ✓ hE_std
 ```
-The data-processing step is the §6.2-specific workhorse: applying the *same* kernel `k` to both
-hybrids can only *decrease* `tvDist` (`tvDist_bind_right_le`), so `lemma_5_1`'s `tvDist(Hyb₀,Hyb₄) ≤
-η★` transports verbatim.  The **only** remaining `sorry` is the bundled game-match *equality* (`∃ k
-inducedProver, L1 ∧ L3` — the KS analog of `hyb4_eq_coinSRExperiment`, the deep "Hyb is the SR game"
-fact, still open for §6.1 too); plus `lemma_5_1` itself (Thm 5.1, cited). -/
+Step 4 is the **literal application of `theorem_3_19_straightline_ks`** (`hE_std` applied to the
+induced prover `𝒫̃_std = nargInducedProver`), mirroring §6.1's `theorem_3_18_soundness` use —
+faithful to the paper (not collapsed).  The data-processing step applies the *same* kernel `k` to
+both hybrids, so `lemma_5_1`'s `tvDist(Hyb₀,Hyb₄) ≤ η★` transports verbatim
+(`tvDist_bind_right_le`).  Open seams:
+`dsfsKSGame_hybFactorization` (bundled `hL1 ∧ hL3`, KS twin of `hyb4_eq_coinNARGgame`), the
+Construction-6.3 spec seams (`d2sTraceLog`/`liftFSExtractToDSFS`), `theorem_3_19_straightline_ks`
+(FS↔SR-KS crosswalk), and `lemma_5_1` (Thm 5.1). -/
 theorem theorem_6_2_straightline
     [∀ i, DecidableEq (pSpec.Challenge i)]
     [∀ i, DecidableEq (pSpec.Message i)]
@@ -759,24 +831,54 @@ theorem theorem_6_2_straightline
         (init := srInitDIP) (impl := srImplLift oSpecImpl)
         ((Unit →ₒ U) + unifSpec) d2sAuxImpl
         (relInSalted relIn) relOut (saltedIPVerifier (Salt := Salt) V) ε_sr) :
-    -- Packaged as the named DSFS straightline-KS notion (KS analog of `dsfsSoundnessBounded`):
-    dsfsKnowledgeSoundnessBounded (U := U) (δ := δ) (WitOut := WitOut) oSpecImpl V relIn
-      tShared tₕ tₚ tₚᵢ
-      (ε_sr + ENNReal.ofReal
+    -- CO25 **Def 3.6** (`adaptiveNARGKnowledgeSoundness`) at the DSFS NARG: oracle model
+    -- `hyb0Init`/`hyb0Impl`, verifier `dsfsNargVerify V`, acceptance `(stmtOut, witOut) ∈ relOut`;
+    -- adversary class = the query-bounded proof-only DSFS attacker `dsfsKSAdversary 𝒫̃`.
+    (Verifier.dsfsNargNIV δ V).adaptiveNARGKnowledgeSoundness (WitIn := WitIn) (WitOut := WitOut)
+      (init := hyb0Init) (impl := hyb0Impl oSpecImpl)
+      (relIn := relIn) (relOut := relOut)
+      (bound := fun P : OracleComp (oSpec + duplexSpongeChallengeOracle StmtIn U)
+          (StmtIn × DSSaltedProof (pSpec := pSpec) (U := U) δ × WitOut) =>
+        ∃ maliciousProver : MaliciousProver oSpec pSpec StmtIn U δ,
+          IsLemma5_1QueryBound maliciousProver tShared tₕ tₚ tₚᵢ ∧
+            P = dsfsKSAdversary maliciousProver)
+      (error := ε_sr + ENNReal.ofReal
         (ηStar U tₕ tₚ tₚᵢ pSpec.totalNumPermQueries codec.decodingBias)) := by
-  -- Extractor witness: Construction 6.3 over the IP SR-KS extractor `E_IP` (base `oSpec`).
-  obtain ⟨E_IP, hE_IP⟩ := h_IP_SR_KS
-  refine ⟨dsfsStraightlineExtractor E_IP, fun maliciousProver hBound => ?_⟩
+  -- `Verifier.dsfsNargNIV δ V`'s verify is defeq to `dsfsNargVerify V`; cast to the bare-function
+  -- Def-3.6 form, then run the §6.2 proof verbatim.
+  show adaptiveNARGKnowledgeSoundness (init := hyb0Init) (impl := hyb0Impl oSpecImpl)
+    (verify := dsfsNargVerify V) (relIn := relIn) (relOut := relOut)
+    (bound := fun P : OracleComp (oSpec + duplexSpongeChallengeOracle StmtIn U)
+        (StmtIn × DSSaltedProof (pSpec := pSpec) (U := U) δ × WitOut) =>
+      ∃ maliciousProver : MaliciousProver oSpec pSpec StmtIn U δ,
+        IsLemma5_1QueryBound maliciousProver tShared tₕ tₚ tₚᵢ ∧
+          P = dsfsKSAdversary maliciousProver)
+    (error := ε_sr + ENNReal.ofReal
+      (ηStar U tₕ tₚ tₚᵢ pSpec.totalNumPermQueries codec.decodingBias))
+  -- **Step 4 (Theorem 3.19).** IP SR-KS ⟹ basic-FS NARG straightline-KS, delivering `E_std`.
+  obtain ⟨E_std, hE_std⟩ :=
+    theorem_3_19_straightline_ks (Salt := Salt) ((Unit →ₒ U) + unifSpec) d2sAuxImpl V relIn relOut
+      (srInitDIP (StmtIn := StmtIn) (Salt := Salt) (pSpec := pSpec))
+      (srImplLift (StmtIn := StmtIn) (Salt := Salt) (pSpec := pSpec) oSpecImpl) ε_sr h_IP_SR_KS
+  -- Extractor witness: Construction 6.3 in NARG shape (`dsfsNargExtractor`) over `E_std`.
+  refine ⟨dsfsNargExtractor (WitOut := WitOut) E_std, fun P hBound => ?_⟩
+  -- The DSFS attacker is a query-bounded proof-only `MaliciousProver` claiming `default` witOut.
+  obtain ⟨maliciousProver, hQB, rfl⟩ := hBound
+  -- Step 0: the DSFS NARG-KS experiment (Def 3.6) IS the sponge KS game `dsfsKSGameDist` on the
+  -- extraction-failure marginal (`dsfsNargKSExp_eq_dsfsKSGame`); rewrite to the sponge game so the
+  -- §6.2 hybrid calc applies verbatim.
+  rw [dsfsNargKSExp_eq_dsfsKSGame (WitOut := WitOut) E_std V oSpecImpl relIn relOut
+      maliciousProver]
   -- **Seam #1 (Key Lemma 5.1).** Prover/trace transforms + `tvDist(Hyb₀, Hyb₄) ≤ η★`.
   obtain ⟨d2sAlgoTransform, d2sTraceTransform, hKey⟩ :=
     lemma_5_1 (δ := δ) (Salt := Salt) (T_H := T_H) (T_P := T_P)
       oSpecImpl V tShared tₕ tₚ tₚᵢ hTp
-  have hTv := (hKey maliciousProver hBound).1
-  -- **Seam #2 (the §6.2 game-match) — now the named lemma `dsfsKSGame_hybFactorization`.**
-  -- It supplies the common extractor kernel `k`, the induced prover, and the two equalities
-  -- `hL1` (Hyb₀ step) ∧ `hL3` (the Hyb₄ problem = KS twin of `hyb4_eq_coinSRExperiment`).
-  obtain ⟨k, inducedProver, hL1, hL3⟩ :=
-    dsfsKSGame_hybFactorization E_IP V oSpecImpl relIn relOut maliciousProver
+  have hTv := (hKey maliciousProver hQB).1
+  -- **Seam #2 (the §6.2 game-match) — the named lemma `dsfsKSGame_hybFactorization`.**
+  -- It supplies the common extractor kernel `k` and the two equalities `hL1` (Step 1: unfold
+  -- Construction 6.3) ∧ `hL3` (Step 3: Hyb₄ = NARG-KS game, KS twin of `hyb4_eq_coinNARGgame`).
+  obtain ⟨k, hL1, hL3⟩ :=
+    dsfsKSGame_hybFactorization (WitOut := WitOut) E_std V oSpecImpl relIn relOut maliciousProver
       d2sTraceTransform d2sAlgoTransform
   set H0 := hyb_0 (δ := δ) (Salt := Salt) (oSpec := oSpec) (StmtIn := StmtIn)
       (StmtOut := StmtOut) (pSpec := pSpec) (U := U)
@@ -784,26 +886,27 @@ theorem theorem_6_2_straightline
   set H4 := hyb_4 (δ := δ) (Salt := Salt) (oSpec := oSpec) (StmtIn := StmtIn)
       (StmtOut := StmtOut) (pSpec := pSpec) (U := U)
       oSpecImpl V maliciousProver d2sAlgoTransform with hH4
-  -- All `≤` bridges below are **proven**: L1 (`hL1`), B3, data-processing (`tvDist_bind_right_le`),
-  -- the Key-Lemma bound (`hTv`), the game-match (`hL3`), and the SR-KS hypothesis (`hE_IP`).
-  calc Pr[ ksFailEvent relIn |
-          dsfsKSGameDist (dsfsStraightlineExtractor E_IP) oSpecImpl V maliciousProver ]
-      = Pr[ ksFailEvent relIn | H0 >>= k ] := hL1
-    _ ≤ Pr[ ksFailEvent relIn | H4 >>= k ] + ENNReal.ofReal (tvDist (H0 >>= k) (H4 >>= k)) :=
+  -- All `≤` bridges below are **proven**: Step 1 (`hL1`), B3, data-processing
+  -- (`tvDist_bind_right_le`), the Key-Lemma bound (`hTv`), Step 3 (`hL3`), and Step 4 (`hE_std`).
+  calc Pr[ ksFailEvent relIn relOut |
+          dsfsKSGameDist (WitOut := WitOut)
+            (dsfsStraightlineExtractor (WitOut := WitOut) E_std) oSpecImpl V maliciousProver ]
+      = Pr[ ksFailEvent relIn relOut | H0 >>= k ] := hL1
+    _ ≤ Pr[ ksFailEvent relIn relOut | H4 >>= k ] + ENNReal.ofReal (tvDist (H0 >>= k) (H4 >>= k)) :=
         probEvent_le_probEvent_add_ofReal_tvDist _ _ _
-    _ ≤ Pr[ ksFailEvent relIn | H4 >>= k ] + ENNReal.ofReal (tvDist H0 H4) :=
+    _ ≤ Pr[ ksFailEvent relIn relOut | H4 >>= k ] + ENNReal.ofReal (tvDist H0 H4) :=
         add_le_add (le_refl _) (ENNReal.ofReal_le_ofReal (tvDist_bind_right_le k H0 H4))
-    _ ≤ Pr[ ksFailEvent relIn | H4 >>= k ]
+    _ ≤ Pr[ ksFailEvent relIn relOut | H4 >>= k ]
           + ENNReal.ofReal (ηStar U tₕ tₚ tₚᵢ pSpec.totalNumPermQueries codec.decodingBias) :=
         add_le_add (le_refl _) (ENNReal.ofReal_le_ofReal hTv)
-    _ = Verifier.StateRestoration.coinKSExperimentProb
-            (init := srInitDIP) (impl := srImplLift oSpecImpl) d2sAuxImpl E_IP
-            (relInSalted relIn) relOut (saltedIPVerifier (Salt := Salt) V) inducedProver
-          + ENNReal.ofReal (ηStar U tₕ tₚ tₚᵢ pSpec.totalNumPermQueries codec.decodingBias) := by
-        rw [hL3]
+    -- Step 3 (`rw [hL3]`: Hyb₄ = NARG-KS game) ∘ Step 4 (`hE_std`: Theorem 3.19 on `𝒫̃_std`).
+    -- `refine add_le_add ?_ (le_refl _)` takes the event from the *goal*, then `exact` discharges
+    -- the bound by full defeq (unfolding the NARG-KS-experiment event `match` aux-defs).
     _ ≤ ε_sr + ENNReal.ofReal
-            (ηStar U tₕ tₚ tₚᵢ pSpec.totalNumPermQueries codec.decodingBias) :=
-        add_le_add (hE_IP inducedProver) (le_refl _)
+            (ηStar U tₕ tₚ tₚᵢ pSpec.totalNumPermQueries codec.decodingBias) := by
+        rw [hL3]
+        refine add_le_add ?_ (le_refl _)
+        exact hE_std (nargInducedProverKS maliciousProver d2sAlgoTransform) trivial
 
 end
 

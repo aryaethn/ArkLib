@@ -207,6 +207,18 @@ def relInSalted {Salt : Type} (relIn : Set (StmtIn × WitIn)) : Set ((StmtIn × 
 
 set_option linter.unusedDecidableInType false
 
+/-- The single-salt FS verifier run as a NARG `verify` (CO25 `V_std^f(x,·)`): build the
+single-message transcript from the FS proof and run `Verifier.singleSaltFiatShamir V`.  Shared by
+the FS NARG soundness/KS statements (Thm 3.18/3.19) and the DSFS `Hyb₄` game-match so they refer to
+the *same* verifier. -/
+def fsSaltedVerify {Salt : Type} [VCVCompatible Salt]
+    (V : Verifier oSpec StmtIn StmtOut pSpec) :
+    StmtIn → FSSaltedProof pSpec Salt →
+      OptionT (OracleComp (oSpec + fsChallengeOracle (StmtIn × Salt) pSpec)) StmtOut :=
+  fun stmtIn proof =>
+    (Verifier.singleSaltFiatShamir (Salt := Salt) V).verify stmtIn
+      (Fin.cons proof (fun i => i.elim0))
+
 /-- CO25 Theorem 3.18 — Single-salt FS soundness from IP SR-soundness.
 
 If `saltedIPVerifier V` has state-restoration soundness (for `langInSalted langIn`) with error
@@ -219,19 +231,25 @@ identical (same oracle, same keys: `srChallengeOracle = fsChallengeOracle` by al
 **Open seam**: body is `sorry` — used as Seam #2 in `Soundness.lean` (Theorem 6.1). -/
 theorem theorem_3_18_soundness
     {Salt : Type} [VCVCompatible Salt]
+    {κ : Type} (auxSpec : OracleSpec κ) (auxImpl : QueryImpl auxSpec ProbComp)
     (V : Verifier oSpec StmtIn StmtOut pSpec)
     (langIn : Set StmtIn) (langOut : Set StmtOut)
     (fsInit : ProbComp (QueryImpl (srChallengeOracle (StmtIn × Salt) pSpec) Id))
     (fsImpl : QueryImpl oSpec
       (StateT (QueryImpl (srChallengeOracle (StmtIn × Salt) pSpec) Id) ProbComp))
     (ε : ENNReal)
-    (h_sr : Verifier.StateRestoration.soundness fsInit fsImpl
+    -- Coin-bearing SR soundness of the salted IP (the compiled FS prover may use private coins).
+    (h_sr : Verifier.StateRestoration.soundnessWithCoins fsInit fsImpl auxSpec auxImpl
         (langInSalted (Salt := Salt) langIn) langOut (saltedIPVerifier (Salt := Salt) V) ε) :
-    Verifier.soundness
-      fsInit (fsImpl.addLift srChallengeQueryImpl')
-      langIn langOut
-      (Verifier.singleSaltFiatShamir (Salt := Salt) V)
-      ε.toNNReal := by
+    -- CO25 Def 3.5 (adaptive, coin-bearing NARG soundness) of the single-salt FS argument,
+    -- phrased as a property of the NARG verifier `Verifier.singleSaltFiatShamir V`.
+    Verifier.adaptiveNARGSoundnessWithCoins
+      (init := fsInit) (impl := fsImpl.addLift srChallengeQueryImpl')
+      auxImpl
+      (verifier := Verifier.singleSaltFiatShamir (Salt := Salt) V)
+      langIn langOut (bound := fun _ => True) ε := by
+  -- FS↔SR crosswalk: salted FS NARG game ≡ IP SR game (`fsChallengeOracle = srChallengeOracle`,
+  -- `deriveTranscriptFS = deriveTranscriptSR`) up to prover-spec regroup; coins carry through.
   sorry
 
 /-- CO25 Theorem 3.19 — Single-salt FS straightline KS from IP SR-KS.
@@ -246,19 +264,25 @@ the IP SR query log, and (3) calls `E_SR (stmtIn, τ) witOut ip_transcript ip_lo
 **Open seam**: body is `sorry` — used as Seam #2 in `Soundness.lean` (Theorem 6.2). -/
 theorem theorem_3_19_straightline_ks
     {Salt : Type} [VCVCompatible Salt]
+    {κ : Type} (auxSpec : OracleSpec κ) (auxImpl : QueryImpl auxSpec ProbComp)
     (V : Verifier oSpec StmtIn StmtOut pSpec)
     (relIn : Set (StmtIn × WitIn)) (relOut : Set (StmtOut × WitOut))
     (fsInit : ProbComp (QueryImpl (srChallengeOracle (StmtIn × Salt) pSpec) Id))
     (fsImpl : QueryImpl oSpec
       (StateT (QueryImpl (srChallengeOracle (StmtIn × Salt) pSpec) Id) ProbComp))
     (ε : ENNReal)
-    (h_sr_ks : Verifier.StateRestoration.knowledgeSoundness fsInit fsImpl
+    -- Coin-bearing SR knowledge soundness of the salted IP.
+    (h_sr_ks : Verifier.StateRestoration.knowledgeSoundnessWithCoins fsInit fsImpl auxSpec auxImpl
         (relInSalted (Salt := Salt) relIn) relOut (saltedIPVerifier (Salt := Salt) V) ε) :
-    Verifier.knowledgeSoundness
-      fsInit (fsImpl.addLift srChallengeQueryImpl')
-      relIn relOut
-      (Verifier.singleSaltFiatShamir (Salt := Salt) V)
-      ε.toNNReal := by
+    -- CO25 Def 3.6 (adaptive, coin-bearing straightline KS) of the single-salt FS argument,
+    -- phrased as a property of the NARG verifier `Verifier.singleSaltFiatShamir V`.
+    Verifier.adaptiveNARGKnowledgeSoundnessWithCoins (WitIn := WitIn) (WitOut := WitOut)
+      (init := fsInit) (impl := fsImpl.addLift srChallengeQueryImpl')
+      auxImpl
+      (verifier := Verifier.singleSaltFiatShamir (Salt := Salt) V)
+      relIn relOut (bound := fun _ => True) ε := by
+  -- FS↔SR crosswalk for KS: SR straightline extractor ⇒ FS straightline extractor (Construction
+  -- 3.19); transcripts coincide by alias; coins carry through.
   sorry
 
 end SingleSaltSecurity

@@ -25,7 +25,7 @@ home_page/            site assets and assembled website root
 - `ArkLib/OracleReduction/` is the conceptual center of the library.
 - `ArkLib/Data/`, `ArkLib/ToMathlib/`, `ArkLib/ToCompPoly/`, and `ArkLib/ToVCVio/` support the
   core with reusable definitions and lemmas.
-- `ArkLib/CommitmentScheme/` and `ArkLib/ProofSystem/` build on top of those foundations.
+- `ArkLib/Commitments/` and `ArkLib/ProofSystem/` build on top of those foundations.
 - When changing a protocol subtree, read the local subtree plus one layer of imports toward
   `Data/` or `OracleReduction/` before making architectural edits.
 
@@ -34,7 +34,9 @@ home_page/            site assets and assembled website root
 - Extending foundational math or coding theory: start in `ArkLib/Data/`.
 - Changing core reduction or security abstractions: start in `ArkLib/OracleReduction/`.
 - Working on protocol statements or proofs: start in `ArkLib/ProofSystem/`.
-- Updating commitment interfaces or concrete schemes: start in `ArkLib/CommitmentScheme/`.
+- Updating commitment interfaces or concrete schemes: start in `ArkLib/Commitments/`
+  (`Ordinary/` for non-interactive schemes built on the VCV-io `CommitmentScheme`,
+  `Functional/` for commitments with oracle openings such as KZG).
 - Moving reusable helper lemmas that ideally belong upstream: start in `ArkLib/ToMathlib/`,
   `ArkLib/ToCompPoly/`, or `ArkLib/ToVCVio/`, depending on the upstream project.
 - Updating theory docs, references, or long-form exposition: start in `blueprint/src/`.
@@ -45,7 +47,7 @@ home_page/            site assets and assembled website root
 - `ArkLib.lean` is a generated umbrella import file, not a hand-maintained module index.
 - `ArkLib/ToVCVio/` mirrors VCV-io module structure under the importable Lean prefix
   `ArkLib.ToVCVio`; use it for reusable `VCVio` helper lemmas before they are upstreamed.
-- KZG commitment-scheme modules live under `ArkLib/CommitmentScheme/KZG/`: `Basic` for the
+- KZG commitment-scheme modules live under `ArkLib/Commitments/Functional/KZG/`: `Basic` for the
   construction and scheme instance, `Correctness` for correctness proofs, `FunctionBinding` for
   the function-binding reduction, and `Binding` for evaluation binding. Shared
   CPolynomial/Polynomial division bridge lemmas live under `ArkLib/ToCompPoly/`.

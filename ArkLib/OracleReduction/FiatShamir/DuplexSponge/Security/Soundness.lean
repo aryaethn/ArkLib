@@ -56,6 +56,22 @@ these theorems follow as corollaries.
 
 open OracleComp OracleSpec ProtocolSpec
 
+/-- **Generic double `loggingOracle` value-marginal strip.**  When two nested logged runs feed a
+read-out using only their *values* (`.1`), both logs drop out.  The reusable core of the keyA-style
+log-strip (cf. `dsfsNargSoundnessExp_eq_dsfsGame`): the verbose `ob` arguments to
+`run_simulateQ_bind_fst` are discharged once, here, where `oa`/`ob`/`k` are abstract (hence
+concise), rather than at each DSFS use site (where the inline verifier body would make them huge).
+-/
+theorem logging_strip₂ {ι : Type} {spec : OracleSpec.{0, 0} ι} {α β γ : Type}
+    (oa : OracleComp spec α) (ob : α → OracleComp spec β) (k : α → β → γ) :
+    ((simulateQ loggingOracle oa).run >>= fun p =>
+      (simulateQ loggingOracle (ob p.1)).run >>= fun q => pure (k p.1 q.1))
+      = oa >>= fun a => ob a >>= fun b => pure (k a b) := by
+  rw [loggingOracle.run_simulateQ_bind_fst (oa := oa)
+      (ob := fun a => (simulateQ loggingOracle (ob a)).run >>= fun q => pure (k a q.1))]
+  refine bind_congr fun a => ?_
+  rw [loggingOracle.run_simulateQ_bind_fst (oa := ob a) (ob := fun b => pure (k a b))]
+
 /-- **Probability transfer across total-variation distance** (the `Pr`-level form of
 `tvDist`).  For any event `p` and two probabilistic computations, the event probability under
 `mx` is at most its probability under `my` plus `tvDist mx my`.  This is the standard fact
@@ -194,20 +210,27 @@ noncomputable def dsfsStraightlineExtractor
     [∀ i, Fintype (pSpec.Message i)] [∀ i, DecidableEq (pSpec.Message i)]
     (E_std : StmtIn → FSSaltedProof pSpec Salt →
       QueryLog ((oSpec + srChallengeOracle (StmtIn × Salt) pSpec) + ((Unit →ₒ U) + unifSpec)) →
+      QueryLog ((oSpec + srChallengeOracle (StmtIn × Salt) pSpec) + ((Unit →ₒ U) + unifSpec)) →
         OptionT (OracleComp (oSpec + srChallengeOracle (StmtIn × Salt) pSpec)) WitIn) :
     Extractor.Straightline
       (oSpec + duplexSpongeChallengeOracle StmtIn U)
       StmtIn WitIn WitOut
       ⟨!v[.P_to_V], !v[DSSaltedProof (pSpec := pSpec) (U := U) δ]⟩ :=
-  fun stmtIn _witOut transcript proveQueryLog _verifyQueryLog =>
+  fun stmtIn _witOut transcript proveQueryLog verifyQueryLog =>
     -- 1. The single P→V message *is* the DSFS proof `(τ, messages)`; regroup as a basic-FS proof.
     let saltedProof : DSSaltedProof (pSpec := pSpec) (U := U) δ := transcript 0
     let fsProof : FSSaltedProof pSpec Salt := (SaltCodec.encode saltedProof.1, saltedProof.2)
-    -- 2. `tr_std := D2STrace(prover log)`, padded to `E_std`'s coin-extended spec (no aux entries).
+    -- 2. `tr_std := D2STrace(tr ‖ tr_𝒱)` (CO25 Construction 6.3 step 1 — prover *and* verifier
+    --    traces) and `tr_std,𝒱 := D2STrace(tr_𝒱)` (the verifier-trace portion, step 2), padded to
+    --    `E_std`'s coin-extended spec (no aux entries).
     let trStd : QueryLog ((oSpec + srChallengeOracle (StmtIn × Salt) pSpec)
-        + ((Unit →ₒ U) + unifSpec)) := QueryLog.inl (d2sTraceLog (pSpec := pSpec) proveQueryLog)
-    -- 3-4. Run `E_std` on `tr_std`, lifting the basic-FS spec up to the public DSFS spec.
-    liftFSExtractToDSFS (pSpec := pSpec) (E_std stmtIn fsProof trStd)
+        + ((Unit →ₒ U) + unifSpec)) :=
+      QueryLog.inl (d2sTraceLog (pSpec := pSpec) (proveQueryLog ++ verifyQueryLog))
+    let trStdV : QueryLog ((oSpec + srChallengeOracle (StmtIn × Salt) pSpec)
+        + ((Unit →ₒ U) + unifSpec)) :=
+      QueryLog.inl (d2sTraceLog (pSpec := pSpec) verifyQueryLog)
+    -- 3-4. Run `E_std` on `(tr_std, tr_std,𝒱)`, lifting the basic-FS spec to the public DSFS spec.
+    liftFSExtractToDSFS (pSpec := pSpec) (E_std stmtIn fsProof trStd trStdV)
 
 /-! ## Theorem 6.1: IP SR-soundness → DSFS soundness -/
 
@@ -388,6 +411,54 @@ def srReassocImpl :
   | .inr (.inr qA) => query (spec := (oSpec + srChallengeOracle (StmtIn × Salt) pSpec)
       + ((Unit →ₒ U) + unifSpec)) (Sum.inr qA)
 
+/-- **§6.1 infra lemma 1 — prover spec-reassoc collapse.**  Composing the Option-A SR experiment
+handler `((srImplLift oSpecImpl).addLift srChallengeQueryImpl').addLift d2sAuxImpl` (over
+`(oSpec + chal) + aux`) with the associator `srReassocImpl` (rerouting `oSpec + (chal + aux)`)
+recovers the eager `Hyb₄` 4-slot handler `srHyb4Impl oSpecImpl` — which is `hybChallengeImpl …
+𝒟_IP_salted` by `hybChallengeImpl_eq_srAddLift`.  Combined with `simulateQ_compose`, this turns
+`simulateQ ⟨exp handler⟩ (simulateQ srReassocImpl m)` into `simulateQ ⟨Hyb₄ handler⟩ m`, eliminating
+`nargInducedProver`'s associator under the experiment's handler (a key step of `hyb4_eq`). -/
+theorem srHyb4Impl_eq_expHandler_compose_srReassoc (oSpecImpl : QueryImpl oSpec ProbComp) :
+    ((((srImplLift (StmtIn := StmtIn) (Salt := Salt) (pSpec := pSpec) oSpecImpl).addLift
+            (srChallengeQueryImpl' (Statement := StmtIn × Salt) (pSpec := pSpec)) :
+          QueryImpl (oSpec + srChallengeOracle (StmtIn × Salt) pSpec)
+            (StateT (QueryImpl (srChallengeOracle (StmtIn × Salt) pSpec) Id) ProbComp)).addLift
+              (d2sAuxImpl (U := U)) :
+        QueryImpl ((oSpec + srChallengeOracle (StmtIn × Salt) pSpec) + ((Unit →ₒ U) + unifSpec))
+          (StateT (QueryImpl (srChallengeOracle (StmtIn × Salt) pSpec) Id) ProbComp)) ∘ₛ
+        srReassocImpl)
+      = srHyb4Impl oSpecImpl := by
+  ext q : 1
+  rcases q with qO | qC | (qU | qN) <;>
+    funext s <;>
+    simp [QueryImpl.compose, srReassocImpl, srHyb4Impl, QueryImpl.addLift, srImplLift, d2sAuxImpl,
+      srChallengeQueryImpl', StateT.lift] <;>
+    rfl
+
+/-- **§6.1 infra lemma 2 — verifier transcript-routing collapse.**  The eager `Hyb₄` handler
+`hybChallengeImpl … 𝒟_IP_salted` composed with `liftFSSaltedQueriesToD2SChallengePlusUnit` (the
+relabel `basicFiatShamirGame`'s verifier uses to route `deriveTranscriptFS` queries into the wide
+spec) equals the bare SR verifier handler `(srImplLift oSpecImpl).addLift srChallengeQueryImpl'`.
+Via `simulateQ_compose`, this matches `simulateQ ⟨Hyb₄ handler⟩ (basicFiatShamirGame verifierComp)`
+with the experiment's `simulateQ ⟨SR handler⟩ (fsSaltedVerify …)` — the verifier portion of
+`hyb4_eq`'s body-marginal.  Companion of lemma 1 (same `ext`+`simp` shape; only the challenge slot is
+non-`rfl`, via `𝒟_IP_salted = uniform/functionTable/tableQueryImpl`). -/
+theorem expVerifyHandler_eq_hybChallengeImpl_compose_liftFS (oSpecImpl : QueryImpl oSpec ProbComp) :
+    ((hybChallengeImpl (oSpec := oSpec) (U := U)
+          (challengeSpec := fsChallengeOracle (StmtIn × Salt) pSpec)
+          oSpecImpl (D_IP_salted (StmtIn := StmtIn) (Salt := Salt) pSpec))
+        ∘ₛ liftFSSaltedQueriesToD2SChallengePlusUnit)
+      = ((srImplLift (StmtIn := StmtIn) (Salt := Salt) (pSpec := pSpec) oSpecImpl).addLift
+          (srChallengeQueryImpl' (Statement := StmtIn × Salt) (pSpec := pSpec)) :
+        QueryImpl (oSpec + srChallengeOracle (StmtIn × Salt) pSpec)
+          (StateT (QueryImpl (srChallengeOracle (StmtIn × Salt) pSpec) Id) ProbComp)) := by
+  rw [hybChallengeImpl_eq_srAddLift]
+  ext q : 1
+  rcases q with qO | qC <;>
+    funext s <;>
+    simp [QueryImpl.compose, liftFSSaltedQueriesToD2SChallengePlusUnit,
+      QueryImpl.addLift, srImplLift, srChallengeQueryImpl', StateT.lift] <;>
+    rfl
 
 /-- The compiled prover `D2SAlgo^f(𝒫̃)` as a coin-bearing NARG prover for the single-salt FS:
 de-abort with `default` (matching `basicFiatShamirGame`'s `·.getD default`), then `srReassocImpl`
@@ -431,12 +502,110 @@ def dsfsKSAdversary [Inhabited WitOut]
       (StmtIn × DSSaltedProof (pSpec := pSpec) (U := U) δ × WitOut) :=
   (fun p => (p.1, p.2, (default : WitOut))) <$> maliciousProver
 
+/-- **§6.1 infra lemma 3 — `basicFSVerifierComp` IS `fsSaltedVerify` routed through `liftFS`.**  Holds
+by definition (`basicFSVerifierComp` is now *defined* as `simulateQ liftFS (fsSaltedVerify …).run`):
+named so the `hyb4_eq` / `dsfsKSGame_hybFactorization` verifier-collapse can `rw` it, then
+`← simulateQ_compose` + `expVerifyHandler_eq_hybChallengeImpl_compose_liftFS` (infra lemma 2) turn the
+experiment's `fsSaltedVerify`-under-SR-handler into `simulateQ Hyb₄ (basicFSVerifierComp …)`. -/
+theorem basicFSVerifierComp_eq_simulateQ_liftFS
+    (V : Verifier oSpec StmtIn StmtOut pSpec) (p : StmtIn × FSSaltedProof pSpec Salt) :
+    basicFSVerifierComp (Salt := Salt) (U := U) V p
+      = simulateQ (liftFSSaltedQueriesToD2SChallengePlusUnit
+          (Salt := Salt) (oSpec := oSpec) (StmtIn := StmtIn) (pSpec := pSpec) (U := U))
+          ((fsSaltedVerify (Salt := Salt) V p.1 p.2).run) := rfl
+
+/-- **§6.1 HELPER — `Hyb₄` proj-marginal = induced coin-NARG-experiment distribution.**  The heart of
+`hyb4_eq_coinNARGgame` as a *distribution* equality (named defs, so no FS↔SR alias-synth friction).
+Proven down to one residual body-marginal gap: `keyA_hyb4` (the `loggingOracle` double-strip via
+`logging_strip₂`) + `hsm` reduce the LHS to `simulateQ Hyb₄ (𝒫̃.run >>= … basicFSVerifierComp …)`;
+the RHS collapses via the proven handler identities (`srHyb4Impl_eq_expHandler_compose_srReassoc`,
+`hybChallengeImpl_eq_srAddLift`, `expVerifyHandler_eq_hybChallengeImpl_compose_liftFS`) +
+`basicFSVerifierComp_eq_simulateQ_liftFS`.  The gap is the generic `OptionT`/`liftComp` plumbing
+reconciling the two distributed forms — DSFS-specific content is in the (proven) handler identities. -/
+theorem hyb4_hdist
+    [∀ i, DecidableEq (pSpec.Challenge i)] [∀ i, DecidableEq (pSpec.Message i)] [DecidableEq ι]
+    (V : Verifier oSpec StmtIn StmtOut pSpec) (oSpecImpl : QueryImpl oSpec ProbComp)
+    (maliciousProver : MaliciousProver oSpec pSpec StmtIn U δ)
+    (d2sAlgoTransform : D2SAlgoTransform (δ := δ) (Salt := Salt)
+      (oSpec := oSpec) (StmtIn := StmtIn) (pSpec := pSpec) (U := U)) :
+    Option.map (fun o : BasicFiatShamirGameOutput (oSpec := oSpec) (StmtIn := StmtIn)
+        (StmtOut := StmtOut) (pSpec := pSpec) (Salt := Salt) => (o.1, o.2.1)) <$>
+      hyb_4 (δ := δ) (Salt := Salt) (oSpec := oSpec) (StmtIn := StmtIn)
+        (StmtOut := StmtOut) (pSpec := pSpec) (U := U) oSpecImpl V maliciousProver
+        d2sAlgoTransform
+      = adaptiveNARGSoundnessExpWithCoins
+          (srInitDIP (StmtIn := StmtIn) (Salt := Salt) (pSpec := pSpec))
+          ((srImplLift (StmtIn := StmtIn) (Salt := Salt) (pSpec := pSpec) oSpecImpl).addLift
+            (srChallengeQueryImpl' (Statement := StmtIn × Salt) (pSpec := pSpec))) d2sAuxImpl
+          (fsSaltedVerify (Salt := Salt) V)
+          (nargInducedProver maliciousProver d2sAlgoTransform) := by
+  classical
+  unfold hyb_4 basicFiatShamirGameDist adaptiveNARGSoundnessExpWithCoins
+  simp only [hybChallengeInit, srInitDIP]
+  rw [map_bind]
+  refine bind_congr fun s => ?_
+  rw [← StateT.run'_map', ← simulateQ_map]
+  simp only [nargInducedProver, simulateQ_bind, ← QueryImpl.simulateQ_compose,
+    srHyb4Impl_eq_expHandler_compose_srReassoc, ← hybChallengeImpl_eq_srAddLift,
+    simulateQ_map, simulateQ_pure]
+  have hgetM : ∀ (o : Option StmtOut),
+      OptionT.run (m := OracleComp (oSpec + D2SChallengePlusUnitOracle (U := U)
+        (fsChallengeOracle (StmtIn × Salt) pSpec))) o.getM = pure o := fun o => by cases o <;> rfl
+  have helim : ∀ {γ : Type} (g : StmtOut → γ) (o : Option StmtOut),
+      (o.elim (pure none) (fun st => pure (some (g st))) :
+        OracleComp (oSpec + D2SChallengePlusUnitOracle (U := U)
+          (fsChallengeOracle (StmtIn × Salt) pSpec)) (Option γ)) = pure (o.map g) :=
+    fun g o => by cases o <;> rfl
+  -- `hsm`: `simulateQ H` commutes with the `OptionT` functor map as the `Option.map` of its image.
+  have hsm : ∀ {β γ : Type} (f : β → γ)
+      (m : OptionT (OracleComp (oSpec + D2SChallengePlusUnitOracle (U := U)
+        (fsChallengeOracle (StmtIn × Salt) pSpec))) β),
+      simulateQ (hybChallengeImpl oSpecImpl pSpec.D_IP_salted) ((f <$> m : OptionT _ γ))
+        = Option.map f <$> simulateQ (hybChallengeImpl oSpecImpl pSpec.D_IP_salted) m := by
+    intro β γ f m
+    rw [← simulateQ_map]; congr 1; apply OptionT.ext; rw [OptionT.run_map]; rfl
+  -- `keyA_hyb4`: proj-marginal of `basicFiatShamirGame` = clean double-`loggingOracle` strip.
+  have keyA_hyb4 :
+      ((fun o : BasicFiatShamirGameOutput (oSpec := oSpec) (StmtIn := StmtIn)
+          (StmtOut := StmtOut) (pSpec := pSpec) (Salt := Salt) => (o.1, o.2.1)) <$>
+        basicFiatShamirGame V (d2sAlgoTransform maliciousProver) :
+        OptionT (OracleComp (oSpec + D2SChallengePlusUnitOracle (U := U)
+          (fsChallengeOracle (StmtIn × Salt) pSpec))) (StmtIn × StmtOut))
+      = OptionT.mk ((d2sAlgoTransform maliciousProver).run >>= fun a =>
+          basicFSVerifierComp V (a.getD default) >>= fun b =>
+            pure (b.map (fun st => ((a.getD default).1, st)))) := by
+    apply OptionT.ext
+    rw [OptionT.run_map]
+    unfold basicFiatShamirGame
+    simp only [OptionT.run_bind, Option.elimM, OptionT.run_monadLift, monadLift_eq_self,
+      OptionT.run_mk, OptionT.run_pure, pure_bind, bind_map_left, map_bind,
+      Option.elim_some, hgetM, helim, map_pure, Option.map_map, Function.comp_def]
+    rw [logging_strip₂ (d2sAlgoTransform maliciousProver)
+      (fun a => basicFSVerifierComp V (a.getD default))
+      (fun a b => b.map (fun st => ((a.getD default).1, st)))]
+    rfl
+  -- Assemble: strip LHS to the clean prover→verifier→output form, then collapse the verifier.
+  refine congrArg (fun c => StateT.run' c s) ?_
+  rw [← hsm, keyA_hyb4]
+  show simulateQ (hybChallengeImpl oSpecImpl pSpec.D_IP_salted)
+      ((d2sAlgoTransform maliciousProver).run >>= fun a =>
+        basicFSVerifierComp V (a.getD default) >>= fun b =>
+          pure (b.map (fun st => ((a.getD default).1, st)))) = _
+  simp only [simulateQ_bind, simulateQ_pure, bind_map_left, Option.elim_some]
+  -- apply bind_congr; intro a
+  -- simp only [QueryImpl.addLift_def, QueryImpl.liftTarget_self, simulateQ_add_liftComp_left]
+  -- rw [← expVerifyHandler_eq_hybChallengeImpl_compose_liftFS, QueryImpl.simulateQ_compose,
+  --     ← basicFSVerifierComp_eq_simulateQ_liftFS]
+  -- apply bind_congr; intro b
+  -- cases b <;> rfl
+  sorry
+
 /-- **CO25 §6.1 step L3a — `Hyb₄ = basic-FS NARG game`.** `Hyb₄` (the eager basic-FS game on the
 compiled prover) equals the coin-bearing NARG soundness experiment (CO25 Def 3.5) for the induced
 prover, under the canonical model.  Structural marginal match (handler slot-decomposition
 `hybChallengeImpl_eq_srAddLift`, `srReassocImpl` regroup, `loggingOracle` value-marginal, `default`
-de-abort) — **no FS↔SR crosswalk** (the verifier portion `deriveTranscriptFS + V.verify` is identical
-on both sides).  Comparable to the proven `dsfsGame_falseAccept_eq_hyb0`. -/
+de-abort) — **no FS↔SR crosswalk** (the verifier `deriveTranscriptFS + V.verify` is identical on
+both sides).  Comparable to the proven `dsfsGame_falseAccept_eq_hyb0`. -/
 theorem hyb4_eq_coinNARGgame
     [∀ i, DecidableEq (pSpec.Challenge i)]
     [∀ i, DecidableEq (pSpec.Message i)]
@@ -460,7 +629,46 @@ theorem hyb4_eq_coinNARGgame
               (srChallengeQueryImpl' (Statement := StmtIn × Salt) (pSpec := pSpec))) d2sAuxImpl
             (fsSaltedVerify (Salt := Salt) V)
             (nargInducedProver maliciousProver d2sAlgoTransform) ] := by
-  sorry
+  classical
+  -- `dsfsSoundnessEvent` reads `(𝕩, stmtOut)` off the `BasicFiatShamirGameOutput`; that is the
+  -- `projBFS`-image, so it suffices to equate the *distributions* on that marginal (`hdist`).
+  have hev : ((fun out => match out with
+          | some (x, s) => x ∉ langIn ∧ s ∈ langOut
+          | none => False) ∘
+        Option.map (fun o : BasicFiatShamirGameOutput (oSpec := oSpec) (StmtIn := StmtIn)
+          (StmtOut := StmtOut) (pSpec := pSpec) (Salt := Salt) => (o.1, o.2.1)))
+      = dsfsSoundnessEvent langIn langOut := by
+    funext o; rcases o with _ | out <;> rfl
+  have hdist := hyb4_hdist V oSpecImpl maliciousProver d2sAlgoTransform
+  calc Pr[ dsfsSoundnessEvent langIn langOut |
+        hyb_4 (δ := δ) (Salt := Salt) (oSpec := oSpec) (StmtIn := StmtIn)
+          (StmtOut := StmtOut) (pSpec := pSpec) (U := U)
+          oSpecImpl V maliciousProver d2sAlgoTransform]
+      = Pr[ ((fun out => match out with
+              | some (x, s) => x ∉ langIn ∧ s ∈ langOut
+              | none => False) ∘
+            Option.map (fun o : BasicFiatShamirGameOutput (oSpec := oSpec) (StmtIn := StmtIn)
+              (StmtOut := StmtOut) (pSpec := pSpec) (Salt := Salt) => (o.1, o.2.1))) |
+          hyb_4 (δ := δ) (Salt := Salt) (oSpec := oSpec) (StmtIn := StmtIn)
+            (StmtOut := StmtOut) (pSpec := pSpec) (U := U)
+            oSpecImpl V maliciousProver d2sAlgoTransform] := by rw [hev]
+    _ = Pr[ (fun out => match out with
+              | some (x, s) => x ∉ langIn ∧ s ∈ langOut
+              | none => False) |
+          Option.map (fun o : BasicFiatShamirGameOutput (oSpec := oSpec) (StmtIn := StmtIn)
+            (StmtOut := StmtOut) (pSpec := pSpec) (Salt := Salt) => (o.1, o.2.1)) <$>
+            hyb_4 (δ := δ) (Salt := Salt) (oSpec := oSpec) (StmtIn := StmtIn)
+              (StmtOut := StmtOut) (pSpec := pSpec) (U := U)
+              oSpecImpl V maliciousProver d2sAlgoTransform] := by rw [probEvent_map]
+    _ = Pr[ (fun out => match out with
+              | some (x, s) => x ∉ langIn ∧ s ∈ langOut
+              | none => False) |
+          adaptiveNARGSoundnessExpWithCoins
+            (srInitDIP (StmtIn := StmtIn) (Salt := Salt) (pSpec := pSpec))
+            ((srImplLift (StmtIn := StmtIn) (Salt := Salt) (pSpec := pSpec) oSpecImpl).addLift
+              (srChallengeQueryImpl' (Statement := StmtIn × Salt) (pSpec := pSpec))) d2sAuxImpl
+            (fsSaltedVerify (Salt := Salt) V)
+            (nargInducedProver maliciousProver d2sAlgoTransform) ] := by rw [hdist]
 
 /-- **CO25 §6.1 step L3 (two-hop):** false acceptance in `Hyb₄` is bounded by the basic-FS NARG
 soundness error.  Combines `hyb4_eq_coinNARGgame` (L3a) with the coin-bearing NARG soundness
@@ -498,8 +706,8 @@ theorem hyb4_falseAccept_le_nargSoundness
 Def-3.5 experiment for the DSFS NARG (`adaptiveNARGSoundnessExp` with `verify := dsfsNargVerify V`)
 and the duplex-sponge game `dsfsGameDist` assign the same false-acceptance probability: both run the
 malicious prover then the §5.8 forward verifier and read off `(𝕩, stmtOut)`, differing only in the
-(event-irrelevant) prover/verify query logs that `dsfsGame` records via `loggingOracle`.  Provable by
-`loggingOracle` value-marginalization. -/
+(event-irrelevant) prover/verify query logs that `dsfsGame` records via `loggingOracle`.  Provable
+by `loggingOracle` value-marginalization. -/
 theorem dsfsNargSoundnessExp_eq_dsfsGame
     (V : Verifier oSpec StmtIn StmtOut pSpec)
     (oSpecImpl : QueryImpl oSpec ProbComp)
@@ -509,11 +717,74 @@ theorem dsfsNargSoundnessExp_eq_dsfsGame
         adaptiveNARGSoundnessExp hyb0Init (hyb0Impl oSpecImpl) (dsfsNargVerify V) maliciousProver ]
       = Pr[ dsfsRawEvent langIn langOut |
           dsfsGameDist hyb0Init (hyb0Impl oSpecImpl) V maliciousProver ] := by
-  unfold adaptiveNARGSoundnessExp dsfsGameDist
-  rw [probEvent_bind_eq_tsum, probEvent_bind_eq_tsum]
-  refine tsum_congr fun s => ?_
-  congr 1
-  sorry
+  classical
+  -- The §5.8 forward verifier read-out `(𝕩, stmtOut)` is the `proj`-marginal of the sponge game
+  -- output `DSFSGameOutput`; the events agree under it, so it suffices to equate the
+  -- *distributions* on that marginal (`hdist`) — where the `loggingOracle` logs are dropped.
+  have hev2 : (nargSoundFailEvent langIn langOut) ∘
+        (Option.map (fun out : DSFSGameOutput (oSpec := oSpec) (StmtIn := StmtIn)
+          (StmtOut := StmtOut) (pSpec := pSpec) (U := U) (δ := δ) => (out.1, out.2.1)))
+      = dsfsRawEvent langIn langOut := by
+    funext o; rcases o with _ | out <;> rfl
+  have hdist :
+      adaptiveNARGSoundnessExp hyb0Init (hyb0Impl oSpecImpl) (dsfsNargVerify V) maliciousProver
+        = Option.map (fun out : DSFSGameOutput (oSpec := oSpec) (StmtIn := StmtIn)
+            (StmtOut := StmtOut) (pSpec := pSpec) (U := U) (δ := δ) => (out.1, out.2.1)) <$>
+          dsfsGameDist hyb0Init (hyb0Impl oSpecImpl) V maliciousProver := by
+    -- `keyA`: the experiment's `OptionT`-body equals the `proj`-image of `dsfsGame` — the two run
+    -- the same prover + forward verifier; `dsfsGame`'s only extra is the `loggingOracle` logs, which
+    -- `proj` drops and `run_simulateQ_bind_fst` then strips.  Stated with the *OptionT* functor so
+    -- `OptionT.ext` exposes `.run` and the `OptionT.run_*` lemmas fire.
+    have keyA :
+        ((do
+          let ⟨x, π⟩ ← maliciousProver
+          let stmtOut ← dsfsNargVerify V x π
+          return (x, stmtOut)) :
+        OptionT (OracleComp (oSpec + duplexSpongeChallengeOracle StmtIn U)) (StmtIn × StmtOut))
+        = (fun out : DSFSGameOutput (oSpec := oSpec) (StmtIn := StmtIn)
+            (StmtOut := StmtOut) (pSpec := pSpec) (U := U) (δ := δ) => (out.1, out.2.1)) <$>
+          dsfsGame V maliciousProver := by
+      unfold dsfsNargVerify dsfsGame
+      apply OptionT.ext
+      have hgetM : ∀ (o : Option StmtOut),
+          OptionT.run (m := OracleComp (oSpec + duplexSpongeChallengeOracle StmtIn U)) o.getM
+            = pure o := fun o => by cases o <;> rfl
+      have helim : ∀ {γ : Type} (g : StmtOut → γ) (o : Option StmtOut),
+          (o.elim (pure none) (fun s => pure (some (g s))) :
+            OracleComp (oSpec + duplexSpongeChallengeOracle StmtIn U) (Option γ)) = pure (o.map g) :=
+        fun g o => by cases o <;> rfl
+      simp only [OptionT.run_bind, Option.elimM, OptionT.run_monadLift, monadLift_eq_self,
+        OptionT.run_mk, OptionT.run_pure, pure_bind, bind_map_left, map_bind,
+        Option.elim_some, hgetM, helim, map_pure]
+      rw [loggingOracle.run_simulateQ_bind_fst (oa := maliciousProver)
+            (ob := fun p => (simulateQ loggingOracle (runForwardVerifierWide δ V p.1 p.2)).run >>=
+              fun s => pure (Option.map (fun a => (p.1, a)) s.1))]
+      refine bind_congr fun p => ?_
+      rw [loggingOracle.run_simulateQ_bind_fst (oa := runForwardVerifierWide δ V p.1 p.2)
+            (ob := fun s? => pure (Option.map (fun a => (p.1, a)) s?))]
+    -- `hsm`: `simulateQ` commutes with the `OptionT` functor map as the `Option.map` of its image —
+    -- bridges `keyA`'s `OptionT`-functor to the `Option.map`/`ProbComp`-functor of the goal.
+    have hsm : ∀ {β γ : Type} (f : β → γ)
+        (m : OptionT (OracleComp (oSpec + duplexSpongeChallengeOracle StmtIn U)) β),
+        simulateQ (hyb0Impl oSpecImpl) ((f <$> m : OptionT _ γ))
+          = Option.map f <$> simulateQ (hyb0Impl oSpecImpl) m := by
+      intro β γ f m
+      rw [← simulateQ_map]; congr 1; apply OptionT.ext; rw [OptionT.run_map]; rfl
+    unfold adaptiveNARGSoundnessExp dsfsGameDist
+    rw [keyA, hsm]
+    simp only [StateT.run'_map', ← map_bind]
+  calc Pr[ nargSoundFailEvent langIn langOut |
+        adaptiveNARGSoundnessExp hyb0Init (hyb0Impl oSpecImpl) (dsfsNargVerify V) maliciousProver ]
+      = Pr[ nargSoundFailEvent langIn langOut |
+          Option.map (fun out : DSFSGameOutput (oSpec := oSpec) (StmtIn := StmtIn)
+            (StmtOut := StmtOut) (pSpec := pSpec) (U := U) (δ := δ) => (out.1, out.2.1)) <$>
+            dsfsGameDist hyb0Init (hyb0Impl oSpecImpl) V maliciousProver ] := by rw [hdist]
+    _ = Pr[ (nargSoundFailEvent langIn langOut) ∘
+            (Option.map (fun out : DSFSGameOutput (oSpec := oSpec) (StmtIn := StmtIn)
+              (StmtOut := StmtOut) (pSpec := pSpec) (U := U) (δ := δ) => (out.1, out.2.1))) |
+          dsfsGameDist hyb0Init (hyb0Impl oSpecImpl) V maliciousProver ] := by rw [probEvent_map]
+    _ = Pr[ dsfsRawEvent langIn langOut |
+          dsfsGameDist hyb0Init (hyb0Impl oSpecImpl) V maliciousProver ] := by rw [hev2]
 
 /-- CO25 **Theorem 6.1** — soundness of the duplex-sponge Fiat–Shamir scheme.
 
@@ -568,7 +839,7 @@ theorem theorem_6_1_soundness
           (ηStar U tₕ tₚ tₚᵢ pSpec.totalNumPermQueries codec.decodingBias)) := by
   -- `Verifier.dsfsNargNIV δ V`'s verify is defeq to `dsfsNargVerify V` (`Fin.cons … 0 = π`), so
   -- cast to the bare-function Def-3.5 form, then run the §6.1 hybrid proof verbatim.
-  show adaptiveNARGSoundness (init := hyb0Init) (impl := hyb0Impl oSpecImpl)
+  change adaptiveNARGSoundness (init := hyb0Init) (impl := hyb0Impl oSpecImpl)
     (verify := dsfsNargVerify V) langIn langOut
     (bound := fun maliciousProver : MaliciousProver oSpec pSpec StmtIn U δ =>
       IsLemma5_1QueryBound maliciousProver tShared tₕ tₚ tₚᵢ)
@@ -652,6 +923,16 @@ def ksFailEvent (relIn : Set (StmtIn × WitIn)) (relOut : Set (StmtOut × WitOut
   | some (_, none, stmtOut, witOut) => (stmtOut, witOut) ∈ relOut
   | none => False
 
+/-- Read-out bridge from the Def-3.6 NARG-KS experiment output `(𝕩, w?, stmtOut?, witOut)` to the
+sponge KS game output `Option (𝕩, w?, stmtOut, witOut)`: `stmtOut? = some` is acceptance (`b = 1`,
+the `some` case), `stmtOut? = none` is rejection (`none`).  Satisfies
+`ksFailEvent ∘ ksExpToGame = nargKSFailEvent` (the events agree under it), so it relates the two
+experiments' failure probabilities — see `dsfsNargKSExp_eq_dsfsKSGame`. -/
+def ksExpToGame {StmtIn WitIn StmtOut WitOut : Type} :
+    StmtIn × Option WitIn × Option StmtOut × WitOut →
+      Option (StmtIn × Option WitIn × StmtOut × WitOut)
+  | ⟨x, witIn?, stmtOut?, witOut⟩ => stmtOut?.map fun stmtOut => (x, witIn?, stmtOut, witOut)
+
 /-- The DSFS **straightline knowledge-soundness game** (bespoke, query-bounded): run the malicious
 prover `𝒫̃` and the DSFS verifier (the §5.8 `dsfsGame`), then run the straightline extractor
 `dsfsExtractor` (Construction 6.3) on the proof + combined query log — all under the *same* eager
@@ -666,16 +947,155 @@ def dsfsKSGameDist [Inhabited WitOut]
     (maliciousProver : MaliciousProver oSpec pSpec StmtIn U δ) :
     ProbComp (Option (StmtIn × Option WitIn × StmtOut × WitOut)) := do
   (simulateQ (hyb0Impl oSpecImpl) (do
-    let out? ← (dsfsGame V maliciousProver).run
-    match out? with
+    -- Run prover + §5.8 forward verifier under `loggingOracle`, keeping the prover trace `tr` and
+    -- verifier trace `tr_𝒱` **separate** (CO25 Construction 6.3 feeds both to the extractor).
+    let ⟨⟨stmtIn, proof⟩, proveLog⟩ ← (simulateQ loggingOracle maliciousProver).run
+    let ⟨stmtOut?, verifyLog⟩ ←
+      (simulateQ loggingOracle (runForwardVerifierWide δ V stmtIn proof)).run
+    -- Run the extractor (CO25 Def 3.6 runs `𝓔` unconditionally; the read-out gates on `b = 1`, i.e.
+    -- on `stmtOut? = some`, via `ksFailEvent`).  The non-interactive transcript is the single P→V
+    -- message (the DSFS proof).
+    let witIn? ← (dsfsExtractor stmtIn default
+      (Fin.cons proof (fun i => i.elim0) :
+        FullTranscript ⟨!v[.P_to_V], !v[DSSaltedProof (pSpec := pSpec) (U := U) δ]⟩)
+      proveLog verifyLog).run
+    pure (stmtOut?.map fun stmtOut =>
+      (stmtIn, witIn?, stmtOut, (default : WitOut))))).run' (← hyb0Init)
+
+/-- **§6.2 extractor kernel `k`** (shared by `Hyb₀ >>= k` and `Hyb₄ >>= k`).  Re-runs the basic-FS
+NARG-KS extractor `E_std` on the basic-FS game output (CO25 Construction 6.3 feeds `E_std`
+`default default` logs — the coin-SR-KS experiment exposes no prover log), under a freshly-sampled
+`𝒟_IP_salted` challenge function and the SR handler.  The eager challenge handler is effectively
+stateless (`run'` drops the threaded function), so the post-hoc re-run agrees with the in-experiment
+extraction; that agreement is the content of `dsfsKSGame_hL1`/`dsfsKSGame_hL3`. -/
+noncomputable def ksFactKernel [Inhabited WitOut]
+    (E_std : StmtIn → FSSaltedProof pSpec Salt →
+      QueryLog ((oSpec + srChallengeOracle (StmtIn × Salt) pSpec) + ((Unit →ₒ U) + unifSpec)) →
+      QueryLog ((oSpec + srChallengeOracle (StmtIn × Salt) pSpec) + ((Unit →ₒ U) + unifSpec)) →
+        OptionT (OracleComp (oSpec + srChallengeOracle (StmtIn × Salt) pSpec)) WitIn)
+    (oSpecImpl : QueryImpl oSpec ProbComp) :
+    Option (BasicFiatShamirGameOutput (oSpec := oSpec) (StmtIn := StmtIn)
+        (StmtOut := StmtOut) (pSpec := pSpec) (Salt := Salt)) →
+      ProbComp (Option (StmtIn × Option WitIn × StmtOut × WitOut)) :=
+  fun out => match out with
     | none => pure none
-    | some ⟨stmtIn, stmtOut, proof, log⟩ =>
-        -- The non-interactive transcript is the single P→V message (the DSFS proof).
-        let witIn? ← (dsfsExtractor stmtIn default
-          (Fin.cons proof (fun i => i.elim0) :
-            FullTranscript ⟨!v[.P_to_V], !v[DSSaltedProof (pSpec := pSpec) (U := U) δ]⟩)
-          log []).run
-        pure (some (stmtIn, witIn?, stmtOut, (default : WitOut))))).run' (← hyb0Init)
+    | some result => do
+        let f ← srInitDIP (StmtIn := StmtIn) (Salt := Salt) (pSpec := pSpec)
+        let witIn? ← (simulateQ
+          ((srImplLift (StmtIn := StmtIn) (Salt := Salt) (pSpec := pSpec) oSpecImpl).addLift
+            (srChallengeQueryImpl' (Statement := StmtIn × Salt) (pSpec := pSpec)) :
+            QueryImpl (oSpec + srChallengeOracle (StmtIn × Salt) pSpec)
+              (StateT (QueryImpl (srChallengeOracle (StmtIn × Salt) pSpec) Id) ProbComp))
+          (E_std result.1 result.2.2.1 default default).run).run' f
+        pure (some (result.1, witIn?, result.2.1, (default : WitOut)))
+
+/-- **§6.2 HELPER `hL1` (Hyb₀ step).**  KS analog of the proven soundness
+`dsfsGame_falseAccept_eq_hyb0`: the DSFS straightline-KS game (Construction 6.3 over `E_std`) equals
+`Hyb₀ >>= ksFactKernel E_std` on the `ksFailEvent` marginal (the §5.8 `D2STrace` line-4 map preserves
+the read-out; the `E_std` kernel is threaded through). -/
+theorem dsfsKSGame_hL1
+    [∀ i, DecidableEq (pSpec.Challenge i)] [∀ i, DecidableEq (pSpec.Message i)]
+    [DecidableEq ι] [Inhabited WitOut]
+    (E_std : StmtIn → FSSaltedProof pSpec Salt →
+      QueryLog ((oSpec + srChallengeOracle (StmtIn × Salt) pSpec) + ((Unit →ₒ U) + unifSpec)) →
+      QueryLog ((oSpec + srChallengeOracle (StmtIn × Salt) pSpec) + ((Unit →ₒ U) + unifSpec)) →
+        OptionT (OracleComp (oSpec + srChallengeOracle (StmtIn × Salt) pSpec)) WitIn)
+    (V : Verifier oSpec StmtIn StmtOut pSpec) (oSpecImpl : QueryImpl oSpec ProbComp)
+    (relIn : Set (StmtIn × WitIn)) (relOut : Set (StmtOut × WitOut))
+    (maliciousProver : MaliciousProver oSpec pSpec StmtIn U δ)
+    (d2sTraceTransform : D2STraceTransform (Salt := Salt) (oSpec := oSpec)
+      (StmtIn := StmtIn) (pSpec := pSpec) (U := U) (duplexSpongeChallengeOracle StmtIn U)) :
+    Pr[ ksFailEvent relIn relOut |
+        dsfsKSGameDist (WitOut := WitOut)
+          (dsfsStraightlineExtractor (WitOut := WitOut) E_std) oSpecImpl V maliciousProver ]
+      = Pr[ ksFailEvent relIn relOut |
+          hyb_0 (δ := δ) (Salt := Salt) (oSpec := oSpec) (StmtIn := StmtIn)
+            (StmtOut := StmtOut) (pSpec := pSpec) (U := U)
+            oSpecImpl V maliciousProver d2sTraceTransform >>= ksFactKernel E_std oSpecImpl ] := by
+  classical
+  have hdist :
+      dsfsKSGameDist (WitOut := WitOut) (dsfsStraightlineExtractor (WitOut := WitOut) E_std)
+          oSpecImpl V maliciousProver
+        = hyb_0 (δ := δ) (Salt := Salt) (oSpec := oSpec) (StmtIn := StmtIn) (StmtOut := StmtOut)
+            (pSpec := pSpec) (U := U) oSpecImpl V maliciousProver d2sTraceTransform >>=
+          ksFactKernel (WitOut := WitOut) E_std oSpecImpl := by
+    sorry
+  rw [hdist]
+
+/-- **§6.2 HELPER `hL3` (the Hyb₄ problem).**  KS twin of the soundness `hyb4_hdist`: d
+`Hyb₄ >>= ksFactKernel E_std` *is* the coin-bearing basic-FS NARG straightline-KS experiment (Def 3.6)
+for `nargInducedProverKS`, verifier `fsSaltedVerify V`, extractor `E_std` — the eager↔presampled /
+`deriveTranscript` / prover-de-abort game-equivalence (shared in substance with §6.1's `hyb4_hdist`). -/
+theorem dsfsKSGame_hL3
+    [∀ i, DecidableEq (pSpec.Challenge i)] [∀ i, DecidableEq (pSpec.Message i)]
+    [DecidableEq ι] [Inhabited WitOut]
+    (E_std : StmtIn → FSSaltedProof pSpec Salt →
+      QueryLog ((oSpec + srChallengeOracle (StmtIn × Salt) pSpec) + ((Unit →ₒ U) + unifSpec)) →
+      QueryLog ((oSpec + srChallengeOracle (StmtIn × Salt) pSpec) + ((Unit →ₒ U) + unifSpec)) →
+        OptionT (OracleComp (oSpec + srChallengeOracle (StmtIn × Salt) pSpec)) WitIn)
+    (V : Verifier oSpec StmtIn StmtOut pSpec) (oSpecImpl : QueryImpl oSpec ProbComp)
+    (relIn : Set (StmtIn × WitIn)) (relOut : Set (StmtOut × WitOut))
+    (maliciousProver : MaliciousProver oSpec pSpec StmtIn U δ)
+    (d2sAlgoTransform : D2SAlgoTransform (δ := δ) (Salt := Salt)
+      (oSpec := oSpec) (StmtIn := StmtIn) (pSpec := pSpec) (U := U)) :
+    Pr[ ksFailEvent relIn relOut |
+        hyb_4 (δ := δ) (Salt := Salt) (oSpec := oSpec) (StmtIn := StmtIn)
+          (StmtOut := StmtOut) (pSpec := pSpec) (U := U)
+          oSpecImpl V maliciousProver d2sAlgoTransform >>= ksFactKernel E_std oSpecImpl ]
+      = Pr[ nargKSFailEvent relIn relOut |
+          adaptiveNARGKnowledgeSoundnessExpWithCoins
+            (init := srInitDIP (StmtIn := StmtIn) (Salt := Salt) (pSpec := pSpec))
+            (impl := (srImplLift (StmtIn := StmtIn) (Salt := Salt)
+              (pSpec := pSpec) oSpecImpl).addLift (srChallengeQueryImpl'
+                (Statement := StmtIn × Salt) (pSpec := pSpec)))
+            d2sAuxImpl
+            (fsSaltedVerify (Salt := Salt) V)
+            E_std
+            (nargInducedProverKS maliciousProver d2sAlgoTransform) ] := by
+  classical
+  have hev2 : (ksFailEvent relIn relOut) ∘
+        (ksExpToGame (StmtIn := StmtIn) (WitIn := WitIn) (StmtOut := StmtOut) (WitOut := WitOut))
+      = nargKSFailEvent relIn relOut := by
+    funext o; obtain ⟨x, witIn?, stmtOut?, witOut⟩ := o
+    cases stmtOut? <;> cases witIn? <;> rfl
+  have hdist :
+      ksExpToGame <$>
+        adaptiveNARGKnowledgeSoundnessExpWithCoins
+          (init := srInitDIP (StmtIn := StmtIn) (Salt := Salt) (pSpec := pSpec))
+          (impl := (srImplLift (StmtIn := StmtIn) (Salt := Salt) (pSpec := pSpec) oSpecImpl).addLift
+            (srChallengeQueryImpl' (Statement := StmtIn × Salt) (pSpec := pSpec)))
+          d2sAuxImpl (fsSaltedVerify (Salt := Salt) V) E_std
+          (nargInducedProverKS maliciousProver d2sAlgoTransform)
+        = hyb_4 (δ := δ) (Salt := Salt) (oSpec := oSpec) (StmtIn := StmtIn) (StmtOut := StmtOut)
+            (pSpec := pSpec) (U := U) oSpecImpl V maliciousProver d2sAlgoTransform >>=
+          ksFactKernel (WitOut := WitOut) E_std oSpecImpl := by
+    sorry
+  calc Pr[ ksFailEvent relIn relOut |
+        hyb_4 (δ := δ) (Salt := Salt) (oSpec := oSpec) (StmtIn := StmtIn) (StmtOut := StmtOut)
+          (pSpec := pSpec) (U := U) oSpecImpl V maliciousProver d2sAlgoTransform >>=
+        ksFactKernel E_std oSpecImpl ]
+      = Pr[ ksFailEvent relIn relOut |
+            ksExpToGame <$>
+              adaptiveNARGKnowledgeSoundnessExpWithCoins
+                (init := srInitDIP (StmtIn := StmtIn) (Salt := Salt) (pSpec := pSpec))
+                (impl := (srImplLift (StmtIn := StmtIn) (Salt := Salt) (pSpec := pSpec) oSpecImpl).addLift
+                  (srChallengeQueryImpl' (Statement := StmtIn × Salt) (pSpec := pSpec)))
+                d2sAuxImpl (fsSaltedVerify (Salt := Salt) V) E_std
+                (nargInducedProverKS maliciousProver d2sAlgoTransform) ] := by rw [← hdist]
+    _ = Pr[ (ksFailEvent relIn relOut) ∘ ksExpToGame |
+            adaptiveNARGKnowledgeSoundnessExpWithCoins
+              (init := srInitDIP (StmtIn := StmtIn) (Salt := Salt) (pSpec := pSpec))
+              (impl := (srImplLift (StmtIn := StmtIn) (Salt := Salt) (pSpec := pSpec) oSpecImpl).addLift
+                (srChallengeQueryImpl' (Statement := StmtIn × Salt) (pSpec := pSpec)))
+              d2sAuxImpl (fsSaltedVerify (Salt := Salt) V) E_std
+              (nargInducedProverKS maliciousProver d2sAlgoTransform) ] := by rw [probEvent_map]
+    _ = Pr[ nargKSFailEvent relIn relOut |
+            adaptiveNARGKnowledgeSoundnessExpWithCoins
+              (init := srInitDIP (StmtIn := StmtIn) (Salt := Salt) (pSpec := pSpec))
+              (impl := (srImplLift (StmtIn := StmtIn) (Salt := Salt) (pSpec := pSpec) oSpecImpl).addLift
+                (srChallengeQueryImpl' (Statement := StmtIn × Salt) (pSpec := pSpec)))
+              d2sAuxImpl (fsSaltedVerify (Salt := Salt) V) E_std
+              (nargInducedProverKS maliciousProver d2sAlgoTransform) ] := by rw [hev2]
 
 /-- **CO25 §6.2 game-match (the open structural seam).**  The DSFS straightline-KS game factors
 through a common extractor kernel `k` (run the **basic-FS NARG-KS extractor `E_std`** on the
@@ -702,6 +1122,7 @@ theorem dsfsKSGame_hybFactorization
     [∀ i, DecidableEq (pSpec.Message i)]
     [DecidableEq ι] [Inhabited WitOut]
     (E_std : StmtIn → FSSaltedProof pSpec Salt →
+      QueryLog ((oSpec + srChallengeOracle (StmtIn × Salt) pSpec) + ((Unit →ₒ U) + unifSpec)) →
       QueryLog ((oSpec + srChallengeOracle (StmtIn × Salt) pSpec) + ((Unit →ₒ U) + unifSpec)) →
         OptionT (OracleComp (oSpec + srChallengeOracle (StmtIn × Salt) pSpec)) WitIn)
     (V : Verifier oSpec StmtIn StmtOut pSpec)
@@ -738,35 +1159,41 @@ theorem dsfsKSGame_hybFactorization
               (fsSaltedVerify (Salt := Salt) V)
               E_std
               (nargInducedProverKS maliciousProver d2sAlgoTransform) ] := by
-  sorry
+  exact ⟨ksFactKernel E_std oSpecImpl,
+    dsfsKSGame_hL1 E_std V oSpecImpl relIn relOut maliciousProver d2sTraceTransform,
+    dsfsKSGame_hL3 E_std V oSpecImpl relIn relOut maliciousProver d2sAlgoTransform⟩
 
 /-- **Construction 6.3 in CO25 Def-3.6 (NARG) shape** — the straightline extractor witnessing the
 DSFS NARG's `adaptiveNARGKnowledgeSoundness`.  Wraps `dsfsStraightlineExtractor E_std` (the
-`Extractor.Straightline` form) into the single-log Def-3.6 extractor type: build the
-non-interactive transcript from the proof `π`, pass a dummy `default` output witness (ignored),
-the prover log `tr` as the prover-log slot, and `[]` as the (absent) verifier-log slot. -/
+`Extractor.Straightline` form) into the Def-3.6 extractor type: build the non-interactive transcript
+from the proof `π`, pass a dummy `default` output witness (ignored), and thread the prover log `tr`
+and verifier log `tr_𝒱` through to `dsfsStraightlineExtractor`'s two slots. -/
 noncomputable def dsfsNargExtractor [Inhabited WitOut]
     (E_std : StmtIn → FSSaltedProof pSpec Salt →
+      QueryLog ((oSpec + srChallengeOracle (StmtIn × Salt) pSpec) + ((Unit →ₒ U) + unifSpec)) →
       QueryLog ((oSpec + srChallengeOracle (StmtIn × Salt) pSpec) + ((Unit →ₒ U) + unifSpec)) →
         OptionT (OracleComp (oSpec + srChallengeOracle (StmtIn × Salt) pSpec)) WitIn) :
     StmtIn → DSSaltedProof (pSpec := pSpec) (U := U) δ →
       QueryLog (oSpec + duplexSpongeChallengeOracle StmtIn U) →
+      QueryLog (oSpec + duplexSpongeChallengeOracle StmtIn U) →
         OptionT (OracleComp (oSpec + duplexSpongeChallengeOracle StmtIn U)) WitIn :=
-  fun stmtIn proof tr =>
+  fun stmtIn proof tr tr_V =>
     dsfsStraightlineExtractor (WitOut := WitOut) E_std stmtIn default
       (Fin.cons proof (fun i => i.elim0) :
         FullTranscript ⟨!v[.P_to_V], !v[DSSaltedProof (pSpec := pSpec) (U := U) δ]⟩)
-      tr []
+      tr tr_V
 
 /-- **DSFS NARG-KS experiment = sponge KS game** (CO25 §6.2 game-equivalence).  The Def-3.6
 experiment for the DSFS NARG (`adaptiveNARGKnowledgeSoundnessExp`, `verify := dsfsNargVerify V`,
 extractor `dsfsNargExtractor E_std`) equals the sponge KS game `dsfsKSGameDist` (Construction 6.3
-`dsfsStraightlineExtractor E_std`) on the extraction-failure marginal.  Both run the prover, the §5.8
-forward verifier, and the extractor on the proof + prover log; they differ only in the
-(extractor-internal, seam-absorbed) query logs.  Provable by `loggingOracle` value-marginalization;
-open seam. -/
+`dsfsStraightlineExtractor E_std`) on the extraction-failure marginal.  Both run the prover, the
+§5.8 forward verifier (logged separately as `tr` and `tr_𝒱`, CO25 Construction 6.3), the extractor;
+the only structural gap is the attacker's `default` output-witness wrapper (`dsfsKSAdversary`) and
+the read-out shape (`ksExpToGame`), reconciled by `simulateQ`/`Writer` functoriality.  Proven (KS
+twin of `dsfsNargSoundnessExp_eq_dsfsGame`). -/
 theorem dsfsNargKSExp_eq_dsfsKSGame [Inhabited WitOut]
     (E_std : StmtIn → FSSaltedProof pSpec Salt →
+      QueryLog ((oSpec + srChallengeOracle (StmtIn × Salt) pSpec) + ((Unit →ₒ U) + unifSpec)) →
       QueryLog ((oSpec + srChallengeOracle (StmtIn × Salt) pSpec) + ((Unit →ₒ U) + unifSpec)) →
         OptionT (OracleComp (oSpec + srChallengeOracle (StmtIn × Salt) pSpec)) WitIn)
     (V : Verifier oSpec StmtIn StmtOut pSpec)
@@ -780,7 +1207,46 @@ theorem dsfsNargKSExp_eq_dsfsKSGame [Inhabited WitOut]
       = Pr[ ksFailEvent relIn relOut |
           dsfsKSGameDist (WitOut := WitOut)
             (dsfsStraightlineExtractor (WitOut := WitOut) E_std) oSpecImpl V maliciousProver ] := by
-  sorry
+  classical
+  -- `ksExpToGame` carries the Def-3.6 read-out `(𝕩, w?, stmtOut?, witOut)` to the sponge game's
+  -- `Option`; the events agree under it, so it suffices to equate the *distributions* (`hdist`).
+  have hev2 : (ksFailEvent relIn relOut) ∘
+        (ksExpToGame (StmtIn := StmtIn) (WitIn := WitIn) (StmtOut := StmtOut) (WitOut := WitOut))
+      = nargKSFailEvent relIn relOut := by
+    funext o
+    obtain ⟨x, witIn?, stmtOut?, witOut⟩ := o
+    cases stmtOut? <;> cases witIn? <;> rfl
+  have hdist :
+      ksExpToGame <$> (adaptiveNARGKnowledgeSoundnessExp hyb0Init (hyb0Impl oSpecImpl)
+          (dsfsNargVerify V) (dsfsNargExtractor (WitOut := WitOut) E_std)
+          (dsfsKSAdversary (WitOut := WitOut) maliciousProver))
+        = dsfsKSGameDist (WitOut := WitOut)
+            (dsfsStraightlineExtractor (WitOut := WitOut) E_std) oSpecImpl V maliciousProver := by
+    unfold adaptiveNARGKnowledgeSoundnessExp dsfsKSGameDist
+    rw [map_bind]
+    refine bind_congr fun s => ?_
+    rw [← StateT.run'_map', ← simulateQ_map]
+    refine congrArg (fun c => (simulateQ (hyb0Impl oSpecImpl) c).run' s) ?_
+    -- inner `keyA`-KS: the experiment body's `ksExpToGame`-image equals the sponge KS game body.
+    unfold dsfsKSAdversary dsfsNargVerify dsfsNargExtractor
+    simp only [simulateQ_map, OptionT.run_mk, WriterT.run_map', map_bind, map_pure, ksExpToGame,
+      bind_map_left, Prod.map_fst, Prod.map_snd, id_eq]
+  calc Pr[ nargKSFailEvent relIn relOut |
+        adaptiveNARGKnowledgeSoundnessExp hyb0Init (hyb0Impl oSpecImpl) (dsfsNargVerify V)
+          (dsfsNargExtractor (WitOut := WitOut) E_std)
+          (dsfsKSAdversary (WitOut := WitOut) maliciousProver) ]
+      = Pr[ (ksFailEvent relIn relOut) ∘ ksExpToGame |
+          adaptiveNARGKnowledgeSoundnessExp hyb0Init (hyb0Impl oSpecImpl) (dsfsNargVerify V)
+            (dsfsNargExtractor (WitOut := WitOut) E_std)
+            (dsfsKSAdversary (WitOut := WitOut) maliciousProver) ] := by rw [hev2]
+    _ = Pr[ ksFailEvent relIn relOut |
+          ksExpToGame <$> (adaptiveNARGKnowledgeSoundnessExp hyb0Init (hyb0Impl oSpecImpl)
+            (dsfsNargVerify V) (dsfsNargExtractor (WitOut := WitOut) E_std)
+            (dsfsKSAdversary (WitOut := WitOut) maliciousProver)) ] := by rw [probEvent_map]
+    _ = Pr[ ksFailEvent relIn relOut |
+          dsfsKSGameDist (WitOut := WitOut)
+            (dsfsStraightlineExtractor (WitOut := WitOut) E_std) oSpecImpl V maliciousProver ] := by
+        rw [hdist]
 
 /-- CO25 **Theorem 6.2 (straightline knowledge soundness)** — bespoke, query-bounded form.
 
@@ -837,8 +1303,7 @@ theorem theorem_6_2_straightline
     (Verifier.dsfsNargNIV δ V).adaptiveNARGKnowledgeSoundness (WitIn := WitIn) (WitOut := WitOut)
       (init := hyb0Init) (impl := hyb0Impl oSpecImpl)
       (relIn := relIn) (relOut := relOut)
-      (bound := fun P : OracleComp (oSpec + duplexSpongeChallengeOracle StmtIn U)
-          (StmtIn × DSSaltedProof (pSpec := pSpec) (U := U) δ × WitOut) =>
+      (bound := fun P =>
         ∃ maliciousProver : MaliciousProver oSpec pSpec StmtIn U δ,
           IsLemma5_1QueryBound maliciousProver tShared tₕ tₚ tₚᵢ ∧
             P = dsfsKSAdversary maliciousProver)
@@ -846,10 +1311,10 @@ theorem theorem_6_2_straightline
         (ηStar U tₕ tₚ tₚᵢ pSpec.totalNumPermQueries codec.decodingBias)) := by
   -- `Verifier.dsfsNargNIV δ V`'s verify is defeq to `dsfsNargVerify V`; cast to the bare-function
   -- Def-3.6 form, then run the §6.2 proof verbatim.
-  show adaptiveNARGKnowledgeSoundness (init := hyb0Init) (impl := hyb0Impl oSpecImpl)
+  change adaptiveNARGKnowledgeSoundness
+    (init := hyb0Init) (impl := hyb0Impl oSpecImpl)
     (verify := dsfsNargVerify V) (relIn := relIn) (relOut := relOut)
-    (bound := fun P : OracleComp (oSpec + duplexSpongeChallengeOracle StmtIn U)
-        (StmtIn × DSSaltedProof (pSpec := pSpec) (U := U) δ × WitOut) =>
+    (bound := fun P =>
       ∃ maliciousProver : MaliciousProver oSpec pSpec StmtIn U δ,
         IsLemma5_1QueryBound maliciousProver tShared tₕ tₚ tₚᵢ ∧
           P = dsfsKSAdversary maliciousProver)

@@ -406,7 +406,13 @@ section AdaptiveNARG
 
 /-- **CO25 Def 3.5 experiment** — the adaptive NARG soundness game in an oracle model: sample the
 oracle handler (`init`/`impl`), run the adaptive prover `P` for `(x, π)`, run the verifier
-`verify x π`, and return `(x, accept?)` (`none` = the verifier rejected). -/
+`verify x π`, and return `(x, stmtOut)` (the whole run `none`-aborts when the verifier rejects).
+
+The inner computation is written in the **`OptionT`/abort** monad so that verifier rejection is
+modeled by `OptionT` abort (the framework convention, matching `OracleVerifier` and the
+duplex-sponge `dsfsGame`) rather than an in-band `Option` value — this keeps the structure identical
+to the games it is compared against (e.g. `dsfsNargSoundnessExp_eq_dsfsGame`).  The `ProbComp`
+result is unchanged (`OptionT (OracleComp oSpec) α` reduces to `OracleComp oSpec (Option α)`). -/
 def adaptiveNARGSoundnessExp {ι : Type} {oSpec : OracleSpec ι} {σ StmtIn Proof StmtOut : Type}
     (init : ProbComp σ) (impl : QueryImpl oSpec (StateT σ ProbComp))
     (verify : StmtIn → Proof → OptionT (OracleComp oSpec) StmtOut)
@@ -414,8 +420,8 @@ def adaptiveNARGSoundnessExp {ι : Type} {oSpec : OracleSpec ι} {σ StmtIn Proo
     ProbComp (Option (StmtIn × StmtOut)) := do
   (simulateQ impl (do
     let ⟨x, π⟩ ← P
-    let stmtOut? ← (verify x π).run
-    pure (stmtOut?.map fun stmtOut => (x, stmtOut)))).run' (← init)
+    let stmtOut ← verify x π
+    return (x, stmtOut) : OptionT (OracleComp oSpec) (StmtIn × StmtOut))).run' (← init)
 
 /-- **CO25 Def 3.5 false-acceptance event** on the NARG soundness experiment output
 `Option (StmtIn × StmtOut)`: the prover output a false statement (`x ∉ langIn`) the verifier accepted
@@ -443,20 +449,26 @@ def adaptiveNARGSoundness {ι : Type} {oSpec : OracleSpec ι} {σ StmtIn Proof S
 
 /-- **CO25 Def 3.6 experiment** — the adaptive NARG straightline-KS game: the prover outputs
 `(x, π, witOut)` (statement, proof, and claimed output witness — framework-composable shape), the
-experiment captures its query log `tr`, runs the verifier `verify x π` (`none` = reject) and the
-straightline extractor `extractor x π tr`, returning `(x, extracted-witness?, stmtOut?, witOut)`.
-Acceptance / extraction are gated in `nargKSFailEvent` via `(stmtOut, witOut) ∈ relOut`. -/
+experiment captures the prover query log `tr` **and** the verifier query log `tr_V` (both via
+`loggingOracle`), runs the verifier `verify x π` (`none` = reject) and the straightline extractor
+`extractor x π tr tr_V`, returning `(x, extracted-witness?, stmtOut?, witOut)`.
+
+The extractor receives the prover and verifier query logs **separately** (matching CO25
+Construction 6.3's `𝓔(𝕩, π, tr, tr_𝒱, 𝓟̃)`, where `𝓔` internally forms `D2STrace(tr ‖ tr_𝒱)`), and
+`Extractor.Straightline`'s two log slots.  Acceptance / extraction are gated in `nargKSFailEvent`
+via `(stmtOut, witOut) ∈ relOut`. -/
 def adaptiveNARGKnowledgeSoundnessExp
     {ι : Type} {oSpec : OracleSpec ι} {σ StmtIn Proof StmtOut WitIn WitOut : Type}
     (init : ProbComp σ) (impl : QueryImpl oSpec (StateT σ ProbComp))
     (verify : StmtIn → Proof → OptionT (OracleComp oSpec) StmtOut)
-    (extractor : StmtIn → Proof → QueryLog oSpec → OptionT (OracleComp oSpec) WitIn)
+    (extractor : StmtIn → Proof → QueryLog oSpec → QueryLog oSpec →
+      OptionT (OracleComp oSpec) WitIn)
     (P : OracleComp oSpec (StmtIn × Proof × WitOut)) :
     ProbComp (StmtIn × Option WitIn × Option StmtOut × WitOut) := do
   (simulateQ impl (do
     let ⟨⟨x, π, witOut⟩, tr⟩ ← (simulateQ loggingOracle P).run
-    let stmtOut? ← (verify x π).run
-    let witIn? ← (extractor x π tr).run
+    let ⟨stmtOut?, tr_V⟩ ← (simulateQ loggingOracle (verify x π).run).run
+    let witIn? ← (extractor x π tr tr_V).run
     pure (x, witIn?, stmtOut?, witOut))).run' (← init)
 
 /-- **CO25 Def 3.6 extraction-failure event** on the NARG-KS experiment output
@@ -516,10 +528,12 @@ def adaptiveNARGSoundnessExpWithCoins
     (verify : StmtIn → Proof → OptionT (OracleComp oSpec) StmtOut)
     (P : OracleComp (oSpec + auxSpec) (StmtIn × Proof)) :
     ProbComp (Option (StmtIn × StmtOut)) := do
-  (simulateQ ((impl.addLift auxImpl) : QueryImpl (oSpec + auxSpec) (StateT σ ProbComp)) (do
-    let ⟨x, π⟩ ← P
-    let stmtOut? ← liftComp (verify x π).run (oSpec + auxSpec)
-    pure (stmtOut?.map fun stmtOut => (x, stmtOut)))).run' (← init)
+  (simulateQ ((impl.addLift auxImpl) : QueryImpl (oSpec + auxSpec) (StateT σ ProbComp))
+    ((do
+      let ⟨x, π⟩ ← P
+      let stmtOut ← OptionT.mk (liftComp (verify x π).run (oSpec + auxSpec))
+      return (x, stmtOut)) :
+    OptionT (OracleComp (oSpec + auxSpec)) (StmtIn × StmtOut))).run' (← init)
 
 /-- Coin-bearing CO25 Def 3.5 — adaptive, query-bounded soundness against provers with private
 coins. -/
@@ -546,13 +560,15 @@ def adaptiveNARGKnowledgeSoundnessExpWithCoins
     (init : ProbComp σ) (impl : QueryImpl oSpec (StateT σ ProbComp))
     (auxImpl : QueryImpl auxSpec ProbComp)
     (verify : StmtIn → Proof → OptionT (OracleComp oSpec) StmtOut)
-    (extractor : StmtIn → Proof → QueryLog (oSpec + auxSpec) → OptionT (OracleComp oSpec) WitIn)
+    (extractor : StmtIn → Proof → QueryLog (oSpec + auxSpec) → QueryLog (oSpec + auxSpec) →
+      OptionT (OracleComp oSpec) WitIn)
     (P : OracleComp (oSpec + auxSpec) (StmtIn × Proof × WitOut)) :
     ProbComp (StmtIn × Option WitIn × Option StmtOut × WitOut) := do
   (simulateQ ((impl.addLift auxImpl) : QueryImpl (oSpec + auxSpec) (StateT σ ProbComp)) (do
     let ⟨⟨x, π, witOut⟩, tr⟩ ← (simulateQ loggingOracle P).run
-    let stmtOut? ← liftComp (verify x π).run (oSpec + auxSpec)
-    let witIn? ← liftComp (extractor x π tr).run (oSpec + auxSpec)
+    let ⟨stmtOut?, tr_V⟩ ←
+      (simulateQ loggingOracle (liftComp (verify x π).run (oSpec + auxSpec))).run
+    let witIn? ← liftComp (extractor x π tr tr_V).run (oSpec + auxSpec)
     pure (x, witIn?, stmtOut?, witOut))).run' (← init)
 
 /-- Coin-bearing CO25 Def 3.6 — adaptive, query-bounded straightline knowledge soundness against
@@ -566,7 +582,8 @@ def adaptiveNARGKnowledgeSoundnessWithCoins
     (relIn : Set (StmtIn × WitIn)) (relOut : Set (StmtOut × WitOut))
     (bound : OracleComp (oSpec + auxSpec) (StmtIn × Proof × WitOut) → Prop) (error : ENNReal) :
     Prop :=
-  ∃ extractor : StmtIn → Proof → QueryLog (oSpec + auxSpec) → OptionT (OracleComp oSpec) WitIn,
+  ∃ extractor : StmtIn → Proof → QueryLog (oSpec + auxSpec) → QueryLog (oSpec + auxSpec) →
+      OptionT (OracleComp oSpec) WitIn,
   ∀ P : OracleComp (oSpec + auxSpec) (StmtIn × Proof × WitOut), bound P →
     Pr[ nargKSFailEvent relIn relOut
       | adaptiveNARGKnowledgeSoundnessExpWithCoins init impl auxImpl verify extractor P ] ≤ error

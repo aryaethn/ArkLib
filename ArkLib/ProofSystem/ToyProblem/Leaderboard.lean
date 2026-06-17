@@ -9,6 +9,7 @@ import ArkLib.ProofSystem.ToyProblem.Spec.General
 import Mathlib.Analysis.SpecialFunctions.Pow.NNReal
 import Mathlib.Analysis.SpecialFunctions.Log.Base
 import Mathlib.FieldTheory.Finite.GaloisField
+import CompPoly.Fields.KoalaBear.Basic
 
 /-!
 # Proximity-Prize "bits of security" leaderboard (ABF26 §6)
@@ -616,71 +617,93 @@ theorem SecurityUpperBound.bitsOfSecurity_le {p : ToyParams} (hi : SecurityUpper
 /-! ## Anchor parameter point and the two current entries
 
 `koalaIRS` fixes the KoalaBear-sextic regime numerics (`q = 2^31 - 2^24 + 1`,
-sextic extension, `ρ = 1/2`, `t = 128`). Two design points keep the anchors
-*honest* (no `sorry` hiding a provably-false goal):
+sextic extension, `ρ = 1/2`, `t = 128`). The carrier is now the genuine,
+correctly-sized field: `GaloisField KoalaBear.fieldSize 6`, the KoalaBear
+*sextic* extension, with `|F| = q^6 ≈ 2^186` (`koalaSextic_card`). This clears
+the leaderboard-honesty precondition `|F| ≥ 2^117` — the per-δ soundness error
+is a fraction `|Ω|/|F|`, so to even *represent* a value in the target window
+`[2^(-117), 2^(-64)]` the field must satisfy `|F| ≥ 2^117`. (Over a tiny field,
+`|Ω|/|F|` lives in `{0, 1/2, 1}` and the two anchors would be *jointly*
+unsatisfiable.)
 
-1. **The carrier field is large.** The per-δ soundness error is a fraction
-   `|Ω|/|F|`, so to even *represent* a value in the target window
-   `[2^(-117), 2^(-64)]` the field must satisfy `|F| ≥ 2^117`. We use
-   `GaloisField 2 128` (size `2^128`) — a stand-in of the right *order* for
-   the genuine KoalaBear-sextic field (size `≈2^186`), which Phase 5
-   substitutes. (Over a tiny field, `|Ω|/|F|` lives in `{0, 1/2, 1}` and the
-   two anchors would be *jointly* unsatisfiable.)
-2. **The encoding is opaque.** `koalaEnc`'s fine structure is hidden, so
-   `bestProvableError koalaIRS` is irreducible — neither anchor's inequality
-   is provably true *or* false; they are genuine owed obligations (Phase 5
-   supplies the genuine RS/IRS encoder and numerics). `opaque` is axiom-clean
-   (no `sorryAx`); only `koalaEnc_injective` is a tagged sorry (true of the
-   genuine encoder, consistent for the opaque stand-in).
+The encoder `koalaEnc` is a genuine Reed–Solomon encoder: the degree-`< 2`
+evaluation map on `3` distinct points, built from `ReedSolomon.evalOnPoints`
+and `Polynomial.degreeLTEquiv`. Its injectivity (`koalaEnc_injective`, proven
+sorry-free) is [ABF26] Definition 6.1's "code as the injective map".
 
-The two anchors below are `sorry`-backed by design (like Phase 1's
-`MCALowerWitness.ofJohnsonBCHKS25`). -/
+The two anchors below remain `sorry`-backed by design (like Phase 1's
+`MCALowerWitness.ofJohnsonBCHKS25`): they are the §6.3.1 / §6.4.1 numeric
+evaluations, owed at Phase 5. Note that with `koalaEnc` now concrete (not
+`opaque`), `bestProvableError koalaIRS` is in principle evaluable — these
+anchors are now genuine numeric obligations, not irreducible-by-construction
+placeholders. -/
 
-/-- `𝔽₂` primality, for the `GaloisField 2 128` anchor carrier. Kept `local`
-so it does not leak `Fact (Nat.Prime 2)` into downstream importers. -/
-local instance : Fact (Nat.Prime 2) := ⟨Nat.prime_two⟩
+/-- The KoalaBear *sextic* extension field `𝔽_q^6` with `q = 2^31 - 2^24 + 1`
+(`KoalaBear.fieldSize`), the genuine §6.3 carrier (`|F| = q^6 ≈ 2^186`). The
+`Fact (Nat.Prime KoalaBear.fieldSize)` instance comes from CompPoly. -/
+abbrev KoalaSextic := GaloisField KoalaBear.fieldSize 6
 
-/-- Opaque placeholder encoding over the KoalaBear-sextic-sized field
-`GF(2^128)`; its fine structure is deferred to Phase 5 (the genuine RS/IRS
-encoder). Keeping it `opaque` makes `bestProvableError koalaIRS` irreducible,
-so the anchor inequalities are genuine owed obligations rather than computable
-(and hence provably true/false) at this stand-in. The supplied witness is used
-only for non-emptiness and is never unfolded. -/
-noncomputable opaque koalaEnc : (Fin 2 → GaloisField 2 128) →ₗ[GaloisField 2 128]
-    (Fin 3 → GaloisField 2 128) := 0
+/-- Cardinality of the carrier: `|KoalaSextic| = q^6` (`q = KoalaBear.fieldSize`).
+This is the `|F| ≈ 2^186 ≥ 2^117` honesty precondition for the anchors and the
+`|Ω|/|F|` numerics of Sessions 2–3. Stated for `Nat.card` (instance-free);
+convert to `Fintype.card` via `Nat.card_eq_fintype_card` under any `Fintype`
+instance. -/
+theorem koalaSextic_card : Nat.card KoalaSextic = KoalaBear.fieldSize ^ 6 :=
+  GaloisField.card KoalaBear.fieldSize 6 (by norm_num)
 
-/-- Injectivity of the opaque stand-in encoder ([ABF26] Definition 6.1's
-"code as the injective map" reading; true of the genuine Phase-5
-KoalaBear-sextic RS/IRS encoder, and consistent for the opaque `koalaEnc` —
-an injective linear `(GF(2^128))² → (GF(2^128))³` exists). Owed at Phase 5
-together with the encoder itself. -/
+/-- The `3`-point Reed–Solomon evaluation domain `{0, 1, 2} ⊆ KoalaSextic`.
+Distinctness is injectivity of `Nat.cast` below the characteristic
+(`3 ≤ KoalaBear.fieldSize`). -/
+noncomputable def koalaDomain : Fin 3 ↪ KoalaSextic where
+  toFun i := (i.val : KoalaSextic)
+  inj' i j hij := by
+    have hfs : (3 : ℕ) ≤ KoalaBear.fieldSize := by norm_num [KoalaBear.fieldSize]
+    have hi : (i : ℕ) ∈ Set.Iio KoalaBear.fieldSize := Set.mem_Iio.mpr (i.isLt.trans_le hfs)
+    have hj : (j : ℕ) ∈ Set.Iio KoalaBear.fieldSize := Set.mem_Iio.mpr (j.isLt.trans_le hfs)
+    exact Fin.val_injective
+      (CharP.natCast_injOn_Iio KoalaSextic KoalaBear.fieldSize hi hj hij)
+
+/-- The genuine §6.3 encoder: the degree-`< 2` Reed–Solomon evaluation map on the
+`3` points of `koalaDomain`, as an `F`-linear map `(Fin 2 → F) →ₗ (Fin 3 → F)`.
+Built as `evalOnPoints ∘ (degreeLTEquiv).symm` so that injectivity reduces to the
+RS kernel-triviality lemma. ([ABF26] Definition 6.1's "code as the injective
+map"; the code itself is `ToyParams.code = Set.range koalaEnc`.) -/
+noncomputable def koalaEnc :
+    (Fin 2 → KoalaSextic) →ₗ[KoalaSextic] (Fin 3 → KoalaSextic) :=
+  (ReedSolomon.evalOnPoints koalaDomain).domRestrict (Polynomial.degreeLT KoalaSextic 2)
+    ∘ₗ (Polynomial.degreeLTEquiv KoalaSextic 2).symm.toLinearMap
+
+/-- Injectivity of the genuine KoalaBear-sextic Reed–Solomon encoder
+([ABF26] Definition 6.1's "code as the injective map"). The encoder is the
+composite of the injective `degreeLTEquiv.symm` and the RS evaluation map
+restricted to degree-`< 2` polynomials, which is injective because `2 ≤ 3 = |ι|`
+distinct points pin a degree-`< 2` polynomial uniquely
+(`ReedSolomon.evalOnPoints_domRestrict_injective`). -/
 theorem koalaEnc_injective : Function.Injective koalaEnc := by
-  -- ABF26-Phase5; owed with the genuine KoalaBear-sextic encoder (any RS/IRS
-  -- encoding is injective). Unprovable for the opaque stand-in by design.
-  sorry
+  simp only [koalaEnc, LinearMap.coe_comp, LinearEquiv.coe_toLinearMap]
+  exact (ReedSolomon.evalOnPoints_domRestrict_injective (n := 2) (by simp)).comp
+    (LinearEquiv.injective _)
 
 /-- The Proximity-Prize anchor parameter point: the KoalaBear-sextic regime
 (`q = 2^31 - 2^24 + 1`, sextic extension, `ρ = 1/2`, `t = 128`). There is no
 pinned δ — δ is swept inside `bestProvableError` per the §6.3 frontier (the
 X side optimizes near `δ = 1 - √ρ - η`, the Y side attacks at `δ* = 0.468`;
-a single shared δ cannot represent the frontier). The carrier is the
-`2^128`-element field `GaloisField 2 128` (a same-order stand-in for the
-`≈2^186`-element KoalaBear sextic; Phase 5 substitutes the real field and
-encoder). The documentary numeric fields `(q, ext, ρ, s, n)` state the
-*intended* KoalaBear-sextic regime (rate `ρ = k/n = 2/4 = 1/2`); the
-operational stand-in `(F = GF(2^128), ι = Fin 3, k = 2, opaque enc)` does not
-yet realise it — Phase 5 reconciles the two. -/
+a single shared δ cannot represent the frontier). The carrier is the genuine
+`q^6 ≈ 2^186`-element KoalaBear sextic `KoalaSextic` (`koalaSextic_card`), and
+`koalaEnc` is the genuine degree-`< 2` Reed–Solomon encoder on `3` points
+(`ι = Fin 3`, `k = 2`). The documentary numeric fields `(q, ext, ρ, s, n)`
+record the §6.3 regime (rate `ρ = k/n = 2/4 = 1/2`). -/
 noncomputable def koalaIRS : ToyParams := by
-  haveI : Fintype (GaloisField 2 128) := Fintype.ofFinite _
+  haveI : Fintype KoalaSextic := Fintype.ofFinite _
   classical
   exact
-    { F := GaloisField 2 128
+    { F := KoalaSextic
       ι := Fin 3
       k := 2
       enc := koalaEnc
       enc_injective := koalaEnc_injective
       t := 128
-      q := 2 ^ 31 - 2 ^ 24 + 1
+      q := KoalaBear.fieldSize
       ext := 6
       ρ := 1 / 2
       s := 1

@@ -230,6 +230,38 @@ lemma dim_eq_deg_of_le [NeZero n] (inj : Function.Injective α) (h : n ≤ m) :
     ] <;> simp [inj, h]
 
 
+/-- **Injectivity of Reed–Solomon evaluation on low-degree polynomials.** The
+evaluation map restricted to `degreeLT F n` is injective whenever there are at
+least `n` distinct evaluation points: a nonzero polynomial of degree `< n ≤ |ι|`
+cannot vanish at all `|ι|` of the (distinct) points. This is the kernel-triviality
+fact underlying both the RS-code dimension formula and the injectivity of any
+degree-`< n` encoder. -/
+lemma evalOnPoints_domRestrict_injective {ι : Type*} [Fintype ι] {F : Type*} [Field F]
+    {n : ℕ} {α : ι ↪ F} (h : n ≤ Fintype.card ι) :
+    Function.Injective ((evalOnPoints α).domRestrict (Polynomial.degreeLT F n)) := by
+  rcases Nat.eq_zero_or_pos n with hn | hn
+  · -- `degreeLT F 0 = ⊥` is a subsingleton, so the restricted map is vacuously injective.
+    subst hn
+    haveI : Subsingleton (Polynomial.degreeLT F 0) := by
+      rw [Polynomial.degreeLT_zero]; infer_instance
+    exact fun p q _ => Subsingleton.elim p q
+  · haveI : NeZero n := ⟨hn.ne'⟩
+    rw [← LinearMap.ker_eq_bot]
+    ext p
+    simp only [LinearMap.mem_ker, LinearMap.domRestrict_apply, Submodule.mem_bot]
+    constructor
+    · intro hfp
+      apply Subtype.ext
+      apply Polynomial.eq_zero_of_natDegree_lt_card_of_eval_eq_zero' p.val (Finset.univ.map α)
+      · intro x hx
+        simp only [Finset.mem_map, Finset.mem_univ, true_and] at hx
+        rcases hx with ⟨i, rfl⟩
+        exact congr_fun hfp i
+      · simp only [Finset.card_map, Finset.card_univ]
+        exact (natDegree_lt_of_mem_degreeLT p.2).trans_le h
+    · intro hfp
+      simp [hfp]
+
 /-- Generalized dimension formula for RS code with arbitrary finite index type `ι`. -/
 lemma dim_eq_deg_of_le' {ι : Type*} [Fintype ι] {F : Type*} [Field F]
     {n : ℕ} {α : ι ↪ F} (h : n ≤ Fintype.card ι) :
@@ -250,40 +282,7 @@ lemma dim_eq_deg_of_le' {ι : Type*} [Fintype ι] {F : Type*} [Field F]
       simp [Submodule.mem_map]
     rw [h_range, LinearMap.finrank_range_of_inj]
     · rw [Polynomial.finrank_degreeLT_n]
-    · -- Injectivity proof
-      rw [←LinearMap.ker_eq_bot]
-      ext p
-      simp only [LinearMap.mem_ker, LinearMap.domRestrict_apply, Submodule.mem_bot]
-      constructor
-      · intro hfp
-        apply Subtype.ext
-        apply Polynomial.eq_zero_of_natDegree_lt_card_of_eval_eq_zero' p.val (Finset.univ.map α)
-        · intro x hx
-          simp only [Finset.mem_map, Finset.mem_univ, true_and] at hx
-          rcases hx with ⟨i, rfl⟩
-          exact congr_fun hfp i
-        · simp only [Finset.card_map]
-          by_cases hn : n = 0
-          · subst hn
-            have h : ∀ i, p.val.coeff i = 0 := by
-              intro i
-              rcases p with ⟨p, hp⟩
-              simp [S, Polynomial.degreeLT] at hp
-              simp [hp i]
-            have h : p.val.natDegree = 0 := by
-              rw [Polynomial.natDegree_eq_zero_iff_degree_le_zero]
-              rw [Polynomial.degree_le_zero_iff]
-              ext n
-              rw [h n]
-              rcases n with _ | n <;> simp [h 0]
-            rw [h]
-            simp
-            omega
-          · calc p.val.natDegree < n
-              := @natDegree_lt_of_mem_degreeLT _ _ _ _ (⟨hn⟩) p.2
-                _ ≤ Fintype.card ι := h
-      · intro hfp
-        simp [hfp]
+    · exact evalOnPoints_domRestrict_injective h
 
 /-- The dimension of an RS-code equals the cardinality
   of the evaluation points if the original degree exceeds the cardinality. -/

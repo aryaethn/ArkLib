@@ -38,11 +38,13 @@ round-by-round knowledge soundness (L6.8,
 `protocol62_rbrKnowledgeSound`) are **fully proven** here. Plain
 knowledge soundness (L6.6, `protocol62_knowledgeSound`) is **fully
 proven** in the sibling file `Spec/KnowledgeSoundness.lean`, with the
-**corrected** sum-form error
-`(ε_mca(C,δ) + |Λ(C^{≡2},δ)|/|F|) + (1-δ)^t`: the paper's claimed `max`
-of the two terms is **false as stated** (its proof swaps conditional for
-unconditional probabilities; there is a concrete counterexample) — see
-`PAPER_REVS.md` item 11. The per-round game bounds proven in this file
+**corrected** convex-combination error
+`(1-δ)^t + (ε_mca(C,δ) + |Λ(C^{≡2},δ)|/|F|)·(1 - (1-δ)^t)`: the paper's
+claimed `max` of the two terms is **false as stated** (its proof swaps
+conditional for unconditional probabilities; there is a concrete
+counterexample) — see `PAPER_REVS.md` item 11. (The looser sum
+`(ε_mca + |Λ|/|F|) + (1-δ)^t`, the L6.8 round-error sum, is the documented
+relaxation.) The per-round game bounds proven in this file
 (`gamma_round_game_bound`, `spotcheck_round_game_bound`) are shared by
 both the L6.8 and L6.6 proofs.
 

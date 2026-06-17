@@ -190,8 +190,8 @@ private lemma prover_run_map_eq {β : Type}
   try simp only [pure_bind, map_pure, Functor.map_map, Function.comp, bind_pure_comp, bind_assoc]
   split <;> rename_i hDir2; swap; · exact absurd hDir2 (by decide)
   try simp only [pure_bind, map_pure, Functor.map_map, Function.comp, bind_pure_comp, bind_assoc]
-  -- The run is a dependently-typed fold: each round outputs `(Transcript/PrvState) ((j:Fin 3).succ)`
-  -- and the next consumes them at `((j+1:Fin 3).castSucc)`. These indices are *definitionally*
+  -- The run is a dependently-typed fold: each round outputs `(Transcript/PrvState)` at
+  -- `((j:Fin 3).succ)` and the next consumes them at `((j+1:Fin 3).castSucc)`. These are *defeq*
   -- equal but not *syntactically*, so `pure_bind` won't substitute across round boundaries until
   -- the index heads are normalized. Align them to shared `Fin 4` literals (`succ` of 0/1 have
   -- named lemmas; `castSucc` of 1/2 and `succ` of 2 are `rfl`), then `dsimp` the residual

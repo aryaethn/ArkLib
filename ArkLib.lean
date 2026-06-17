@@ -236,6 +236,7 @@ import ArkLib.ProofSystem.ToyProblem.Impl.IRS
 import ArkLib.ProofSystem.ToyProblem.Leaderboard
 import ArkLib.ProofSystem.ToyProblem.SoundnessBounds
 import ArkLib.ProofSystem.ToyProblem.Spec.General
+import ArkLib.ProofSystem.ToyProblem.Spec.KnowledgeSoundness
 import ArkLib.ProofSystem.ToyProblem.Spec.SimplifiedIOR
 import ArkLib.ProofSystem.Whir.BlockRelDistance
 import ArkLib.ProofSystem.Whir.Folding

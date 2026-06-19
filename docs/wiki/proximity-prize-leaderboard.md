@@ -6,12 +6,15 @@ question — *how big is the gap between what we can prove and the best known
 attack?* — into a single Lean scalar that contestants minimise.
 
 - **Code:** [`ArkLib/ProofSystem/ToyProblem/Leaderboard.lean`](../../ArkLib/ProofSystem/ToyProblem/Leaderboard.lean)
+  (the common quantity, interfaces, and the interleaved-RS anchors);
+  [`ArkLib/ProofSystem/ToyProblem/Impl/FRS.lean`](../../ArkLib/ProofSystem/ToyProblem/Impl/FRS.lean)
+  (the folded-RS entry).
 - **Paper:** Arnon–Boneh–Fenzi, *Open Problems in List Decoding and Correlated
   Agreement* (eprint 2026/680), §6.2 (Lemma 6.8), §6.4 (Lemmas 6.10, 6.12,
   6.13), §6.3 ("Knowledge soundness upperbound" / "Soundness lowerbound"
-  parheads + Tables 2–5). The attack side is also Fenzi–Sanso, eprint
-  2025/2197 (Construction 4.2 = C6.2, Lemma 4.4 ≈ Lemma 6.12) and the
-  [KKH26]-backed list-size tables.
+  parheads + Tables 2–5; §6.3.2 the folded / subspace-design analysis). The
+  attack side is also Fenzi–Sanso, eprint 2025/2197 (Lemma 4.4 ≈ Lemma 6.12)
+  and the [KKH26]-backed list-size tables.
 
 ## The one quantity both sides bound: a δ-swept frontier
 
@@ -22,33 +25,46 @@ admissible `δ ∈ (0, δ_min(C))` (the L6.8/L6.10 range), after which round 1's
 true error is `winningSetSoundness enc δ` (Definition 6.11 — the paper says
 the simplified IOR's soundness error "is exactly" this) and round 2's is the
 spot-check `(1-δ)^t`. The common quantity is the best error provable by *any*
-such analysis:
+such analysis — their **convex / union combination**, infimised over δ:
 
 ```
 bestProvableError p
-  = ⨅ δ ∈ (0, δ_min(C)),  max (winningSetSoundness p.enc δ) ((1-δ)^t)
+  = ⨅ δ ∈ (0, δ_min(C)),  (1-δ)^t + winningSetSoundness p.enc δ · (1 - (1-δ)^t)
 ```
 
 Key design points:
 
-- **δ is swept, not pinned.** The two sides certify their bounds at
-  *different* δ — the provable side optimizes near `δ = 1 − √ρ − η` (Johnson
-  regime, `.tex` 2798–2825), the attack side works near `δ* = 0.468`
-  (`tab:elias-lowerbound-thresholds`, `.tex` ~2925). A single shared δ cannot
-  represent the paper's frontier (at the attack's δ the provable side's MCA
-  bound is unavailable; at the provable side's δ the attack is far weaker).
-  The `⨅` makes both legitimate bounds on the same scalar.
+- **Convex, not `max`.** The two round errors combine by the union bound
+  `(1-δ)^t + ε₀·(1 - (1-δ)^t)`, not the paper's printed `max(ε₀, (1-δ)^t)`. The
+  printed `max` is *false* as a round-by-round bound (`protocol62_knowledgeSound`,
+  author-confirmed; the two differ by `winningSetSoundness·(1-δ)^t`, negligible
+  in regime). The in-tree quantity uses the corrected convex form.
+- **δ is swept, not pinned.** The two sides certify their bounds at *different*
+  δ — the provable side optimizes near `δ = 1 − √ρ − η` (Johnson regime), the
+  attack side works near `δ* = 0.468` (`tab:elias-lowerbound-thresholds`). A
+  single shared δ cannot represent the paper's frontier. The `⨅` makes both
+  legitimate bounds on the same scalar. The Y-side helper `le_bestProvableError`
+  (the `le_iInf₂` dual of `bestProvableError_le`) reduces an attack ceiling to a
+  per-δ floor over the whole admissible window.
 - **Pinned encoding.** All Definition-6.11 objects use the fixed-encoding
   relations `relaxedRelationFor enc` / `winningSetFor enc` (the paper's code
-  *is* its injective encoding `C : F^k → F^n`). `ToyParams` carries
+  *is* its injective encoding `C : F^k → (F^s)^n`). `ToyParams` carries
   `enc` + `enc_injective` and derives the code as `p.code = Set.range p.enc`.
-  The earlier existential-encoding relations (under which the linear
-  constraint is reparameterisable and the supremum collapses) were deleted.
-- **Honesty.** `bestProvableError` is what δ-relaxation round-by-round
-  analyses can certify; the protocol's *true* security may exceed it. The
-  leaderboard narrows **this** quantity, per §6.3.
+  The earlier existential-encoding relations (under which the linear constraint
+  is reparameterisable and the supremum collapses) were deleted.
+- **Generic over the codeword alphabet.** `ToyParams` carries an alphabet `A`
+  (an `F`-module) with `enc : (Fin k → F) →ₗ[F] (ι → A)`. `A = F` is the scalar
+  / **interleaved-RS** case (`koalaIRS`); `A = Fin s → F` is the **folded-RS**
+  case (`koalaFRS`, `s`-folding). The challenge `γ` stays a scalar field element,
+  so `winningSetFor … : Set F` and the soundness fraction `|Ω| / |F|` is over
+  challenges regardless of `A`. The shared coding-theory layer (`epsCA`,
+  `epsMCA`, `Lambda`, `interleavedCodeSet`, `minRelHammingDistCode`) is already
+  alphabet-generic, so the same machinery serves both.
+- **Honesty.** `bestProvableError` is what δ-relaxation round-by-round analyses
+  can certify; the protocol's *true* security may exceed it. The leaderboard
+  narrows **this** quantity, per §6.3.
 
-Two bounds sandwich it:
+Two bounds sandwich it (in `ℝ≥0∞`):
 
 ```
    2^(-Y)  ≤   bestProvableError p   ≤   2^(-X)
@@ -57,8 +73,8 @@ Two bounds sandwich it:
 
 ## How to submit
 
-A submission is an *inhabitant* of one of two structures, both at the fixed
-anchor parameter point `koalaIRS : ToyParams`:
+A submission is an *inhabitant* of one of two structures at a fixed parameter
+point (e.g. `koalaIRS` or `koalaFRS`):
 
 ```lean
 open ToyProblem
@@ -80,37 +96,37 @@ def myAttack : SecurityUpperBound koalaIRS where
 
 **Lower entry (raise X).** Pick your δ, then:
 
-1. `bestProvableError_le` reduces the goal to
-   `max (winningSetSoundness koalaIRS.enc δ) ((1-δ)^t) ≤ 2^(-bits)`;
-2. bound the first branch via the L6.10 bridge
+1. `bestProvableError_le` reduces the goal to bounding the convex combination
+   `(1-δ)^t + winningSetSoundness koalaIRS.enc δ · (1 - (1-δ)^t) ≤ 2^(-bits)`;
+2. bound the `winningSetSoundness` term via the proven L6.10 bridge
    `winningSetSoundness_le_epsMCA_add` (`winningSetSoundness ≤ ε_mca + |Λ|/|F|`)
    plus your `ε_mca`/list-size analysis — a tighter Phase-1 `MCALowerWitness`
    feeds in here;
-3. bound the spot-check branch `(1-δ)^t` numerically.
+3. bound the spot-check term `(1-δ)^t` numerically.
 
-**Upper entry (lower Y).** You must floor the `max` at *every* admissible δ:
+**Upper entry (lower Y).** Use `le_bestProvableError` to reduce to flooring the
+convex combination at *every* admissible δ (it dominates both terms):
 
-- for large δ, exhibit an attack on `winningSetSoundness` — the two **proven,
-  axiom-clean hooks** are
+- for large δ, floor `winningSetSoundness` via the two **proven, axiom-clean
+  hooks**
   - `epsCA_le_winningSetSoundness` (Lemma 6.13): `ε_ca(C,δ) ≤ winningSetSoundness enc δ`,
   - `listDecoding_le_winningSetSoundness` (Lemma 6.12):
     `N/(|F|+2N) ≤ winningSetSoundness enc δ` with `N = |Λ(C^{≡2},δ)|`,
 
   so a numeric `ε_ca` or list-size lower bound plugs straight in;
-- for small δ, the spot-check term `(1-δ)^t ≥ (1-δ₀)^t` floors the max
+- for small δ, the spot-check term `(1-δ)^t ≥ (1-δ₀)^t` floors the combination
   directly.
 
 Notes:
 
 - `bits : ℝ` (not `ℕ`) because the security level *is* `-log₂(error)`, a real
   for any error in `(0,1)` — ABF26's own §6.3 figures are fractional (the
-  attack is `2^(-116.49)`, the MCA branch `≈ 2^(-71.5)`).
-- `(2 : ℝ≥0) ^ (-bits)` is `NNReal.rpow` (real exponent), coerced into
-  `ℝ≥0∞`: `bestProvableError` lives in `ℝ≥0∞` so that a degenerate parameter
-  point with an *empty* admissible δ-range gives `⊤` (no lower bound
-  certifiable — the conservative direction). In `ℝ≥0` the binder infimum
-  collapses to `0` on empty inner sets, which made every lower bound trivially
-  inhabitable (2026-06-10 review finding C1, fixed).
+  interleaved attack is `2^(-116.49)`, the spot-check `(1/√2+η)^128 ≈ 2^(-64.00)`).
+- `(2 : ℝ≥0) ^ (-bits)` is `NNReal.rpow` (real exponent), coerced into `ℝ≥0∞`:
+  `bestProvableError` lives in `ℝ≥0∞` so that a degenerate parameter point with
+  an *empty* admissible δ-range gives `⊤` (the conservative direction). In `ℝ≥0`
+  the binder infimum collapses to `0` on empty inner sets, making every lower
+  bound trivially inhabitable (2026-06-10 review finding C1, fixed).
 - A better lower-bound submission *raises* `X`; a better attack *lowers* `Y`.
 
 ## The metric
@@ -121,50 +137,82 @@ securityGap (lo : SecurityLowerBound p) (hi : SecurityUpperBound p) : ℝ
 ```
 
 This is the scalar contestants minimise. It is always `≥ 0`:
-`SecurityLowerBound.bits_le_of` proves `lo.bits ≤ hi.bits` by pure
-transitivity through the common scalar
-(`2^(-hi.bits) ≤ bestProvableError ≤ 2^(-lo.bits)` and the strict antitonicity
-of `x ↦ 2^(-x)`), and `securityGap_nonneg` packages it. Both are
-**axiom-clean** (`#print axioms` shows only `propext`/`Classical.choice`/
+`SecurityLowerBound.bits_le_of` proves `lo.bits ≤ hi.bits` by pure transitivity
+through the common scalar (`2^(-hi.bits) ≤ bestProvableError ≤ 2^(-lo.bits)` and
+the strict antitonicity of `x ↦ 2^(-x)`), and `securityGap_nonneg` packages it.
+Both are **axiom-clean** (`#print axioms` shows only `propext`/`Classical.choice`/
 `Quot.sound`, no `sorryAx`) — the honesty of the metric does not depend on any
 owed §6 proof.
 
-## Current anchors (the 63.99 / 117 honest frontier)
+## Current anchors
 
-At the KoalaBear-sextic regime (`q = 2^31 - 2^24 + 1`, sextic extension,
-`ρ = 1/2`, `t = 128`):
+The carrier is the genuine KoalaBear *sextic* extension `KoalaSextic =
+GaloisField (2^31 − 2^24 + 1) 6` (`|F| = q^6 ≈ 2^186`, large enough for the
+`[2^(-117), 2^(-64)]` window to be representable). `koalaEnc` is a real
+degree-`< 2` Reed–Solomon encoder on `4` points (`ι = Fin 4`, `k = 2`,
+realised rate `ρ = k/|ι| = 1/2`), with `koalaEnc_injective` proven sorry-free.
+
+### Interleaved Reed–Solomon — `koalaIRS` (`A = F`, `t = 128`)
 
 | Anchor | `bits` | Basis |
 |---|---|---|
-| `arklib_lowerBound_irs_t128 : SecurityLowerBound koalaIRS` | **63.99** | ABF26 Lemmas 6.10 / 6.6 / 6.8 at `δ = 1 − 1/√2 − η`, `η ≈ 2^-18…2^-21` (`.tex` 2798–2825, `tab:interleaved-security-analysis`; spot-check-limited, MCA branch ≈ `2^-71.5`) |
-| `listDecoding_upperBound_attack : SecurityUpperBound koalaIRS` | **117** | ABF26 Lemma 6.12 + Elias/[KKH26] at `δ* = 0.468` (`tab:elias-lowerbound-thresholds`, `2^-116.49`), spot-check floor `(0.532)^128 ≈ 2^-116.6` for `δ ≤ δ*` (cf. Fenzi–Sanso 2025/2197 Lemma 4.4) |
+| `arklib_lowerBound_irs_t128 : SecurityLowerBound koalaIRS` | **63.99** | ABF26 Lemmas 6.10 / 6.6 / 6.8 at `δ = 3/10`; full derivation reduced to one owed bound `ε_mca(C,3/10) + |Λ|/|F| ≤ 2^(-65)` |
+| `listDecoding_upperBound_attack : SecurityUpperBound koalaIRS` | **117** | ABF26 Lemma 6.12 + Elias/[KKH26]; full derivation, band-split at `δ* = 117/250` (sorry-free spot-check `(133/250)^128 ≥ 2^(-117)` for small δ; proven L6.12 hook + owed list-size bound for large δ) |
 
-so `securityGap = 117 − 63.99 = 53.01` (the lemma `securityGap_koalaIRS_anchors`
-evaluates this). Both anchors are `sorry`-tagged by design (`ABF26-§6.3.1` /
-`ABF26-§6.3.1-lowerbound`) — the §6.3.1 numeric evaluations are Phase-5-owed.
-Notes:
+so `securityGap = 117 − 63.99 = 53.01` (`securityGap_koalaIRS_anchors`).
 
-- **The attack→soundness chains are real.** Lemmas 6.12 and 6.13 are proven
-  sorry-free and axiom-clean against the pinned relations
-  (`simplified_iop_soundness_listDecoding_lb`, `simplified_iop_soundness_ca_lb`),
-  and both are hosted on the leaderboard as the proven hooks
-  `listDecoding_le_winningSetSoundness` / `epsCA_le_winningSetSoundness`.
-  Only the Phase-5 *numerics* (and the genuine KoalaBear encoder) remain owed.
-- Honest rounding (2026-06-10 review, M1/M2): the X route certifies an
-  infimum `≈ 2^(-63.9998)` — the paper notes `(1/√2+η)^128 > 2^(-64)` strictly
-  for every `η > 0`, so `64.00` is unreachable and the anchor is `63.99`. The
-  Y side is a *ceiling* and must round **up**: the certified sweep floor is
-  `≈ 2^(-116.6) < 2^(-116)` (and the band `δ ∈ (0.46604, 0.468)` is covered by
-  neither branch at `116`), so the anchor is `117`. (The earlier `64`/`116`
-  pair deferred this rounding to Phase 5; the review showed no numeric
-  sharpening can close it, so the anchors now carry the honest values.)
-- The anchor carrier is `GaloisField 2 128` (size `2^128`), a same-*order*
-  stand-in for the `≈2^186`-element KoalaBear-sextic field, with an **opaque**
-  placeholder encoding `koalaEnc` (injectivity is a tagged Phase-5 sorry). The
-  large field is required for the `[2^(-117), 2^(-64)]` window to be
-  representable, and opacity keeps `bestProvableError` irreducible so neither
-  anchor is provably true or false. Phase 5 substitutes the genuine RS/IRS
-  KoalaBear-sextic field and encoder.
+- **The connective tissue is proven; only the coding-theory numerics are owed.**
+  Both anchors are *full formalized reductions* (not opaque `sorry`s): the
+  δ-window admissibility (`koalaIRS_minRelDist = 3/4`), the spot-check integer
+  inequalities (`koala_spotcheck`, `koala_spotcheck_lb`), the L6.10 bridge, and
+  the proven L6.12/L6.13 hooks are all axiom-clean. What remains `sorryAx` is
+  exactly the external `ε_mca`/`ε_ca`/`Λ` bounds (BCHKS25/ACFY25/KKH26) — closing
+  them means formalizing the prize's own coding theory, not session-level work
+  (axiom-clean is infeasible *by design*: the Johnson RS bound is vacuous at the
+  concrete `n = 4`).
+- **Honest rounding** (2026-06-10 review): the X route certifies `≈ 2^(-63.9998)`
+  — the paper notes `(1/√2+η)^128 > 2^(-64)` strictly, so `64.00` is unreachable
+  and the anchor is `63.99`. The Y side is a *ceiling* and rounds **up**: the
+  certified sweep floor is `≈ 2^(-116.6) < 2^(-116)` (the band `δ ∈ (0.46604,
+  0.468)` is covered by neither branch at `116`), so the anchor is `117`.
+
+### Folded Reed–Solomon — `koalaFRS` (`A = Fin s → F`, `s = 2^5`, `t = 128`)
+
+[`Impl/FRS.lean`](../../ArkLib/ProofSystem/ToyProblem/Impl/FRS.lean) instantiates
+the *folded* code (a codeword symbol is a length-`s` tuple `Fin s → F`), the
+`A = Fin s → F` case of the same machinery. Row: `s = 2^5 = 32`, evaluation
+domain `|L| = 2^16`, message `k = 2^20`, rate `ρ = 1/2` (ABF26 §6.3.2, the
+paper's worked example).
+
+| Anchor | `bits` | Basis |
+|---|---|---|
+| `frsLowerBound : SecurityLowerBound koalaFRS` | **29.11** | §6.3.2 τ-subspace-design analysis, `tab:subspace-design-security-analysis`, `s = 2^5`, `r = 8` (`τ(r) = s·ρ/(s−r+1)`) |
+| `frsUpperBound_attack : SecurityUpperBound koalaFRS` | **127.63** | §6.3.2 Elias lower bound, `tab:subspace-elias-lowerbound-thresholds`, `s = 2^5`, `δ* = 0.499` |
+
+so `securityGap_koalaFRS = 127.63 − 29.11 = 98.52`.
+
+- **Reading the gap honestly.** At a *fixed* `t = 128`, `s = 32` folding gives a
+  *wider* gap than interleaving (`53.01`) — and for `s ≤ 2^4` *no* soundness is
+  provable at all. This is faithful, not a defect: folding's payoff lives on axes
+  the fixed-`t` δ-sweep does not capture — **larger folding closes the gap**
+  (`s = 2^12`: provable `2^(-118.14)`, a `≈ 10`-bit gap) and **argument-size at
+  enforced 128-bit security** (`s = 2^5` reaches `2^(-128.03)` at repetition
+  `t = 563`, `r = 8`, `417.9 KiB`, `tab:subspace-design-128bit-security`), the
+  metric on which folding genuinely beats interleaving.
+- **Owed (cited, not fabricated).** The two anchor numerics are external
+  coding-theory results (τ-subspace-design list-decodability / Elias lower bound)
+  read from the paper's tables. `koalaFRSEnc_injective` is owed structurally:
+  there is no in-tree `Admissible → injective` bridge for `frsEvalOnPoints`
+  (`dim_frsCode` takes injectivity as a hypothesis), and concrete GR08
+  admissibility needs multiplicative-order facts over the noncomputable
+  `GaloisField` (the multiplicative analogue of `koalaDomain`'s additive
+  argument). `koalaFRSDomain` is deliberately zero-free to keep admissibility a
+  genuinely-owed, not provably-false, condition.
+- **Protocol-reduction status.** `koalaFRS` is a leaderboard entry over the
+  alphabet-generic soundness layer; it does *not* require the protocol
+  *reduction* (`Spec/General.lean`, completeness) to be generalized to folded
+  codewords — that is a separate, deferred follow-on gated by the pre-existing
+  `simulateQ`/`OptionT` completeness frontier.
 
 ## Connection to the grand challenges (Phase 1)
 

@@ -223,11 +223,17 @@ so `securityGap_koalaFRS = 128.01 − 29.10 = 98.91`.
   `GaloisField` (the multiplicative analogue of `koalaDomain`'s additive
   argument). `koalaFRSDomain` is deliberately zero-free to keep admissibility a
   genuinely-owed, not provably-false, condition.
-- **Protocol-reduction status.** `koalaFRS` is a leaderboard entry over the
-  alphabet-generic soundness layer; it does *not* require the protocol
-  *reduction* (`Spec/General.lean`, completeness) to be generalized to folded
-  codewords — that is a separate, deferred follow-on gated by the pre-existing
-  `simulateQ`/`OptionT` completeness frontier.
+- **Protocol-reduction status (DONE).** The `koalaFRS` leaderboard entry only
+  needs the alphabet-generic soundness layer, but the protocol *reduction* layer
+  is now generalized to folded codewords too (Stage 1, 2026-06-22): `Spec/General.lean`,
+  `Spec/SimplifiedIOR.lean`, `Spec/KnowledgeSoundness.lean` are generic over the
+  `F`-module alphabet `A`, and `Impl/FRS.lean` ships genuine `s = 32` folded
+  reductions (`reductionFRS` / `oracleReductionFRS` / `simplifiedReductionFRS`).
+  Completeness (C6.2), L6.6, L6.8, L6.10 stay sorry-free and axiom-clean over
+  general `A` — the `simulateQ`/`OptionT` completeness frontier survived the
+  generalization by mechanical defeq re-spelling. The C6.2 completeness theorem
+  moved to `Spec/Completeness.lean` (the only file split warranted by the
+  longer file). `A := F` recovers the scalar IRS reductions.
 
 ## Connection to the grand challenges (Phase 1)
 

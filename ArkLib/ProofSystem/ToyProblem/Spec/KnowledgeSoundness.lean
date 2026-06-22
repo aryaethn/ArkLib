@@ -74,20 +74,27 @@ open OracleSpec OracleComp ProtocolSpec
 open Code InterleavedCode ListDecodable ProximityGap
 open scoped NNReal ENNReal
 
-variable {ι F : Type} [Fintype ι] [Field F] [Fintype F] [DecidableEq F]
+-- The code-theoretic terms (`epsMCA`, `interleavedCodeSet`) use `[Fintype A]`/`[DecidableEq A]`
+-- in their bodies but not in the alphabet-generic lemma types; suppress the `unused…InType`
+-- linter file-wide (the same toy idiom as `SoundnessBounds.lean` / `Spec/General.lean`).
+set_option linter.unusedFintypeInType false
+set_option linter.unusedDecidableInType false
+
+variable {ι F A : Type} [Fintype ι] [Field F] [Fintype F] [DecidableEq F]
+variable [AddCommGroup A] [Module F A] [Fintype A] [DecidableEq A]
 variable (k t : ℕ)
 
 section Protocol
 
-omit [Fintype ι] [Fintype F] in
+omit [Fintype ι] [Fintype F] [Fintype A] in
 /-- The (logged) run of the C6.2 oracle verifier on an arbitrary transcript collapses to the
 deterministic `pure` of "`some` output iff the §6.1 acceptance predicate holds", with an empty
 verifier query log. Packages `verifierBody_simulateQ_eq_pure_ite` together with the
 `toVerifier` output wrapper and the logging layer, so the L6.6 game reduction can rewrite the
 verifier away in one step (under the prover-run binders, where the transcript is abstract). -/
 private lemma verifier_run_loggingOracle_eq
-    (encode : (Fin k → F) → (ι → F))
-    (stmt : Statement (F := F) k) (oStmt : ∀ i, OracleStatement ι F i)
+    (encode : (Fin k → F) → (ι → A))
+    (stmt : Statement (F := F) k) (oStmt : ∀ i, OracleStatement ι A i)
     (tr : (pSpec (ι := ι) (F := F) k t).FullTranscript) :
     (simulateQ loggingOracle
         ((oracleVerifier (k := k) (t := t) encode).toVerifier.run (stmt, oStmt) tr)).run
@@ -144,7 +151,8 @@ private lemma verifier_run_loggingOracle_eq
         (tr.challenges ⟨0, rfl⟩) (tr.messages ⟨1, rfl⟩) (tr.challenges ⟨2, rfl⟩) ↦ h hacc),
       Option.map_none]
 
-omit [Fintype ι] [Field F] [Fintype F] [DecidableEq F] in
+omit [Fintype ι] [Field F] [Fintype F] [DecidableEq F]
+  [AddCommGroup A] [Module F A] [Fintype A] [DecidableEq A] in
 /-- **Challenge-first normal form of the (mapped) toy 3-round prover run.** For the
 verifier-first (`V_to_P` / `P_to_V` / `V_to_P`) `pSpec`, post-composing `Prover.run` with any
 `post` that reads the transcript only through its round-0/2 challenges and round-1 message
@@ -160,10 +168,10 @@ game-shape equation (`case hC` of `protocol62_knowledgeSound`'s `hoa`) is a one-
 instantiation. Reusable across any soundness/completeness argument over this `pSpec`. -/
 private lemma prover_run_map_eq {β : Type}
     (prover : Prover []ₒ
-      (Statement (F := F) k × (∀ i, OracleStatement ι F i)) (Witness (F := F) k)
+      (Statement (F := F) k × (∀ i, OracleStatement ι A i)) (Witness (F := F) k)
       (OutputStatement × ∀ i, OutputOracleStatement i) OutputWitness
       (pSpec (ι := ι) (F := F) k t))
-    (stmt : Statement (F := F) k × (∀ i, OracleStatement ι F i)) (witIn : Witness (F := F) k)
+    (stmt : Statement (F := F) k × (∀ i, OracleStatement ι A i)) (witIn : Witness (F := F) k)
     (post : F → (Fin k → F) → (Fin t → ι) →
       ((OutputStatement × ∀ i, OutputOracleStatement i) × OutputWitness) → β) :
     (fun r ↦ post (r.1.challenges ⟨0, rfl⟩) (r.1.messages ⟨1, rfl⟩) (r.1.challenges ⟨2, rfl⟩) r.2)
@@ -274,19 +282,19 @@ theorem protocol62_knowledgeSound
     [SampleableType F] [SampleableType ι] [Nonempty ι]
     {σ : Type} (init : ProbComp σ)
     (impl : QueryImpl []ₒ (StateT σ ProbComp))
-    (C : Set (ι → F)) (δ : ℝ≥0)
-    (encode : (Fin k → F) →ₗ[F] (ι → F))
+    (C : Set (ι → A)) (δ : ℝ≥0)
+    (encode : (Fin k → F) →ₗ[F] (ι → A))
     (hinj : Function.Injective encode)
     (hC : Set.range encode = C)
     (hδ_pos : 0 < δ)
     (hδ_lt_min : δ < (minRelHammingDistCode C : ℝ≥0)) :
-      (oracleVerifier (k := k) (t := t) (encode : (Fin k → F) → (ι → F))).knowledgeSoundness
+      (oracleVerifier (k := k) (t := t) (encode : (Fin k → F) → (ι → A))).knowledgeSoundness
         (WitOut := OutputWitness)
-        init impl (outputRelationFor k (encode : (Fin k → F) → (ι → F)) δ)
+        init impl (outputRelationFor k (encode : (Fin k → F) → (ι → A)) δ)
         (Set.univ : Set ((OutputStatement × ∀ i, OutputOracleStatement i) ×
           OutputWitness))
         ((1 - δ) ^ t +
-          ((epsMCA (F := F) (A := F) C δ).toNNReal +
+          ((epsMCA (F := F) (A := A) C δ).toNNReal +
               ((Lambda (interleavedCodeSet (κ := Fin 2) C) (δ : ℝ)).toNat : ℝ≥0)
                 / (Fintype.card F : ℝ≥0))
             * (1 - (1 - δ) ^ t)) := by
@@ -295,7 +303,7 @@ theorem protocol62_knowledgeSound
   -- The straightline extractor: classical choice of any `R̃²` witness, from the input
   -- statement alone (always-`some`; cf. `Spec.extractZero`).
   refine ⟨fun stmtIn _ _ _ _ ↦
-    pure (extractZero k ((encode : (Fin k → F) → (ι → F))) δ stmtIn), ?_⟩
+    pure (extractZero k ((encode : (Fin k → F) → (ι → A))) δ stmtIn), ?_⟩
   rintro ⟨stmt, oStmt⟩ witIn prover
   -- Push the `ℝ≥0 → ℝ≥0∞` coercion through the convex combination so it matches the
   -- `ε₂ + ε₁·(1 − ε₂)` shape produced by the convex master lemma (ε₂ = (1−δ)^t, ε₁ = ε₀).
@@ -314,10 +322,10 @@ theorem protocol62_knowledgeSound
       let xs ← liftComp ((pSpec (ι := ι) (F := F) k t).getChallenge ⟨2, rfl⟩)
           ([]ₒ + [(pSpec (ι := ι) (F := F) k t).Challenge]ₒ)
       (fun out : (OutputStatement × ∀ i, OutputOracleStatement i) × OutputWitness ↦
-        if accepts (k := k) (t := t) ((encode : (Fin k → F) → (ι → F)))
+        if accepts (k := k) (t := t) ((encode : (Fin k → F) → (ι → A)))
             stmt oStmt γ pre.1 xs
         then some ((stmt, oStmt),
-          some (extractZero k ((encode : (Fin k → F) → (ι → F))) δ (stmt, oStmt)),
+          some (extractZero k ((encode : (Fin k → F) → (ι → A))) δ (stmt, oStmt)),
           (((), nofun) : OutputStatement × ∀ i, OutputOracleStatement i), out.2)
         else none) <$>
         ((liftComp (prover.receiveChallenge
@@ -327,9 +335,9 @@ theorem protocol62_knowledgeSound
             ([]ₒ + [(pSpec (ι := ι) (F := F) k t).Challenge]ₒ)))
     _
     (fun γ ↦ ∃ w : Fin k → F,
-      ((stmt, oStmt), extractZero k ((encode : (Fin k → F) → (ι → F))) δ (stmt, oStmt)) ∉
-          outputRelationFor k ((encode : (Fin k → F) → (ι → F))) δ ∧
-        gammaState k ((encode : (Fin k → F) → (ι → F))) δ stmt.1 stmt.2.1 stmt.2.2
+      ((stmt, oStmt), extractZero k ((encode : (Fin k → F) → (ι → A))) δ (stmt, oStmt)) ∉
+          outputRelationFor k ((encode : (Fin k → F) → (ι → A))) δ ∧
+        gammaState k ((encode : (Fin k → F) → (ι → A))) δ stmt.1 stmt.2.1 stmt.2.2
           (oStmt 0) (oStmt 1) γ w)
     ?hε₂ ?hoa ?h₁ ?h₂
   case hε₂ =>
@@ -343,9 +351,9 @@ theorem protocol62_knowledgeSound
     refine ProtocolSpec.probEvent_optionT_simulateQ_addLift_prefix_getChallenge_bind_le
       s impl _ ⟨2, rfl⟩ _ _ _ _ rfl (fun pre ↦ ?_)
     refine le_trans (probEvent_mono ?_) (spotcheck_round_game_bound k t
-        ((encode : (Fin k → F) → (ι → F))) δ (stmt, oStmt) γ pre.1)
+        ((encode : (Fin k → F) → (ι → A))) δ (stmt, oStmt) γ pre.1)
     rintro xs - ⟨out, b, hfb, hE⟩
-    by_cases hacc : accepts (k := k) (t := t) ((encode : (Fin k → F) → (ι → F)))
+    by_cases hacc : accepts (k := k) (t := t) ((encode : (Fin k → F) → (ι → A)))
         stmt oStmt γ pre.1 xs
     · rw [if_pos hacc, Option.some_inj] at hfb
       subst hfb
@@ -358,16 +366,16 @@ theorem protocol62_knowledgeSound
     -- `g <$> Prover.run`, then unfold Prover.run to the challenge-first shape.
     let g : ((pSpec (ι := ι) (F := F) k t).FullTranscript ×
         (OutputStatement × ∀ i, OutputOracleStatement i) × OutputWitness) →
-      Option ((Statement (F := F) k × (∀ i, OracleStatement ι F i)) ×
+      Option ((Statement (F := F) k × (∀ i, OracleStatement ι A i)) ×
         Option (Witness (F := F) k) ×
         (OutputStatement × ∀ i, OutputOracleStatement i) ×
         OutputWitness) :=
       fun r ↦
-        if accepts (k := k) (t := t) (encode : (Fin k → F) → (ι → F))
+        if accepts (k := k) (t := t) (encode : (Fin k → F) → (ι → A))
               stmt oStmt (r.1.challenges ⟨0, rfl⟩) (r.1.messages ⟨1, rfl⟩)
               (r.1.challenges ⟨2, rfl⟩)
         then some ((stmt, oStmt),
-              some (extractZero k (encode : (Fin k → F) → (ι → F)) δ (stmt, oStmt)),
+              some (extractZero k (encode : (Fin k → F) → (ι → A)) δ (stmt, oStmt)),
               (((), nofun) : OutputStatement × ∀ i, OutputOracleStatement i),
               r.2.2)
         else none
@@ -385,7 +393,7 @@ theorem protocol62_knowledgeSound
       -- verifier_run_loggingOracle_eq rewrites
       -- (simulateQ loggingOracle (toVerifier.run (stmt,oStmt) tr)).run to
       -- pure ((if accepts... then some (...) else none), ∅).
-      simp_rw [verifier_run_loggingOracle_eq (encode := (encode : (Fin k → F) → (ι → F)))]
+      simp_rw [verifier_run_loggingOracle_eq (encode := (encode : (Fin k → F) → (ι → A)))]
       -- Step 3: Collapse liftM (pure ...) and Option.getM.
       simp only [liftM_pure, pure_bind, Option.getM_some, Option.getM_none]
       -- Step 4: Collapse the extractor (always pure (some (extractZero ...))),
@@ -423,9 +431,9 @@ theorem protocol62_knowledgeSound
       -- with the (regrouped) `tail` via monad laws.
       refine (prover_run_map_eq k t prover (stmt, oStmt) witIn
         (fun c m xs out ↦
-          if accepts (k := k) (t := t) ((encode : (Fin k → F) → (ι → F))) stmt oStmt c m xs
+          if accepts (k := k) (t := t) ((encode : (Fin k → F) → (ι → A))) stmt oStmt c m xs
           then some ((stmt, oStmt),
-            some (extractZero k ((encode : (Fin k → F) → (ι → F))) δ (stmt, oStmt)),
+            some (extractZero k ((encode : (Fin k → F) → (ι → A))) δ (stmt, oStmt)),
             (((), nofun) : OutputStatement × ∀ i, OutputOracleStatement i), out.2)
           else none)).trans ?_
       simp only [bind_assoc, map_eq_bind_pure_comp, Function.comp_def]

@@ -67,6 +67,13 @@ open Code InterleavedCode ListDecodable ProximityGap
 open scoped NNReal ENNReal
 open ToyProblem.Spec (Statement OracleStatement Witness)
 
+-- The code-theoretic terms (`epsMCA`, `interleavedCodeSet`) use `[Fintype A]`/`[DecidableEq A]`
+-- (and `[DecidableEq F]` via the `classical` proofs) in their bodies but not in the
+-- alphabet-generic lemma types; suppress the `unused…InType` linter file-wide (the same toy
+-- idiom as `SoundnessBounds.lean` / `Spec/General.lean`).
+set_option linter.unusedFintypeInType false
+set_option linter.unusedDecidableInType false
+
 /-! ### Output types and the output relation
 
 These need only `[Fintype ι]` (for `relaxedRelationFor`'s `Fintype.card ι`
@@ -74,7 +81,7 @@ call) and `[Field F]`. The heavier `[DecidableEq ι] [Fintype F]
 [DecidableEq F]` instances come in below for the protocol-object
 definitions. -/
 
-variable {ι F : Type} [Fintype ι] [Field F]
+variable {ι F A : Type} [Fintype ι] [Field F] [AddCommGroup A] [Module F A]
 variable (k : ℕ)
 
 /-- Output statement for C6.9: the new `(v, μ_new)` pair. The
@@ -86,7 +93,7 @@ def OutputStatement : Type := (Fin k → F) × F
 /-- Output oracle statement: the single combined codeword
 `f_new := f₁ + γ·f₂ : ι → F`. -/
 @[reducible]
-def OutputOracleStatement (ι F : Type) : Fin 1 → Type := fun _ ↦ ι → F
+def OutputOracleStatement (ι A : Type) : Fin 1 → Type := fun _ ↦ ι → A
 
 /-- Output witness for C6.9: the combined message `M_new := M₁ + γ·M₂`. -/
 @[reducible]
@@ -100,11 +107,11 @@ post-step witness `M_new` and asserts that `(v, μ_new, f_new)` is
 `δ`-close to `encode M_new` and that `M_new` satisfies the combined
 linear constraint.
 
-Type-aligned with `OutputStatement × (∀ i, OutputOracleStatement ι F i)
+Type-aligned with `OutputStatement × (∀ i, OutputOracleStatement ι A i)
 × OutputWitness`, i.e. directly consumable by the L6.10 knowledge-
 soundness statement against `verifier.knowledgeSoundness`. -/
-def outputRelationFor (encode : (Fin k → F) → (ι → F)) (δ : ℝ≥0) :
-    Set ((OutputStatement (F := F) k × (∀ i, OutputOracleStatement ι F i)) ×
+def outputRelationFor (encode : (Fin k → F) → (ι → A)) (δ : ℝ≥0) :
+    Set ((OutputStatement (F := F) k × (∀ i, OutputOracleStatement ι A i)) ×
       OutputWitness (F := F) k) :=
   fun input ↦
     (∑ j, input.2 j * input.1.1.1 j = input.1.1.2) ∧
@@ -112,7 +119,7 @@ def outputRelationFor (encode : (Fin k → F) → (ι → F)) (δ : ℝ≥0) :
       ∀ j ∈ S, input.1.2 0 j = encode input.2 j
 
 section Protocol
-variable [DecidableEq ι] [Fintype F] [DecidableEq F]
+variable [DecidableEq ι] [Fintype F] [DecidableEq F] [Fintype A] [DecidableEq A]
 
 /-- Protocol specification for Construction 6.9: a single
 `V → P` round sending the combination randomness `γ : F`. -/
@@ -141,14 +148,14 @@ State machine (`PrvState : Fin 2 → Type`):
   * `PrvState 1` — after receiving γ: `γ × bundle`. -/
 def prover :
     Prover []ₒ
-      (Statement (F := F) k × (∀ i, OracleStatement ι F i)) (Witness (F := F) k)
-      (OutputStatement (F := F) k × (∀ i, OutputOracleStatement ι F i)) (OutputWitness (F := F) k)
+      (Statement (F := F) k × (∀ i, OracleStatement ι A i)) (Witness (F := F) k)
+      (OutputStatement (F := F) k × (∀ i, OutputOracleStatement ι A i)) (OutputWitness (F := F) k)
       (pSpec (F := F)) where
   PrvState
   | ⟨0, _⟩ =>
-      (Statement (F := F) k × (∀ i, OracleStatement ι F i)) × Witness (F := F) k
+      (Statement (F := F) k × (∀ i, OracleStatement ι A i)) × Witness (F := F) k
   | _ =>
-      F × (Statement (F := F) k × (∀ i, OracleStatement ι F i)) × Witness (F := F) k
+      F × (Statement (F := F) k × (∀ i, OracleStatement ι A i)) × Witness (F := F) k
 
   input := id
 
@@ -160,7 +167,7 @@ def prover :
 
   output := fun ⟨γ, ⟨stmt, oStmt⟩, M⟩ ↦ pure <|
     ⟨⟨(stmt.1, stmt.2.1 + γ * stmt.2.2),
-       fun _ ↦ fun j ↦ oStmt 0 j + γ * oStmt 1 j⟩,
+       fun _ ↦ fun j ↦ oStmt 0 j + γ • oStmt 1 j⟩,
       fun j ↦ M 0 j + γ * M 1 j⟩
 
 /-- Honest verifier for Construction 6.9. Reads `γ` from the transcript
@@ -172,19 +179,19 @@ become a "reduce" semantics here.
 against the code is a separate downstream concern). -/
 def verifier :
     Verifier []ₒ
-      (Statement (F := F) k × (∀ i, OracleStatement ι F i))
-      (OutputStatement (F := F) k × (∀ i, OutputOracleStatement ι F i))
+      (Statement (F := F) k × (∀ i, OracleStatement ι A i))
+      (OutputStatement (F := F) k × (∀ i, OutputOracleStatement ι A i))
       (pSpec (F := F)) where
   verify := fun ⟨stmt, oStmt⟩ tr ↦ do
     let γ : F := tr ⟨0, by decide⟩
     pure ((stmt.1, stmt.2.1 + γ * stmt.2.2),
-           fun _ ↦ fun j ↦ oStmt 0 j + γ * oStmt 1 j)
+           fun _ ↦ fun j ↦ oStmt 0 j + γ • oStmt 1 j)
 
 /-- Honest reduction for Construction 6.9. -/
 def reduction :
     Reduction []ₒ
-      (Statement (F := F) k × (∀ i, OracleStatement ι F i)) (Witness (F := F) k)
-      (OutputStatement (F := F) k × (∀ i, OutputOracleStatement ι F i)) (OutputWitness (F := F) k)
+      (Statement (F := F) k × (∀ i, OracleStatement ι A i)) (Witness (F := F) k)
+      (OutputStatement (F := F) k × (∀ i, OutputOracleStatement ι A i)) (OutputWitness (F := F) k)
       (pSpec (F := F)) where
   prover := prover (ι := ι) (F := F) (k := k)
   verifier := verifier (k := k)
@@ -240,44 +247,44 @@ that the folded instance has an `R̃¹` witness is at most
 `ε_mca + |Λ(C^{≡2}, δ)| / |F|`. Stated in the reduced form of the L6.10 game
 event so the master lemma's challenge-only hypothesis can consume it. -/
 private lemma gamma_game_bound [SampleableType F] [Nonempty ι]
-    (C : Set (ι → F)) (δ : ℝ≥0)
-    (encode : (Fin k → F) →ₗ[F] (ι → F))
+    (C : Set (ι → A)) (δ : ℝ≥0)
+    (encode : (Fin k → F) →ₗ[F] (ι → A))
     (hinj : Function.Injective encode)
     (hC : Set.range encode = C)
     (hδ_pos : 0 < δ) (hδ_lt : δ < (minRelHammingDistCode C : ℝ≥0))
-    (stmtIn : Statement (F := F) k × (∀ i, OracleStatement ι F i)) :
+    (stmtIn : Statement (F := F) k × (∀ i, OracleStatement ι A i)) :
     Pr[fun γ : F ↦
-        (stmtIn, Spec.extractZero k (encode : (Fin k → F) → (ι → F)) δ stmtIn) ∉
-            Spec.outputRelationFor k (encode : (Fin k → F) → (ι → F)) δ ∧
+        (stmtIn, Spec.extractZero k (encode : (Fin k → F) → (ι → A)) δ stmtIn) ∉
+            Spec.outputRelationFor k (encode : (Fin k → F) → (ι → A)) δ ∧
           ∃ m : Fin k → F,
             (∑ j, m j * stmtIn.1.1 j = stmtIn.1.2.1 + γ * stmtIn.1.2.2) ∧
             ∃ S : Finset ι, (1 - (δ : ℝ)) * Fintype.card ι ≤ S.card ∧
-              ∀ j ∈ S, stmtIn.2 0 j + γ * stmtIn.2 1 j = encode m j
+              ∀ j ∈ S, stmtIn.2 0 j + γ • stmtIn.2 1 j = encode m j
       | $ᵗ F] ≤
-      (((epsMCA (F := F) (A := F) C δ).toNNReal +
+      (((epsMCA (F := F) (A := A) C δ).toNNReal +
         ((Lambda (interleavedCodeSet (κ := Fin 2) C) (δ : ℝ)).toNat : ℝ≥0)
           / (Fintype.card F : ℝ≥0) : ℝ≥0) : ℝ≥0∞) := by
   classical
   rw [probEvent_uniformSample_eq_prob_uniformOfFintype]
   by_cases hw : ∃ M,
-      (stmtIn, M) ∈ Spec.outputRelationFor k (encode : (Fin k → F) → (ι → F)) δ
+      (stmtIn, M) ∈ Spec.outputRelationFor k (encode : (Fin k → F) → (ι → A)) δ
   · -- The choice extractor succeeds, so the event is empty.
     refine le_trans (le_of_eq ?_) zero_le'
     rw [prob_tsum_form_singleton]
     have hnot : ∀ γ : F, ¬ (
-        (stmtIn, Spec.extractZero k (encode : (Fin k → F) → (ι → F)) δ stmtIn) ∉
-            Spec.outputRelationFor k (encode : (Fin k → F) → (ι → F)) δ ∧
+        (stmtIn, Spec.extractZero k (encode : (Fin k → F) → (ι → A)) δ stmtIn) ∉
+            Spec.outputRelationFor k (encode : (Fin k → F) → (ι → A)) δ ∧
           ∃ m : Fin k → F,
             (∑ j, m j * stmtIn.1.1 j = stmtIn.1.2.1 + γ * stmtIn.1.2.2) ∧
             ∃ S : Finset ι, (1 - (δ : ℝ)) * Fintype.card ι ≤ S.card ∧
-              ∀ j ∈ S, stmtIn.2 0 j + γ * stmtIn.2 1 j = encode m j) :=
+              ∀ j ∈ S, stmtIn.2 0 j + γ • stmtIn.2 1 j = encode m j) :=
       fun _ h ↦ h.1 (Spec.extractZero_mem k hw)
     simp [hnot]
   · refine le_trans (Pr_le_Pr_of_implies _ _
       (fun γ ↦ ∃ m : Fin k → F,
         (∑ j, m j * stmtIn.1.1 j = stmtIn.1.2.1 + γ * stmtIn.1.2.2) ∧
         ∃ S : Finset ι, (1 - (δ : ℝ)) * Fintype.card ι ≤ S.card ∧
-          ∀ j ∈ S, stmtIn.2 0 j + γ * stmtIn.2 1 j = encode m j) ?_) ?_
+          ∀ j ∈ S, stmtIn.2 0 j + γ • stmtIn.2 1 j = encode m j) ?_) ?_
     · rintro γ ⟨-, hm⟩
       exact hm
     · have hNoWit : ¬ ∃ M : Fin 2 → (Fin k → F),
@@ -330,8 +337,8 @@ theorem simplifiedIOR_knowledgeSound
     [SampleableType F] [Nonempty ι]
     {σ : Type} (init : ProbComp σ)
     (impl : QueryImpl []ₒ (StateT σ ProbComp))
-    (C : Set (ι → F)) (δ : ℝ≥0)
-    (encode : (Fin k → F) →ₗ[F] (ι → F))
+    (C : Set (ι → A)) (δ : ℝ≥0)
+    (encode : (Fin k → F) →ₗ[F] (ι → A))
     (hinj : Function.Injective encode)
     (hC : Set.range encode = C)
     (hδ_pos : 0 < δ)
@@ -339,9 +346,9 @@ theorem simplifiedIOR_knowledgeSound
       (verifier (ι := ι) (F := F) (k := k)).knowledgeSoundness
         (WitOut := OutputWitness (F := F) k)
         init impl
-        (ToyProblem.Spec.outputRelationFor k (encode : (Fin k → F) → (ι → F)) δ)
-        (outputRelationFor (ι := ι) (F := F) k (encode : (Fin k → F) → (ι → F)) δ)
-        ((epsMCA (F := F) (A := F) C δ).toNNReal +
+        (ToyProblem.Spec.outputRelationFor k (encode : (Fin k → F) → (ι → A)) δ)
+        (outputRelationFor (ι := ι) (F := F) k (encode : (Fin k → F) → (ι → A)) δ)
+        ((epsMCA (F := F) (A := A) C δ).toNNReal +
           ((Lambda (interleavedCodeSet (κ := Fin 2) C) (δ : ℝ)).toNat : ℝ≥0)
             / (Fintype.card F : ℝ≥0)) := by
   classical
@@ -349,7 +356,7 @@ theorem simplifiedIOR_knowledgeSound
   -- The straightline extractor: classical choice of any `R̃²` witness, from the
   -- input statement alone (always-`some`; cf. `Spec.extractZero`).
   refine ⟨fun stmtIn _ _ _ _ ↦
-    pure (Spec.extractZero k ((encode : (Fin k → F) → (ι → F))) δ stmtIn), ?_⟩
+    pure (Spec.extractZero k ((encode : (Fin k → F) → (ι → A))) δ stmtIn), ?_⟩
   rintro ⟨stmt, oStmt⟩ witIn prover
   refine ProtocolSpec.probEvent_optionT_simulateQ_addLift_getChallenge_bind_some_le
     init impl _ ⟨0, rfl⟩
@@ -357,9 +364,9 @@ theorem simplifiedIOR_knowledgeSound
         (prover.input ((stmt, oStmt), witIn))) ([]ₒ + [(pSpec (F := F)).Challenge]ₒ))
       >>= fun fc ↦ prover.output (fc γ))
     (fun (γ : F) t ↦ ((stmt, oStmt),
-      some (Spec.extractZero k ((encode : (Fin k → F) → (ι → F))) δ (stmt, oStmt)),
+      some (Spec.extractZero k ((encode : (Fin k → F) → (ι → A))) δ (stmt, oStmt)),
       ((stmt.1, stmt.2.1 + γ * stmt.2.2),
-        (fun _ j ↦ oStmt 0 j + γ * oStmt 1 j : ∀ i, OutputOracleStatement ι F i)),
+        (fun _ j ↦ oStmt 0 j + γ • oStmt 1 j : ∀ i, OutputOracleStatement ι A i)),
       t.2))
     _ ?_ ?_
   · -- Game-shape reduction: peel the logs and the pure verifier.
@@ -373,13 +380,13 @@ theorem simplifiedIOR_knowledgeSound
     refine Eq.trans (loggingOracle.map_fst_run_simulateQ
       (Prover.run (stmt, oStmt) witIn prover)
       (fun y : (pSpec (F := F)).FullTranscript ×
-          ((OutputStatement (F := F) k × (∀ i, OutputOracleStatement ι F i)) ×
+          ((OutputStatement (F := F) k × (∀ i, OutputOracleStatement ι A i)) ×
             OutputWitness (F := F) k) ↦
         let γ : F := y.1 ⟨0, Nat.one_pos⟩
         some ((stmt, oStmt),
-          some (Spec.extractZero k ((encode : (Fin k → F) → (ι → F))) δ (stmt, oStmt)),
+          some (Spec.extractZero k ((encode : (Fin k → F) → (ι → A))) δ (stmt, oStmt)),
           ((stmt.1, stmt.2.1 + γ * stmt.2.2),
-            fun _ j ↦ oStmt 0 j + γ * oStmt 1 j),
+            fun _ j ↦ oStmt 0 j + γ • oStmt 1 j),
           y.2.2))) ?_
     rw [Prover.run_of_verifier_first]
     simp only [map_eq_bind_pure_comp, bind_assoc, pure_bind]

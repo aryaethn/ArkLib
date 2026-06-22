@@ -6,6 +6,8 @@ Authors: Alexander Hicks
 
 import ArkLib.Data.CodingTheory.ReedSolomon.Folded
 import ArkLib.ProofSystem.ToyProblem.Leaderboard
+import ArkLib.ProofSystem.ToyProblem.Spec.General
+import ArkLib.ProofSystem.ToyProblem.Spec.SimplifiedIOR
 
 /-!
 # Toy problem — folded Reed–Solomon instantiation (ABF26 §6.3.2)
@@ -182,6 +184,70 @@ noncomputable def koalaFRS : ToyParams := by
       ρ := 1 / 2
       s := 32
       n := 2 ^ 16 }
+
+/-! ## Folded protocol reductions (Construction 6.2 / 6.9 at `s = 32`)
+
+The genuine `s > 1` folded instantiations of the abstract toy-problem reductions,
+obtained by feeding the folded encoder `koalaFRSEnc` (codeword alphabet
+`A = Fin 32 → KoalaSextic = F^s`) through the now alphabet-generic
+`Spec.reduction` / `Spec.oracleReduction` / `SimplifiedIOR.reduction` (Stage 1 of
+the `F → A` generalization). Unlike the `s = 1` `Impl/IRS.lean` reductions
+(codewords over the scalar alphabet `A = F`), these carry codewords over the
+folded `F`-module `A = F^s`, so the **protocol layer** — not just the soundness
+leaderboard — is exercised at a true folding parameter `s = 2^5`.
+
+The `Fintype`/`DecidableEq` instances on the noncomputable `KoalaSextic` (and the
+folded alphabet `Fin 32 → KoalaSextic`) are supplied exactly as in `koalaFRS`. -/
+
+/-- Folded §6.3.2 instantiation of Construction 6.2 (`s = 32`, non-oracle
+flavour): the abstract `Spec.reduction` with the folded encoder `koalaFRSEnc`. -/
+noncomputable def reductionFRS (t : ℕ) :
+    Reduction []ₒ
+      (ToyProblem.Spec.Statement (F := KoalaSextic) (2 ^ 20) ×
+        (∀ i, ToyProblem.Spec.OracleStatement (Fin (2 ^ 16)) (Fin 32 → KoalaSextic) i))
+      (ToyProblem.Spec.Witness (F := KoalaSextic) (2 ^ 20))
+      ToyProblem.Spec.OutputStatement
+      ToyProblem.Spec.OutputWitness
+      (ToyProblem.Spec.pSpec (ι := Fin (2 ^ 16)) (F := KoalaSextic) (2 ^ 20) t) := by
+  haveI : Fintype KoalaSextic := Fintype.ofFinite _
+  classical
+  exact ToyProblem.Spec.reduction (ι := Fin (2 ^ 16)) (F := KoalaSextic)
+    (A := Fin 32 → KoalaSextic) (k := 2 ^ 20) (t := t)
+    (koalaFRSEnc : (Fin (2 ^ 20) → KoalaSextic) → (Fin (2 ^ 16) → Fin 32 → KoalaSextic))
+
+/-- Folded §6.3.2 instantiation of Construction 6.9 (the simplified "attack
+target" IOR) at `s = 32`. The encoder is unused by `SimplifiedIOR.reduction`'s
+verifier (it only folds the instance), exactly as `Impl.IRS.simplifiedReductionIRS`. -/
+noncomputable def simplifiedReductionFRS :
+    Reduction []ₒ
+      (ToyProblem.Spec.Statement (F := KoalaSextic) (2 ^ 20) ×
+        (∀ i, ToyProblem.Spec.OracleStatement (Fin (2 ^ 16)) (Fin 32 → KoalaSextic) i))
+      (ToyProblem.Spec.Witness (F := KoalaSextic) (2 ^ 20))
+      (ToyProblem.SimplifiedIOR.OutputStatement (F := KoalaSextic) (2 ^ 20) ×
+        (∀ i, ToyProblem.SimplifiedIOR.OutputOracleStatement
+          (Fin (2 ^ 16)) (Fin 32 → KoalaSextic) i))
+      (ToyProblem.SimplifiedIOR.OutputWitness (F := KoalaSextic) (2 ^ 20))
+      (ToyProblem.SimplifiedIOR.pSpec (F := KoalaSextic)) := by
+  haveI : Fintype KoalaSextic := Fintype.ofFinite _
+  classical
+  exact ToyProblem.SimplifiedIOR.reduction (ι := Fin (2 ^ 16)) (F := KoalaSextic)
+    (A := Fin 32 → KoalaSextic) (k := 2 ^ 20)
+
+/-- Oracle-flavour folded §6.3.2 instantiation of Construction 6.2 (`s = 32`). -/
+noncomputable def oracleReductionFRS (t : ℕ) :
+    OracleReduction []ₒ
+      (ToyProblem.Spec.Statement (F := KoalaSextic) (2 ^ 20))
+      (ToyProblem.Spec.OracleStatement (Fin (2 ^ 16)) (Fin 32 → KoalaSextic))
+      (ToyProblem.Spec.Witness (F := KoalaSextic) (2 ^ 20))
+      ToyProblem.Spec.OutputStatement
+      ToyProblem.Spec.OutputOracleStatement
+      ToyProblem.Spec.OutputWitness
+      (ToyProblem.Spec.pSpec (ι := Fin (2 ^ 16)) (F := KoalaSextic) (2 ^ 20) t) := by
+  haveI : Fintype KoalaSextic := Fintype.ofFinite _
+  classical
+  exact ToyProblem.Spec.oracleReduction (ι := Fin (2 ^ 16)) (F := KoalaSextic)
+    (A := Fin 32 → KoalaSextic) (k := 2 ^ 20) (t := t)
+    (koalaFRSEnc : (Fin (2 ^ 20) → KoalaSextic) → (Fin (2 ^ 16) → Fin 32 → KoalaSextic))
 
 /-- **Folded-RS minimum relative distance** (the owed external, path (b) of the
 FRS-anchor-reduction session). `minRelHammingDistCode koalaFRS.code = 32769/65536`,

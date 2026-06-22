@@ -1498,3 +1498,10 @@ end Spec
 
 end ToyProblem
 
+-- This protocol-layer file is just over the 1500-line cap; raise the local limit
+-- (cf. `Data/CodingTheory/ProximityGap/BCIKS20/AffineSpaces.lean`). Stage 1 (the
+-- `F → A` alphabet generalization of the reduction layer) will grow it further, at
+-- which point the C6.2 completeness block (`verifierBody_*` …
+-- `oracleReduction_perfectCompleteness`) should be split into its own file.
+set_option linter.style.longFile 1700
+

@@ -34,10 +34,20 @@ and `tab:subspace-elias-lowerbound-thresholds`, both at `t = 128`).
   `analysis`, `r = 8`): `bestProvableError ≤ 2^(-29.11)` — the convex
   combination of the spot-check term `(τ(r+1) + 3/(2r))^128 ≈ 2^(-29.11)` and
   the list-size term `≈ 2^(-166.8)`.
-* **Attack** (Y side, `tab:subspace-elias-lowerbound-thresholds`, `δ* = 0.499`):
-  `bestProvableError ≥ 2^(-127.63)` via the Elias list-size lower bound on the
-  folded code viewed over alphabet `B^s` of rate `ρ`.
-* `securityGap = 127.63 − 29.11 = 98.52` bits.
+* **Attack** (Y side): `bestProvableError ≥ 2^(-128.01)`. This is the **sweep
+  floor** `⨅_δ (1-δ)^t + …`, certified from the **spot-check term alone** — the
+  convex combination dominates `(1-δ)^t`, whose infimum over the window
+  `(0, δ_min)` is `(1-δ_min)^128 ≈ 2^(-128.006)` because the folded code's MDS
+  relative distance `δ_min = D/|L| = 32769/65536 ≈ 0.50002` (a degree-`< k`
+  polynomial has `< k` roots, hence `< (k-1)/s = 32767` zero folded-symbols).
+  No Elias/list-size lower bound is needed for this ceiling. The paper's
+  per-`δ*` Elias value (`tab:subspace-elias-lowerbound-thresholds`, `δ* = 0.499`)
+  is the *weaker* point reading `2^(-127.63) = (1-0.499)^128`; it is **not** the
+  sweep floor (just above `δ*` the spot-check keeps dropping toward `2^(-128)`,
+  so `2^(-127.63)` is not a valid floor unless the list-size term is active
+  across the whole `(δ*, δ_min)` sliver — the same sub-band subtlety that bumped
+  the interleaved ceiling `116.49 → 117`). The ceiling rounds **up** to `128.01`.
+* `securityGap = 128.01 − 29.11 = 98.90` bits.
 
 **Reading the gap honestly.** At a *fixed* `t = 128`, `s = 32` folding gives a
 *larger* `bestProvableError` gap than the interleaved entry (`koalaIRS`:
@@ -54,8 +64,9 @@ axis** the toy `bestProvableError` (a fixed-`t` δ-sweep) does not capture:
   on which folding genuinely beats interleaving.
 
 Both are recorded in the docstrings of `frsLowerBound` / `securityGap_koalaFRS`
-(cited, not re-derived — the numerics are owed external coding-theory results,
-exactly as for `koalaIRS`).
+(cited, not re-derived — the lower-bound numerics are owed external coding-theory
+results, exactly as for `koalaIRS`; the attack ceiling, by contrast, is owed only
+the folded MDS relative distance — see `frsUpperBound_attack`).
 
 ## References
 
@@ -194,35 +205,53 @@ noncomputable def frsLowerBound : SecurityLowerBound koalaFRS where
     -- (the FRS counterpart of the koalaIRS owed numerics). Phase-5/external-owed.
     sorry
 
-/-- **Folded-RS list-decoding attack upper bound (≈128 bits) at the KoalaBear/
-`s=32`/`t=128` point.** Cites the §6.3.2 Elias soundness lower bound
-(`tab:subspace-elias-lowerbound-thresholds`, `s = 2^5`): viewing the folded code
-`C_B` as a block-length-`|L|` code over alphabet `B^s` of rate `ρ`, the Elias
-bound gives, at `δ* = 0.499`, soundness error `≥ 2^(-127.63)` at `t = 128` — so
-no δ-relaxation analysis proves more than `≈ 128` bits.
+/-- **Folded-RS attack upper bound (`128.01` bits) at the KoalaBear/`s=32`/`t=128`
+point — the δ-sweep floor, certified from the spot-check term alone.** No
+δ-relaxation analysis proves more than `128.01` bits: for *every* admissible δ the
+convex combination dominates its round-2 spot-check term `(1-δ)^t`, and over the
+window `(0, δ_min)` that term's infimum is `(1-δ_min)^128`. The folded code's
+**MDS relative distance** is `δ_min = D/|L| = 32769/65536 ≈ 0.50002` — a
+degree-`< k = 2^20` polynomial has `< k` roots, hence `< (k-1)/s = 32767` zero
+folded-symbols, so `D ≥ |L| - 32767 = 32769`. Therefore
+`bestProvableError ≥ (1-δ_min)^128 ≈ 2^(-128.006)`, and the ceiling rounds **up**
+to `128.01`.
 
-`sorry`-backed by design: the Elias list-size lower bound (`corollary:elias`) is
-an external coding-theory result, exactly as for `listDecoding_upperBound_attack`
-(and, as there, the genuine ceiling is a δ-sweep floor, not just the per-`δ*`
-value — owed at the same status). -/
+**This is stronger and less owed than the paper's per-`δ*` reading.** The §6.3.2
+Elias table (`tab:subspace-elias-lowerbound-thresholds`, `s = 2^5`, `δ* = 0.499`)
+reports `2^(-127.63) = (1-0.499)^128`, the *point* soundness at `δ*`. That is
+**not** the sweep floor: just above `δ* = 0.499` the spot-check keeps dropping
+toward `2^(-128)` at `δ_min ≈ 0.50002`, so `2^(-127.63)` is a valid floor only if
+the list-size term stays active across the whole `(δ*, δ_min)` sliver — the same
+sub-band gap that forced the interleaved ceiling `116.49 → 117`
+(`listDecoding_upperBound_attack`). The spot-check route sidesteps the Elias
+list-size lower bound entirely; what remains owed is only the **folded MDS
+distance** `minRelHammingDistCode (frsCode …) ≥ 32769/65536` (no such lemma is in
+`ReedSolomon.Folded` yet — it has only `dim_frsCode` — so this stays `sorry`-backed
+pending that distance lemma; cf. the scoped FRS-anchor-reduction session). Unlike
+the interleaved attack, the owed fact here is a *distance* bound, not a list-size
+lower bound. -/
 noncomputable def frsUpperBound_attack : SecurityUpperBound koalaFRS where
-  bits := 127.63
+  bits := 128.01
   proof := by
-    -- ABF26 §6.3.2 Elias lower bound (tab:subspace-elias-lowerbound-thresholds,
-    -- s = 2^5, δ* = 0.499): bestProvableError ≥ 2^(-127.63) at t = 128. External
-    -- list-size lower bound, as in listDecoding_upperBound_attack. Phase-5/external-owed.
+    -- Sweep floor from the spot-check term alone: for every δ ∈ (0, δ_min) the
+    -- convex combination ≥ (1-δ)^128 ≥ (1-δ_min)^128 ≈ 2^(-128.006), where the
+    -- folded MDS relative distance δ_min = 32769/65536 ≈ 0.50002. Rounds up to
+    -- 128.01. No Elias/list-size bound needed; owed only the folded distance
+    -- `minRelHammingDistCode (frsCode …) ≥ 32769/65536` (absent from
+    -- ReedSolomon.Folded — has only dim_frsCode). Phase-5/external-owed (distance).
     sorry
 
 /-- **The folded-RS leaderboard frontier (`s = 32`, `t = 128`).** The honest
-certified anchors are `29.11` provable bits and a `127.63`-bit attack ceiling, so
-the §6.3.2 gap at this folded point is `127.63 − 29.11 = 98.52` bits. As with
+certified anchors are `29.11` provable bits and a `128.01`-bit attack ceiling (the
+spot-check sweep floor; see `frsUpperBound_attack`), so the §6.3.2 gap at this
+folded point is `128.01 − 29.11 = 98.90` bits. As with
 `securityGap_koalaIRS_anchors`, this is a pure arithmetic readoff of the two
 `bits` fields (it inherits the anchors' owed `sorry`s). At fixed `t = 128` this
 gap is *wider* than the interleaved `koalaIRS` frontier (`53.01`) — folding's
 advantage is argument-size at enforced 128-bit security and gap-closing at large
 folding, not the fixed-`t` δ-swept frontier (see `frsLowerBound`). -/
 theorem securityGap_koalaFRS :
-    securityGap frsLowerBound frsUpperBound_attack = 98.52 := by
+    securityGap frsLowerBound frsUpperBound_attack = 98.90 := by
   simp only [securityGap, frsLowerBound, frsUpperBound_attack]
   norm_num
 

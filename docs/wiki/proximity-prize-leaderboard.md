@@ -187,9 +187,9 @@ paper's worked example).
 | Anchor | `bits` | Basis |
 |---|---|---|
 | `frsLowerBound : SecurityLowerBound koalaFRS` | **29.11** | §6.3.2 τ-subspace-design analysis, `tab:subspace-design-security-analysis`, `s = 2^5`, `r = 8` (`τ(r) = s·ρ/(s−r+1)`) |
-| `frsUpperBound_attack : SecurityUpperBound koalaFRS` | **127.63** | §6.3.2 Elias lower bound, `tab:subspace-elias-lowerbound-thresholds`, `s = 2^5`, `δ* = 0.499` |
+| `frsUpperBound_attack : SecurityUpperBound koalaFRS` | **128.01** | δ-sweep floor from the spot-check term alone: `⨅_δ (1−δ)^128 ≥ (1−δ_min)^128 ≈ 2^(−128.006)`, with the folded **MDS** relative distance `δ_min = 32769/65536 ≈ 0.50002`; rounds up to `128.01`. (Stronger and *less owed* than the paper's per-`δ*` Elias point reading `2^(−127.63) = (1−0.499)^128` — that is not the sweep floor; owed here is only the folded distance lemma, not a list-size bound.) |
 
-so `securityGap_koalaFRS = 127.63 − 29.11 = 98.52`.
+so `securityGap_koalaFRS = 128.01 − 29.11 = 98.90`.
 
 - **Reading the gap honestly.** At a *fixed* `t = 128`, `s = 32` folding gives a
   *wider* gap than interleaving (`53.01`) — and for `s ≤ 2^4` *no* soundness is

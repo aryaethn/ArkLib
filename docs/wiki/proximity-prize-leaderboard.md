@@ -203,7 +203,8 @@ so `securityGap_koalaFRS = 128.01 − 29.10 = 98.91`.
   *wider* gap than interleaving (`53.01`) — and for `s ≤ 2^4` *no* soundness is
   provable at all. This is faithful, not a defect: folding's payoff lives on axes
   the fixed-`t` δ-sweep does not capture — **larger folding closes the gap**
-  (`s = 2^12`: provable `2^(-118.14)`, a `≈ 10`-bit gap) and **argument-size at
+  (now formalized: the `koalaFRS12` row below, `s = 2^12`, `securityGap = 10.62`)
+  and **argument-size at
   enforced 128-bit security** (`s = 2^5` reaches `2^(-128.03)` at repetition
   `t = 563`, `r = 8`, `417.9 KiB`, `tab:subspace-design-128bit-security`), the
   metric on which folding genuinely beats interleaving.
@@ -234,6 +235,42 @@ so `securityGap_koalaFRS = 128.01 − 29.10 = 98.91`.
   generalization by mechanical defeq re-spelling. The C6.2 completeness theorem
   moved to `Spec/Completeness.lean` (the only file split warranted by the
   longer file). `A := F` recovers the scalar IRS reductions.
+
+### Folded Reed–Solomon — `koalaFRS12` (`s = 2^12 = 4096`, `t = 128`) — gap-closing
+
+The large-folding row from the **same** `tab:subspace-design-security-analysis` /
+`tab:subspace-elias-lowerbound-thresholds` (both at `t = 128`). It is the genuine
+gap-closing demonstration: the §6.3.2 construction fixes `|F| = q^6 ≈ 2^186`,
+`k = 2^20`, `ρ = 1/2`, and the *unfolded* length `s·|L| = 2^21`, so folding
+`s = 2^12` sets `|L| = 2^21/s = 2^9 = 512` (validated against the paper's
+argument-size column: `R·(256·log|L| + 62·s)` gives the table's `3.91 MiB` only
+with `|L| = 2^9`). The folded MDS distance is `δ_min = (512 − 255)/512 = 257/512`.
+
+| Anchor | `bits` | Basis |
+|---|---|---|
+| `frsLowerBound12 : SecurityLowerBound koalaFRS12` | **118.13** | `tab:subspace-design-security-analysis`, `s = 2^12`, minimizing `r = 108`, at `δ = 33923/71784` (`1−δ = τ(109)+3/(2·108) = 512/997 + 1/72 = 37861/71784 ≈ 0.5274`, **near capacity** `ρ = 1/2`). Full reduction: spot-check `(37861/71784)^128 ≤ 2^(−118)·(91/100)` (`koalaFRS12_spotcheck`, integer fact `37861^128·2^118·100 ≤ 91·71784^128`) + the L6.10 bridge to `ε_mca + |Λ|/|F|` (the **same** τ-subspace-design admit family as `frsLowerBound`, here at `r = 108`; actual figure `≈ 2^(−142.7)`, capped `≤ 2^(−118)·(3/1000)`), summed `≤ 2^(−118)·(913/1000) ≤ 2^(−118.13)` (`koalaFRS12_combine`, integer fact `913^100·2^13 ≤ 1000^100`). Round-down `118.14 → 118.13` (`(37861/71784)^128 = 2^(−118.1376)`). |
+| `frsUpperBound_attack12 : SecurityUpperBound koalaFRS12` | **128.75** | δ-sweep floor: `⨅_δ (1−δ)^128 ≥ (1−δ_min)^128 = (255/512)^128 ≈ 2^(−128.723)`, with folded MDS `δ_min = 257/512`. Full reduction via `le_bestProvableError`; the floor leaf `koalaFRS12_spotcheck_lb` proves `2^(−128.75) ≤ (255/512)^128` by sandwiching through `3/5` (`2^(−0.75) ≤ 3/5` via `(3/5)^4 = 81/625 ≥ 1/8`, and `3/5 ≤ (255/256)^128` via `3·256^128 ≤ 5·255^128`) — Bernoulli is too weak at the coarse `1/256` step, and a tighter `128.73` would force an intractable `≥ 1234`-digit power. Only owed external is `koalaFRS12_minRelDist`. |
+
+so `securityGap_koalaFRS12 = 128.75 − 118.13 = 10.62` — versus **`98.91` at
+`s = 32`**, an `≈ 88`-bit collapse.
+
+- **Why folding closes the gap (mechanism).** Not a different (sharper) citation:
+  the `ε_mca` admit is the **same** τ-subspace-design family as `s = 32`. The gap
+  closes because larger `s` lets the *operating point itself* climb — `τ(r+1) =
+  s·ρ/(s−r)` stays near `ρ = 1/2` while `r` grows to `108`, so `1−δ` drops from
+  `41/48 ≈ 0.854` (`s = 32`, `r = 8`) to `37861/71784 ≈ 0.527` (`s = 2^12`,
+  `r = 108`), pushing `(1−δ)^128` from `2^(−29)` to `2^(−118)`. Small `s` cannot
+  reach these high-δ subspace-design points (for `s ≤ 2^4`, *no* `r` gives provable
+  soundness), which is exactly why the `s = 32` `98.91`-bit gap is irreducible —
+  a folding-size limit, **not** a missing-citation. (The GG25 *capacity corollary*
+  `frs_epsMCA_capacity_gg25`, regime `s > 16/η²`, does not apply here either: at
+  the `r = 108` point `η = 1/2 − δ ≈ 0.027` needs `s > 21277 > 4096` — the paper's
+  bound is the τ-subspace-design MCA estimate, not the capacity corollary.)
+- **Owed (cited, not fabricated).** Identical full-reduction shape to `koalaFRS`:
+  the three integer leaves are **sorry-free** (`#print axioms = [propext,
+  Classical.choice, Quot.sound]`); the anchors reduce to exactly the same three
+  owed externals (`koalaFRS12Enc_injective`, `koalaFRS12_minRelDist`, the
+  τ-subspace-design `ε_mca` admit), `#print axioms` adding only `sorryAx`.
 
 ## Connection to the grand challenges (Phase 1)
 

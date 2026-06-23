@@ -187,7 +187,7 @@ paper's worked example).
 | Anchor | `bits` | Basis |
 |---|---|---|
 | `frsLowerBound : SecurityLowerBound koalaFRS` | **29.10** | §6.3.2 τ-subspace-design analysis, `tab:subspace-design-security-analysis`, `s = 2^5`, `r = 8` (`τ(r) = s·ρ/(s−r+1)`), at `δ = 7/48`. Now a **full reduction**: spot-check `(41/48)^128 ≤ 2^(−29)·(116/125)` (`koalaFRS_spotcheck`, integer fact `41^128·2^29·125 ≤ 116·48^128`) + the L6.10 bridge to `ε_mca + |Λ|/|F|` (one owed external admit), summed `≤ 2^(−29)·(933/1000) ≤ 2^(−29.10)` (`koalaFRS_combine`, integer fact `2·933^10 ≤ 10^30`). |
-| `frsUpperBound_attack : SecurityUpperBound koalaFRS` | **128.01** | δ-sweep floor from the spot-check term alone: `⨅_δ (1−δ)^128 ≥ (1−δ_min)^128 ≈ 2^(−128.006)`, with the folded **MDS** relative distance `δ_min = 32769/65536 ≈ 0.50002`; rounds up to `128.01`. Now a **full reduction** via `le_bestProvableError` (drop the nonnegative `winningSetSoundness` term, floor `(1−δ)^128 ≥ (32767/65536)^128 ≥ 2^(−128.01)` by `koalaFRS_spotcheck_lb`, integer fact `256^100 ≤ 2·255^100`); the **only** owed external is the folded distance `koalaFRS_minRelDist`. (Stronger and *less owed* than the paper's per-`δ*` Elias point reading `2^(−127.63) = (1−0.499)^128` — that is not the sweep floor; no list-size bound enters.) |
+| `frsUpperBound_attack : SecurityUpperBound koalaFRS` | **128.01** | δ-sweep floor from the spot-check term alone: `⨅_δ (1−δ)^128 ≥ (1−δ_min)^128 ≈ 2^(−128.006)`, with the folded **MDS** relative distance `δ_min = 32769/65536 ≈ 0.50002`; rounds up to `128.01`. Now a **full reduction** via `le_bestProvableError` (drop the nonnegative `winningSetSoundness` term, floor `(1−δ)^128 ≥ (32767/65536)^128 ≥ 2^(−128.01)` by `koalaFRS_spotcheck_lb`, integer fact `256^100 ≤ 2·255^100`); it consumes the now-`sorry`-free folded distance `koalaFRS_minRelDist` (Track B: proven via `minDist_frsCode` modulo the shared `koalaFRSγ_exists`). (Stronger and *less owed* than the paper's per-`δ*` Elias point reading `2^(−127.63) = (1−0.499)^128` — that is not the sweep floor; no list-size bound enters.) |
 
 so `securityGap_koalaFRS = 128.01 − 29.10 = 98.91`.
 
@@ -208,22 +208,33 @@ so `securityGap_koalaFRS = 128.01 − 29.10 = 98.91`.
   enforced 128-bit security** (`s = 2^5` reaches `2^(-128.03)` at repetition
   `t = 563`, `r = 8`, `417.9 KiB`, `tab:subspace-design-128bit-security`), the
   metric on which folding genuinely beats interleaving.
-- **Owed (cited, not fabricated).** Both anchors are now **full reductions** down
-  to named externals (matching the `koalaIRS` anchors), not opaque sorries. The
-  upper anchor owes a *single* external — the folded-Singleton distance
-  `koalaFRS_minRelDist` (`δ_min = 32769/65536`; path (b): admitted because
-  `ReedSolomon.Folded` has no minimum-distance lemma and the count rests on GR08
-  admissibility of `koalaFoldω`). The lower anchor owes the τ-subspace-design
-  `ε_mca` term (`≈ 2^(−166.8)` actual, capped `≤ 2^(−29)·(1/200)`), the FRS
-  counterpart of the `koalaIRS` owed `ε_mca`. The spot-check integer leaves
-  (`koalaFRS_spotcheck`, `koalaFRS_spotcheck_lb`, `koalaFRS_combine`) are
-  **sorry-free**. `koalaFRSEnc_injective` is owed structurally:
-  there is no in-tree `Admissible → injective` bridge for `frsEvalOnPoints`
-  (`dim_frsCode` takes injectivity as a hypothesis), and concrete GR08
-  admissibility needs multiplicative-order facts over the noncomputable
-  `GaloisField` (the multiplicative analogue of `koalaDomain`'s additive
-  argument). `koalaFRSDomain` is deliberately zero-free to keep admissibility a
-  genuinely-owed, not provably-false, condition.
+- **Owed — one shared, *true*, named external (Track B, 2026-06-23).** All four
+  former structural `sorry`s — `koalaFRSEnc_injective`, `koalaFRS_minRelDist`
+  (and the `s = 2^12` siblings) — are now **full `sorry`-free derivations** through
+  two new reusable, axiom-clean bridges in `ReedSolomon/Folded.lean`:
+  - `frsEvalOnPoints_domRestrict_injective` — `Admissible ω ∧ ω ≠ 0 ∧ k ≤ s·|ι| ⇒`
+    encoder injective (the `Admissible → injective` bridge that `dim_frsCode`'s
+    `h_encoder_inj` hypothesis was waiting for; via `admissible_foldedPoints_injective`
+    + root-counting on the `s·|ι|` distinct folded points);
+  - `minDist_frsCode` — the folded **block-metric MDS distance**
+    `Code.minDist (frsCode …) = |ι| − ⌊(k-1)/s⌋` (both directions: root-counting
+    lower bound + an explicit minimal-weight product-polynomial codeword), which
+    pins `koalaFRS_minRelDist = 32769/65536`.
+
+  Both bridges are `#print axioms = [propext, Classical.choice, Quot.sound]` (no
+  `sorryAx`). The two FRS rows now use **genuine multiplicative-coset domains**
+  `koalaFRSDomain j = γ^(s·j)` (the §6.3 "common case" smooth coset), replacing the
+  earlier additive `{1,…,2^n}` placeholder — whose `Admissible` was in fact
+  *provably false* (`1·7 = 7 ∈ L`). Domain injectivity, `(L,s)`-admissibility, encoder
+  injectivity, and the folded distance for **both** rows all reduce to a **single
+  shared owed witness** `koalaFRSγ_exists : ∃ γ, γ ≠ 0 ∧ 2^21 ≤ orderOf γ` — a
+  *verifiably true* fact (KoalaBear's `q − 1 = 2^24·127`, so 𝔽_q ⊆ KoalaSextic has
+  an element of order `2^24 ≥ 2^21`), owed only because multiplicative-order facts
+  over the noncomputable `GaloisField` are not yet `sorry`-free (Tier 2: the
+  `UInt32^6` field-model lift). The spot-check integer leaves remain sorry-free. The
+  lower anchor *additionally* owes the τ-subspace-design `ε_mca` term
+  (`≈ 2^(−166.8)` actual, capped `≤ 2^(−29)·(1/200)`), the FRS counterpart of the
+  `koalaIRS` owed `ε_mca` — the **only** by-design coding-theory admit left.
 - **Protocol-reduction status (DONE).** The `koalaFRS` leaderboard entry only
   needs the alphabet-generic soundness layer, but the protocol *reduction* layer
   is now generalized to folded codewords too (Stage 1, 2026-06-22): `Spec/General.lean`,
@@ -249,7 +260,7 @@ with `|L| = 2^9`). The folded MDS distance is `δ_min = (512 − 255)/512 = 257/
 | Anchor | `bits` | Basis |
 |---|---|---|
 | `frsLowerBound12 : SecurityLowerBound koalaFRS12` | **118.13** | `tab:subspace-design-security-analysis`, `s = 2^12`, minimizing `r = 108`, at `δ = 33923/71784` (`1−δ = τ(109)+3/(2·108) = 512/997 + 1/72 = 37861/71784 ≈ 0.5274`, **near capacity** `ρ = 1/2`). Full reduction: spot-check `(37861/71784)^128 ≤ 2^(−118)·(91/100)` (`koalaFRS12_spotcheck`, integer fact `37861^128·2^118·100 ≤ 91·71784^128`) + the L6.10 bridge to `ε_mca + |Λ|/|F|` (the **same** τ-subspace-design admit family as `frsLowerBound`, here at `r = 108`; actual figure `≈ 2^(−142.7)`, capped `≤ 2^(−118)·(3/1000)`), summed `≤ 2^(−118)·(913/1000) ≤ 2^(−118.13)` (`koalaFRS12_combine`, integer fact `913^100·2^13 ≤ 1000^100`). Round-down `118.14 → 118.13` (`(37861/71784)^128 = 2^(−118.1376)`). |
-| `frsUpperBound_attack12 : SecurityUpperBound koalaFRS12` | **128.75** | δ-sweep floor: `⨅_δ (1−δ)^128 ≥ (1−δ_min)^128 = (255/512)^128 ≈ 2^(−128.723)`, with folded MDS `δ_min = 257/512`. Full reduction via `le_bestProvableError`; the floor leaf `koalaFRS12_spotcheck_lb` proves `2^(−128.75) ≤ (255/512)^128` by sandwiching through `3/5` (`2^(−0.75) ≤ 3/5` via `(3/5)^4 = 81/625 ≥ 1/8`, and `3/5 ≤ (255/256)^128` via `3·256^128 ≤ 5·255^128`) — Bernoulli is too weak at the coarse `1/256` step, and a tighter `128.73` would force an intractable `≥ 1234`-digit power. Only owed external is `koalaFRS12_minRelDist`. |
+| `frsUpperBound_attack12 : SecurityUpperBound koalaFRS12` | **128.75** | δ-sweep floor: `⨅_δ (1−δ)^128 ≥ (1−δ_min)^128 = (255/512)^128 ≈ 2^(−128.723)`, with folded MDS `δ_min = 257/512`. Full reduction via `le_bestProvableError`; the floor leaf `koalaFRS12_spotcheck_lb` proves `2^(−128.75) ≤ (255/512)^128` by sandwiching through `3/5` (`2^(−0.75) ≤ 3/5` via `(3/5)^4 = 81/625 ≥ 1/8`, and `3/5 ≤ (255/256)^128` via `3·256^128 ≤ 5·255^128`) — Bernoulli is too weak at the coarse `1/256` step, and a tighter `128.73` would force an intractable `≥ 1234`-digit power. Consumes the now-`sorry`-free `koalaFRS12_minRelDist` (Track B: `minDist_frsCode` modulo the shared `koalaFRSγ_exists`). |
 
 so `securityGap_koalaFRS12 = 128.75 − 118.13 = 10.62` — versus **`98.91` at
 `s = 32`**, an `≈ 88`-bit collapse.
@@ -266,11 +277,15 @@ so `securityGap_koalaFRS12 = 128.75 − 118.13 = 10.62` — versus **`98.91` at
   `frs_epsMCA_capacity_gg25`, regime `s > 16/η²`, does not apply here either: at
   the `r = 108` point `η = 1/2 − δ = 1969/71784 ≈ 0.0274` needs `s > 16/η² ≈ 21266 > 4096` — the paper's
   bound is the τ-subspace-design MCA estimate, not the capacity corollary.)
-- **Owed (cited, not fabricated).** Identical full-reduction shape to `koalaFRS`:
-  the three integer leaves are **sorry-free** (`#print axioms = [propext,
-  Classical.choice, Quot.sound]`); the anchors reduce to exactly the same three
-  owed externals (`koalaFRS12Enc_injective`, `koalaFRS12_minRelDist`, the
-  τ-subspace-design `ε_mca` admit), `#print axioms` adding only `sorryAx`.
+- **Owed — the same shared witness as `koalaFRS` (Track B).** `koalaFRS12Enc_injective`
+  and `koalaFRS12_minRelDist` (`= 257/512`) are now full `sorry`-free derivations
+  through the **same** two `Folded.lean` bridges, on the coset domain
+  `koalaFRS12Domain j = γ^(2^12·j)` with the **same** `γ` (each row needs only
+  `orderOf γ ≥ s·|L| = 2^21`). So both rows' structural owes collapse to the *single*
+  shared witness `koalaFRSγ_exists`. The three integer leaves stay sorry-free; the
+  lower anchor's only remaining by-design admit is the τ-subspace-design `ε_mca`
+  (here at `r = 108`, the same admit family as `frsLowerBound`). `#print axioms`
+  adds only `sorryAx`, all tracing to those two named externals.
 
 ## Connection to the grand challenges (Phase 1)
 

@@ -308,27 +308,63 @@ noncomputable def oracleReductionFRS (t : ℕ) :
     (A := Fin 32 → KoalaSextic) (k := 2 ^ 20) (t := t)
     (koalaFRSEnc : (Fin (2 ^ 20) → KoalaSextic) → (Fin (2 ^ 16) → Fin 32 → KoalaSextic))
 
-/-- **Folded-RS minimum relative distance** (the owed external, path (b) of the
-FRS-anchor-reduction session). `minRelHammingDistCode koalaFRS.code = 32769/65536`,
-the folded-Singleton (MDS-type) distance for `FRS[F, L, 2^20, 32, ω]`: a nonzero
-degree-`< k = 2^20` polynomial has `< k` roots, so it vanishes on `< (k-1)/s =
-32767` *whole* folded symbols (each pools `s = 32` field evaluations on the
-admissible orbit `{α·ω^i}`), hence the folded Hamming distance is
-`D = |L| - 32767 = 65536 - 32767 = 32769` and `δ_min = D/|L| = 32769/65536`.
+open Classical in
+set_option maxRecDepth 8000 in
+/-- **The folded encoder's image is exactly the folded RS code** `FRS[koalaFRSDomain, 2^20,
+32, koalaFoldω]`. The FRS counterpart of `koalaEnc_range`: `koalaFRSEnc = frsEvalOnPoints ∘
+(degreeLTEquiv).symm`, and as the latter ranges over all degree-`< 2^20` polynomials its
+image is `(degreeLT 2^20).map (frsEvalOnPoints …) = frsCode …`. This identifies
+`koalaFRS.code` with `frsCode`, unlocking the folded MDS distance below. -/
+theorem koalaFRSEnc_range :
+    Set.range ⇑koalaFRSEnc =
+      (↑(ReedSolomon.Folded.frsCode koalaFRSDomain (2 ^ 20) 32 koalaFoldω) :
+        Set (Fin (2 ^ 16) → Fin 32 → KoalaSextic)) := by
+  ext y
+  rw [SetLike.mem_coe, ReedSolomon.Folded.frsCode, Submodule.mem_map]
+  simp only [Set.mem_range]
+  constructor
+  · rintro ⟨m, rfl⟩
+    refine ⟨↑((Polynomial.degreeLTEquiv KoalaSextic (2 ^ 20)).symm m), Submodule.coe_mem _, ?_⟩
+    simp only [koalaFRSEnc, LinearMap.coe_comp, LinearEquiv.coe_toLinearMap, Function.comp_apply,
+      LinearMap.domRestrict_apply]
+  · rintro ⟨p, hp, rfl⟩
+    refine ⟨Polynomial.degreeLTEquiv KoalaSextic (2 ^ 20) ⟨p, hp⟩, ?_⟩
+    simp only [koalaFRSEnc, LinearMap.coe_comp, LinearEquiv.coe_toLinearMap, Function.comp_apply,
+      LinearEquiv.symm_apply_apply, LinearMap.domRestrict_apply]
 
-This is the FRS counterpart of `koalaIRS_minRelDist` (which is proved sorry-free
-via `ReedSolomon.minDist_eq'` + the MDS bridge). The folded analogue is **owed**:
-`ReedSolomon.Folded` provides `dim_frsCode` but **no** minimum-distance lemma, and
-the folded-Singleton count rests on `(L, s)`-admissibility of `koalaFoldω` — the
-multiplicative-order facts unavailable `sorry`-free over the noncomputable
-`GaloisField` (the same gap behind `koalaFRSEnc_injective`). It is admitted as one
-named external, exactly as the `koalaIRS` anchors rest on their `ε_mca` admit; both
-anchors below pin their δ-window through it. -/
+open Classical in
+/-- **Folded-RS minimum relative distance** — now a full `sorry`-free derivation through the
+new in-tree folded-distance bridge `ReedSolomon.Folded.minDist_frsCode`.
+`minRelHammingDistCode koalaFRS.code = 32769/65536`, the folded-Singleton (MDS-type)
+distance for `FRS[F, L, 2^20, 32, ω]`: a nonzero degree-`< 2^20` polynomial has `< 2^20`
+roots, so it vanishes on `≤ ⌊(2^20-1)/32⌋ = 32767` *whole* folded symbols, hence the folded
+Hamming distance is `D = |L| − 32767 = 65536 − 32767 = 32769` and `δ_min = D/|L| =
+32769/65536`. Via `koalaFRSEnc_range` (the code *is* `frsCode`), `minDist_frsCode`, and the
+absolute→relative bridge `minDist_div_card_eq_minRelHammingDistCode`. The sole remaining owed
+external is the single order bound `koalaFRSγ_exists`, flowing in through
+`koalaFRSDomain_admissible`. -/
 theorem koalaFRS_minRelDist :
     minRelHammingDistCode koalaFRS.code = (32769 / 65536 : ℚ≥0) := by
-  -- Folded-Singleton bound + (L,s)-admissibility of koalaFoldω over the noncomputable
-  -- GaloisField (cf. koalaFRSEnc_injective). Owed external; path (b). Phase-5/external.
-  sorry
+  haveI : Nonempty koalaFRS.ι := inferInstanceAs (Nonempty (Fin (2 ^ 16)))
+  haveI : NeZero (2 ^ 20 : ℕ) := ⟨by norm_num⟩
+  have hcode : koalaFRS.code =
+      (↑(ReedSolomon.Folded.frsCode koalaFRSDomain (2 ^ 20) 32 koalaFoldω) :
+        Set (Fin (2 ^ 16) → Fin 32 → KoalaSextic)) := koalaFRSEnc_range
+  have hmin : Code.minDist koalaFRS.code = 32769 := by
+    have h := ReedSolomon.Folded.minDist_frsCode (k := 2 ^ 20) (s := 32) (by norm_num)
+      koalaFRSDomain koalaFoldω koalaFRSDomain_admissible koalaFRSγ_ne_zero
+      (by rw [Fintype.card_fin]; norm_num)
+    simp only [Fintype.card_fin] at h
+    norm_num at h
+    rw [hcode]; exact h
+  have hbridge := minDist_div_card_eq_minRelHammingDistCode koalaFRS.code
+  have hcardι : Fintype.card koalaFRS.ι = 65536 := by
+    change Fintype.card (Fin (2 ^ 16)) = 65536
+    rw [Fintype.card_fin]; norm_num
+  rw [hmin, hcardι] at hbridge
+  have hQ : ((minRelHammingDistCode koalaFRS.code : ℚ≥0) : ℚ) = ((32769 / 65536 : ℚ≥0) : ℚ) := by
+    rw [← hbridge]; push_cast; norm_num
+  exact_mod_cast hQ
 
 /-- **Attack-side spot-check integer leaf (sorry-free):** `2^(-128.01) ≤
 (32767/65536)^128`. The crux of the folded MDS sweep-floor. Split off `2^(-128)`:
@@ -670,16 +706,57 @@ noncomputable def koalaFRS12 : ToyParams := by
       s := 2 ^ 12
       n := 2 ^ 9 }
 
-/-- **Folded-RS minimum relative distance at `s = 2^12`** (the owed external,
-path (b)). `minRelHammingDistCode koalaFRS12.code = 257/512`, the folded-Singleton
-distance for `FRS[F, L, 2^20, 4096, ω]`: a nonzero degree-`< 2^20` polynomial
-vanishes on `< (2^20−1)/4096 = 256` — i.e. `≤ 255` — whole folded symbols, so the
-folded Hamming distance is `D = |L| − 255 = 512 − 255 = 257` and `δ_min = 257/512`.
-Owed for the same reason as `koalaFRS_minRelDist` (no folded min-distance lemma +
-admissibility over the noncomputable `GaloisField`). -/
+open Classical in
+set_option maxRecDepth 8000 in
+/-- **The `s = 2^12` folded encoder's image is exactly `frsCode`** — the large-folding
+counterpart of `koalaFRSEnc_range`. -/
+theorem koalaFRS12Enc_range :
+    Set.range ⇑koalaFRS12Enc =
+      (↑(ReedSolomon.Folded.frsCode koalaFRS12Domain (2 ^ 20) (2 ^ 12) koalaFoldω) :
+        Set (Fin (2 ^ 9) → Fin (2 ^ 12) → KoalaSextic)) := by
+  ext y
+  rw [SetLike.mem_coe, ReedSolomon.Folded.frsCode, Submodule.mem_map]
+  simp only [Set.mem_range]
+  constructor
+  · rintro ⟨m, rfl⟩
+    refine ⟨↑((Polynomial.degreeLTEquiv KoalaSextic (2 ^ 20)).symm m), Submodule.coe_mem _, ?_⟩
+    simp only [koalaFRS12Enc, LinearMap.coe_comp, LinearEquiv.coe_toLinearMap, Function.comp_apply,
+      LinearMap.domRestrict_apply]
+  · rintro ⟨p, hp, rfl⟩
+    refine ⟨Polynomial.degreeLTEquiv KoalaSextic (2 ^ 20) ⟨p, hp⟩, ?_⟩
+    simp only [koalaFRS12Enc, LinearMap.coe_comp, LinearEquiv.coe_toLinearMap, Function.comp_apply,
+      LinearEquiv.symm_apply_apply, LinearMap.domRestrict_apply]
+
+open Classical in
+set_option maxRecDepth 8000 in
+/-- **Folded-RS minimum relative distance at `s = 2^12`** — now a full `sorry`-free
+derivation through `ReedSolomon.Folded.minDist_frsCode`, exactly as `koalaFRS_minRelDist`.
+`minRelHammingDistCode koalaFRS12.code = 257/512`, the folded-Singleton distance for
+`FRS[F, L, 2^20, 4096, ω]`: a nonzero degree-`< 2^20` polynomial vanishes on
+`≤ ⌊(2^20−1)/4096⌋ = 255` whole folded symbols, so `D = |L| − 255 = 512 − 255 = 257` and
+`δ_min = 257/512`. Same single owed order bound (`koalaFRSγ_exists`) as the `s = 32` row. -/
 theorem koalaFRS12_minRelDist :
     minRelHammingDistCode koalaFRS12.code = (257 / 512 : ℚ≥0) := by
-  sorry
+  haveI : Nonempty koalaFRS12.ι := inferInstanceAs (Nonempty (Fin (2 ^ 9)))
+  haveI : NeZero (2 ^ 20 : ℕ) := ⟨by norm_num⟩
+  have hcode : koalaFRS12.code =
+      (↑(ReedSolomon.Folded.frsCode koalaFRS12Domain (2 ^ 20) (2 ^ 12) koalaFoldω) :
+        Set (Fin (2 ^ 9) → Fin (2 ^ 12) → KoalaSextic)) := koalaFRS12Enc_range
+  have hmin : Code.minDist koalaFRS12.code = 257 := by
+    have h := ReedSolomon.Folded.minDist_frsCode (k := 2 ^ 20) (s := 2 ^ 12) (by norm_num)
+      koalaFRS12Domain koalaFoldω koalaFRS12Domain_admissible koalaFRSγ_ne_zero
+      (by rw [Fintype.card_fin]; norm_num)
+    simp only [Fintype.card_fin] at h
+    norm_num at h
+    rw [hcode]; exact h
+  have hbridge := minDist_div_card_eq_minRelHammingDistCode koalaFRS12.code
+  have hcardι : Fintype.card koalaFRS12.ι = 512 := by
+    change Fintype.card (Fin (2 ^ 9)) = 512
+    rw [Fintype.card_fin]; norm_num
+  rw [hmin, hcardι] at hbridge
+  have hQ : ((minRelHammingDistCode koalaFRS12.code : ℚ≥0) : ℚ) = ((257 / 512 : ℚ≥0) : ℚ) := by
+    rw [← hbridge]; push_cast; norm_num
+  exact_mod_cast hQ
 
 /-- **Attack-side spot-check integer leaf (sorry-free):** `2^(-128.75) ≤
 (255/512)^128`, the folded MDS sweep-floor for `s = 2^12`. Split `255/512 =

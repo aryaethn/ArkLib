@@ -205,6 +205,216 @@ lemma frsEvalOnPoints_domRestrict_injective {ι : Type} [Fintype ι] [DecidableE
   · intro hp
     simp [hp]
 
+/-- **Folded-RS minimum (block) distance** — the folded analogue of
+`ReedSolomon.minDist_eq'`. Under `(L, s)`-admissibility of `ω` (`L = image domain`),
+`ω ≠ 0`, `0 < s`, and `k ≤ s · |ι|`, the folded code is MDS in the block (per-fold)
+Hamming metric: a nonzero codeword has at most `⌊(k-1)/s⌋` zero folded symbols, so
+
+  `Code.minDist (frsCode domain k s ω) = |ι| − ⌊(k-1)/s⌋`.
+
+**Lower bound** (`≥`, mirrors `minDist_eq'`'s weight argument): a nonzero codeword comes
+from `p ≠ 0` of degree `< k`; each zero fold packs `s` distinct roots of `p` (distinct
+across folds too, by `admissible_foldedPoints_injective`), so `s · (#zero folds) ≤
+deg p < k`, giving `#zero folds ≤ ⌊(k-1)/s⌋` and weight `≥ |ι| − ⌊(k-1)/s⌋`.
+
+**Upper bound** (`≤`): the codeword of the degree-`s·⌊(k-1)/s⌋ < k` polynomial
+`p = ∏_{x ∈ T, j} (X − domain x · ω^j)` for any `T ⊆ ι` with `|T| = ⌊(k-1)/s⌋` vanishes on
+exactly the `T`-folds (the `s·|T|` chosen points are roots; no others are, by full
+point-distinctness), so it has weight exactly `|ι| − ⌊(k-1)/s⌋`. -/
+theorem minDist_frsCode {ι : Type} [Fintype ι] [DecidableEq ι]
+    {F : Type} [Field F] [DecidableEq F] {k s : ℕ} [NeZero k] (hs : 0 < s)
+    (domain : ι ↪ F) (ω : F)
+    (hadm : Admissible (Finset.univ.map domain) s ω) (hω : ω ≠ 0)
+    (hk : k ≤ s * Fintype.card ι) :
+    Code.minDist ((frsCode domain k s ω) : Set (ι → Fin s → F))
+      = Fintype.card ι - (k - 1) / s := by
+  classical
+  -- Abbreviations.
+  set D := Fintype.card ι - (k - 1) / s with hD
+  -- The folded evaluation points are pairwise distinct (the workhorse for both bounds).
+  have hinj : Function.Injective (fun xi : ι × Fin s => domain xi.1 * ω ^ (xi.2 : ℕ)) :=
+    admissible_foldedPoints_injective domain ω hadm hω
+  -- `(k - 1) / s < |ι|`, hence `D + (k-1)/s = |ι|` and `Tᶜ` is nonempty for `|T| = (k-1)/s`.
+  have hdiv_lt : (k - 1) / s < Fintype.card ι := by
+    rw [Nat.div_lt_iff_lt_mul hs]
+    have : k - 1 < s * Fintype.card ι := by
+      have hk1 : 1 ≤ k := NeZero.one_le
+      omega
+    calc k - 1 < s * Fintype.card ι := this
+      _ = Fintype.card ι * s := Nat.mul_comm _ _
+  haveI : Nonempty ι := Fintype.card_pos_iff.mp (lt_of_le_of_lt (Nat.zero_le _) hdiv_lt)
+  rw [LinearCode.dist_eq_minWtCodewords, LinearCode.minWtCodewords]
+  refine le_antisymm ?upper ?lower
+  · -- UPPER BOUND: exhibit a codeword of weight exactly `D`.
+    -- Pick `T ⊆ univ` with `|T| = (k-1)/s`.
+    obtain ⟨T, -, hTcard⟩ :=
+      Finset.exists_subset_card_eq (s := (Finset.univ : Finset ι)) (n := (k - 1) / s)
+        (by rw [Finset.card_univ]; exact le_of_lt hdiv_lt)
+    -- The chosen evaluation points.
+    set P : Finset F := (T ×ˢ (Finset.univ : Finset (Fin s))).image
+      (fun xi => domain xi.1 * ω ^ (xi.2 : ℕ)) with hP
+    have hPcard : P.card = (k - 1) / s * s := by
+      rw [hP, Finset.card_image_of_injective _ hinj,
+        Finset.card_product, hTcard, Finset.card_univ, Fintype.card_fin]
+    have hPcard_lt : P.card < k := by
+      rw [hPcard]
+      have hk1 : 1 ≤ k := NeZero.one_le
+      calc (k - 1) / s * s ≤ k - 1 := Nat.div_mul_le_self _ _
+        _ < k := by omega
+    -- The vanishing polynomial.
+    set p : Polynomial F := ∏ q ∈ P, (Polynomial.X - Polynomial.C q) with hp
+    have hp_ne : p ≠ 0 := by
+      rw [hp, Finset.prod_ne_zero_iff]
+      exact fun q _ => Polynomial.X_sub_C_ne_zero q
+    have hp_natDegree : p.natDegree = P.card := by
+      rw [hp, Polynomial.natDegree_prod _ _ (fun q _ => Polynomial.X_sub_C_ne_zero q)]
+      simp
+    have hp_mem : p ∈ Polynomial.degreeLT F k := by
+      rw [Polynomial.mem_degreeLT]
+      calc p.degree ≤ (p.natDegree : WithBot ℕ) := Polynomial.degree_le_natDegree
+        _ < (k : WithBot ℕ) := by rw [hp_natDegree]; exact_mod_cast hPcard_lt
+    -- Evaluation: `p.eval a = ∏ q ∈ P, (a - q)`, which is `0 ↔ a ∈ P`.
+    have heval : ∀ a : F, p.eval a = ∏ q ∈ P, (a - q) := by
+      intro a; rw [hp, Polynomial.eval_prod]; simp
+    have heval_eq_zero_iff : ∀ a : F, p.eval a = 0 ↔ a ∈ P := by
+      intro a
+      rw [heval, Finset.prod_eq_zero_iff]
+      constructor
+      · rintro ⟨q, hq, haq⟩; rwa [sub_eq_zero.mp haq]
+      · intro ha; exact ⟨a, ha, by simp⟩
+    -- A point `domain x * ω^j` lies in `P` iff `x ∈ T`.
+    have hpoint_mem : ∀ (x : ι) (j : Fin s), domain x * ω ^ (j : ℕ) ∈ P ↔ x ∈ T := by
+      intro x j
+      rw [hP, Finset.mem_image]
+      constructor
+      · rintro ⟨⟨y, i⟩, hyi, heqyi⟩
+        rw [Finset.mem_product] at hyi
+        have heq2 : (fun xi : ι × Fin s => domain xi.1 * ω ^ (xi.2 : ℕ)) (y, i)
+            = (fun xi : ι × Fin s => domain xi.1 * ω ^ (xi.2 : ℕ)) (x, j) := heqyi
+        have := hinj heq2
+        simp only [Prod.mk.injEq] at this
+        rw [← this.1]; exact hyi.1
+      · intro hx
+        exact ⟨(x, j), Finset.mem_product.mpr ⟨hx, Finset.mem_univ _⟩, rfl⟩
+    -- The codeword.
+    set c : ι → Fin s → F := frsEvalOnPoints domain s ω p with hc
+    have hc_val : ∀ (x : ι) (j : Fin s), c x j = p.eval (domain x * ω ^ (j : ℕ)) := by
+      intro x j; rfl
+    -- `c x = 0` (the whole fold) iff `x ∈ T`.
+    have hfold_zero : ∀ x : ι, c x = 0 ↔ x ∈ T := by
+      intro x
+      rw [funext_iff]
+      constructor
+      · intro h
+        have h0 := h ⟨0, hs⟩
+        rw [hc_val, Pi.zero_apply, heval_eq_zero_iff] at h0
+        exact (hpoint_mem x ⟨0, hs⟩).mp h0
+      · intro hx j
+        rw [hc_val, Pi.zero_apply, heval_eq_zero_iff]
+        exact (hpoint_mem x j).mpr hx
+    have hc_mem : c ∈ frsCode domain k s ω := by
+      rw [mem_frsCode_iff]
+      exact ⟨p, hp_mem, fun x j => rfl⟩
+    -- `c ≠ 0` since `Tᶜ` is nonempty.
+    have hc_ne : c ≠ 0 := by
+      intro h
+      -- if `c = 0` then every fold is zero, so `T = univ`, contradicting `|T| < |ι|`.
+      have hall : ∀ x : ι, x ∈ T := by
+        intro x
+        rw [← hfold_zero x]
+        exact congrFun h x
+      have : (Finset.univ : Finset ι).card ≤ T.card :=
+        Finset.card_le_card (fun x _ => hall x)
+      rw [Finset.card_univ, hTcard] at this
+      omega
+    -- Weight of `c` is exactly `D`.
+    have hwt : Code.wt c = D := by
+      rw [Code.wt]
+      have hfilter :
+          Finset.filter (fun i => c i ≠ 0) Finset.univ = (Finset.univ \ T) := by
+        ext x
+        simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_sdiff]
+        rw [← not_iff_not, not_not, hfold_zero x]
+        tauto
+      rw [hfilter, Finset.card_sdiff_of_subset (Finset.subset_univ T), Finset.card_univ, hTcard,
+        hD]
+    -- Conclude.
+    exact Nat.sInf_le ⟨c, hc_mem, hc_ne, hwt⟩
+  · -- LOWER BOUND: every nonzero codeword has weight `≥ D`.
+    refine le_csInf ⟨Fintype.card ι, ?nonempty⟩ ?bound
+    · -- nonemptiness witness: the all-ones constant codeword has weight `|ι|`.
+      refine ⟨frsEvalOnPoints domain s ω (Polynomial.C 1), ?_, ?_, ?_⟩
+      · rw [mem_frsCode_iff]
+        refine ⟨Polynomial.C 1, ?_, fun x j => rfl⟩
+        rw [Polynomial.mem_degreeLT]
+        calc (Polynomial.C (1 : F)).degree ≤ 0 := Polynomial.degree_C_le
+          _ < (k : WithBot ℕ) := by
+                have : 0 < k := NeZero.pos k
+                exact_mod_cast this
+      · -- nonzero: every fold is the all-ones vector.
+        intro h
+        have := congrFun (congrFun h (Classical.arbitrary ι)) ⟨0, hs⟩
+        simp [frsEvalOnPoints] at this
+      · -- weight is `|ι|`.
+        rw [Code.wt]
+        have : Finset.filter (fun i => frsEvalOnPoints domain s ω (Polynomial.C 1) i ≠ 0)
+            Finset.univ = Finset.univ := by
+          ext x
+          simp only [Finset.mem_filter, Finset.mem_univ, true_and, iff_true]
+          intro hzero
+          have := congrFun hzero ⟨0, hs⟩
+          simp [frsEvalOnPoints] at this
+        rw [this, Finset.card_univ]
+    · rintro b ⟨c, hc_mem, hc_ne, hwt⟩
+      -- Extract the underlying polynomial.
+      rw [mem_frsCode_iff] at hc_mem
+      obtain ⟨p, hp_mem, hp_eval⟩ := hc_mem
+      -- `p ≠ 0`, else `c = 0`.
+      have hp_ne : p ≠ 0 := by
+        intro hp0
+        apply hc_ne
+        ext x j
+        rw [hp_eval x j, hp0, Polynomial.eval_zero, Pi.zero_apply, Pi.zero_apply]
+      -- The set of zero folds.
+      set Z : Finset ι := Finset.filter (fun x => c x = 0) Finset.univ with hZ
+      -- Each pair `(x, j)` with `x ∈ Z` maps to a root of `p`; injectively.
+      have hZcard : (Z ×ˢ (Finset.univ : Finset (Fin s))).card ≤ p.roots.toFinset.card := by
+        apply Finset.card_le_card_of_injOn
+          (f := fun xi : ι × Fin s => domain xi.1 * ω ^ (xi.2 : ℕ))
+        · rintro ⟨x, j⟩ hxj
+          rw [Finset.mem_coe, Finset.mem_product] at hxj
+          simp only [Finset.mem_coe, Multiset.mem_toFinset, Polynomial.mem_roots hp_ne]
+          rw [hZ, Finset.mem_filter] at hxj
+          have hcxj : c x j = 0 := by rw [hxj.1.2]; rfl
+          rw [hp_eval x j] at hcxj
+          exact hcxj
+        · exact hinj.injOn
+      -- Bound: `s * |Z| ≤ p.natDegree < k`.
+      have hsZ_lt : s * Z.card < k := by
+        have h1 : (Z ×ˢ (Finset.univ : Finset (Fin s))).card = Z.card * s := by
+          rw [Finset.card_product, Finset.card_univ, Fintype.card_fin]
+        have h2 : p.roots.toFinset.card ≤ p.natDegree :=
+          le_trans (Multiset.toFinset_card_le _) (Polynomial.card_roots' p)
+        have h3 : p.natDegree < k := natDegree_lt_of_mem_degreeLT hp_mem
+        rw [h1] at hZcard
+        have : Z.card * s ≤ p.natDegree := le_trans hZcard h2
+        calc s * Z.card = Z.card * s := Nat.mul_comm _ _
+          _ ≤ p.natDegree := this
+          _ < k := h3
+      -- Hence `|Z| ≤ (k-1)/s`.
+      have hZ_le : Z.card ≤ (k - 1) / s := by
+        rw [Nat.le_div_iff_mul_le hs]
+        have : s * Z.card ≤ k - 1 := by omega
+        calc Z.card * s = s * Z.card := Nat.mul_comm _ _
+          _ ≤ k - 1 := this
+      -- Weight `= |ι| - |Z| ≥ D`.
+      have hwt_eq : Code.wt c + Z.card = Fintype.card ι := by
+        have hZeq : Z = Finset.filter (fun x => ¬ (c x ≠ 0)) Finset.univ := by
+          rw [hZ]; simp only [not_not]
+        rw [Code.wt, hZeq, Finset.card_filter_add_card_filter_not, Finset.card_univ]
+      rw [← hwt]
+      omega
+
 /-- Mirror of `mem_frsCode_iff` with the equation oriented `encoder = f` rather than
 `f = encoder` — useful for `rw` / `simp` from the encoder side. -/
 lemma mem_frsCode_iff_flipped {ι : Type} [Fintype ι] [DecidableEq ι]

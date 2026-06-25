@@ -9,9 +9,9 @@ source_metadata: ../sources/NOZ26/metadata.yml
 status: seeded
 related_modules:
   - ArkLib/Data/Lattices/CyclotomicRing/Core/Modulus.lean
-  - ArkLib/CommitmentScheme/Ajtai/Gadget.lean
-  - ArkLib/CommitmentScheme/Ajtai/InnerOuter/Scheme.lean
-  - ArkLib/CommitmentScheme/Ajtai/InnerOuter/Security.lean
+  - ArkLib/Commitments/Functional/Hachi/Gadget.lean
+  - ArkLib/Commitments/Functional/Hachi/InnerOuter/Scheme.lean
+  - ArkLib/Commitments/Functional/Hachi/InnerOuter/Security.lean
 ---
 
 # NOZ26
@@ -34,9 +34,9 @@ inner-outer commitment with weak binding.
 
 - [`ArkLib/Data/Lattices/CyclotomicRing/Core/Modulus.lean`](../../../ArkLib/Data/Lattices/CyclotomicRing/Core/Modulus.lean)
   — `powTwoCyclotomic`.
-- [`ArkLib/CommitmentScheme/Ajtai/Gadget.lean`](../../../ArkLib/CommitmentScheme/Ajtai/Gadget.lean)
+- [`ArkLib/Commitments/Functional/Hachi/Gadget.lean`](../../../ArkLib/Commitments/Functional/Hachi/Gadget.lean)
   — the gadget matrix and `gadgetDecompose`.
-- [`ArkLib/CommitmentScheme/Ajtai/InnerOuter/Security.lean`](../../../ArkLib/CommitmentScheme/Ajtai/InnerOuter/Security.lean)
+- [`ArkLib/Commitments/Functional/Hachi/InnerOuter/Security.lean`](../../../ArkLib/Commitments/Functional/Hachi/InnerOuter/Security.lean)
   — weak binding.
 
 ## Open Formalization Gaps

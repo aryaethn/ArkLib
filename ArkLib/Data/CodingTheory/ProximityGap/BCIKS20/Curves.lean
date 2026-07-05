@@ -49,10 +49,10 @@ noncomputable def coeffs_of_close_proximity_curve {l : ℕ}
     infer_instance
   @Set.toFinset _ { z | δᵣ(Curve.polynomialCurveEval (F := F) (A := F) u z, V) ≤ δ } this
 
-/-- If the set of points `δ`-close to the code `V` has at least `n * l + 1` points, then
-there exists a curve defined by vectors `v` from `V` such that the points of `curve u`
-and `curve v` are `δ`-close with the same parameters. Moreover, `u` and `v` differ at
-at most `δ * n` positions. -/
+/-- Unique-decoding regime (`δ ≤ (1 - rho) / 2`); companion of
+`large_agreement_set_on_curve_implies_correlated_agreement'` (Johnson regime), with which it shares
+its conclusion. If more than `n * l` points on the curve defined by `u` are `δ`-close to `V`, then
+there exist vectors `v` from `V` that agree with `u` on at least `(1 - δ) * n` positions. -/
 theorem large_agreement_set_on_curve_implies_correlated_agreement {l : ℕ}
     {rho : ℚ≥0}
     {δ : ℚ≥0}
@@ -60,12 +60,9 @@ theorem large_agreement_set_on_curve_implies_correlated_agreement {l : ℕ}
     (hδ : δ ≤ (1 - rho) / 2)
     {u : Fin l → Fin n → F}
     (hS : n * l < (coeffs_of_close_proximity_curve (F := F) δ u V).card) :
-    coeffs_of_close_proximity_curve (F := F) δ u V = Finset.univ ∧
-      ∃ v : Fin l → Fin n → F,
-        ∀ z,
-          δᵣ(Curve.polynomialCurveEval (F := F) (A := F) u z,
-            Curve.polynomialCurveEval (F := F) (A := F) v z) ≤ δ ∧
-          ({ x : Fin n | ∃ i, u i x ≠ v i x } : Finset _).card ≤ δ * n := by
+    ∃ v : Fin l → Fin n → F,
+      ∀ i, v i ∈ V ∧
+        (1 - δ) * n ≤ ({ x : Fin n | ∀ i, u i x = v i x } : Finset _).card := by
   sorry
 
 /-- The distance bound from [BCIKS20]. -/

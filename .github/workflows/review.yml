@@ -9,7 +9,7 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.issue.number }}
-  cancel-in-progress: true
+  cancel-in-progress: false     
 
 # Least privilege: the reviewer's lean_tools execute model-directed Lean IO and the
 # action builds the PR-head code, so a token exfiltrated there must not be able to push

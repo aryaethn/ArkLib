@@ -551,4 +551,73 @@ theorem PMF.map_uniformOfFintype_of_fiber_const
     rw [h_empty, Finset.card_empty]
     simp
 
+/-- **Finite union bound.** The probability that some `b` (ranging over a finite type) satisfies
+`P b` is at most the sum of the individual probabilities. -/
+theorem Pr_exists_le_sum {α β : Type} [Fintype β] (D : PMF α) (P : β → α → Prop) :
+    Pr_{ let r ← D }[ ∃ b, P b r ] ≤ ∑ b : β, Pr_{ let r ← D }[ P b r ] := by
+  classical
+  simp_rw [prob_tsum_form_singleton]
+  have swap : (∑ b : β, ∑' a, D a * (if P b a then (1 : ENNReal) else 0))
+            = ∑' a, ∑ b : β, D a * (if P b a then (1 : ENNReal) else 0) := by
+    rw [← tsum_fintype (L := SummationFilter.unconditional _), ENNReal.tsum_comm]
+    refine tsum_congr (fun a => ?_)
+    rw [tsum_fintype (L := SummationFilter.unconditional _)]
+  rw [swap]
+  apply ENNReal.tsum_le_tsum
+  intro r
+  by_cases h : ∃ b, P b r
+  · simp only [h, if_true, mul_one]
+    obtain ⟨b0, hb0⟩ := h
+    calc D r = D r * (if P b0 r then 1 else 0) := by simp [hb0]
+      _ ≤ ∑ b : β, D r * (if P b r then 1 else 0) :=
+          Finset.single_le_sum (f := fun b => D r * (if P b r then (1 : ENNReal) else 0))
+            (fun i _ => zero_le') (Finset.mem_univ b0)
+  · simp only [h, if_false, mul_zero]
+    exact zero_le'
+
+/-- **Independence factorization for a conjunction.** For two independent samplings, the
+probability of `A x ∧ B y` factors as the product of the two marginal probabilities. -/
+theorem Pr_and_indep {α β : Type} (D₁ : PMF α) (D₂ : PMF β) (A : α → Prop) (B : β → Prop) :
+    Pr_{ let x ← D₁; let y ← D₂ }[ A x ∧ B y ]
+      = Pr_{ let x ← D₁ }[ A x ] * Pr_{ let y ← D₂ }[ B y ] := by
+  classical
+  rw [prob_tsum_form_doubleton, prob_tsum_form_singleton, prob_tsum_form_singleton]
+  have hite : ∀ (a : α) (b : β),
+      (if A a ∧ B b then (1 : ENNReal) else 0)
+        = (if A a then 1 else 0) * (if B b then 1 else 0) := by
+    intro a b; by_cases hA : A a <;> by_cases hB : B b <;> simp [hA, hB]
+  simp_rw [hite]
+  rw [ENNReal.tsum_prod']
+  conv_lhs =>
+    enter [1, a, 1, b]
+    rw [show D₁ a * D₂ b * ((if A a then (1 : ENNReal) else 0) * (if B b then 1 else 0))
+          = (D₁ a * (if A a then 1 else 0)) * (D₂ b * (if B b then 1 else 0)) by ring]
+  conv_lhs => enter [1, a]; rw [ENNReal.tsum_mul_left]
+  rw [ENNReal.tsum_mul_right]
+
+/-- **Probability of an i.i.d. conjunction.** Sampling `s` independent uniform elements and asking
+that all of them satisfy `Q` gives the `s`-th power of the single-sample probability. -/
+theorem Pr_forall_eq_pow {C : Type} [Fintype C] [Nonempty C] (s : ℕ) (Q : C → Prop) :
+    Pr_{ let r ←$ᵖ (Fin s → C) }[ ∀ i, Q (r i) ] = (Pr_{ let x ←$ᵖ C }[ Q x ]) ^ s := by
+  classical
+  induction s with
+  | zero =>
+    simp only [pow_zero]
+    rw [prob_tsum_form_singleton]
+    simp only [IsEmpty.forall_iff, if_true, mul_one]
+    exact PMF.tsum_coe _
+  | succ s ih =>
+    have hcongr : Pr_{ let r ←$ᵖ (Fin (s + 1) → C) }[ ∀ i, Q (r i) ]
+        = Pr_{ let r ←$ᵖ (Fin (s + 1) → C) }[
+            (fun (rl : C) (ri : Fin s → C) => Q rl ∧ ∀ i, Q (ri i))
+              (r (Fin.last s)) (fun (i : Fin s) => r i.castSucc) ] := by
+      apply Pr_congr
+      intro r
+      simp only
+      rw [Fin.forall_fin_succ']
+      exact and_comm
+    rw [hcongr, prob_split_last_uniform_sampling_of_finFun
+          (P := fun (rl : C) (ri : Fin s → C) => Q rl ∧ ∀ i, Q (ri i)),
+        Pr_and_indep, ih, pow_succ, mul_comm]
+
 end ProbabilityTools

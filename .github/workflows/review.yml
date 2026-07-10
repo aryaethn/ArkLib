@@ -123,8 +123,8 @@ jobs:
           # Coverage-first budget control: this sizes/trims prompts for large PRs,
           # but advisory mode does not stop later files from being reviewed.
           # Source these from workflow config, never PR content.
-          llm_max_run_tokens: "400000"
-          llm_budget_mode: advisory
+          # llm_max_run_tokens: "400000"
+          # llm_budget_mode: advisory
           # model: omitted → the action's default OpenRouter slug. Set an explicit slug
           # here if you want a specific model for the pilot.
           # lean_tools defaults true (full-quality, compiler-grounded review — trusted
